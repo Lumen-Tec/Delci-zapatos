@@ -3,7 +3,7 @@ import { Account } from '@/app/components/dashboard/AccountsTableWithFilters';
 export const mockStats = {
   inventory: {
     total: 156,
-    description: 'productos en stock',
+    description: 'productos en inventario/bodega',
   },
   pendingAccounts: {
     total: 23,
