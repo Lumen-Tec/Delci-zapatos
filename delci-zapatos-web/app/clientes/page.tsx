@@ -5,23 +5,37 @@ import Image from 'next/image';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { ClientsTable } from '@/app/components/clientes/ClientsTable';
+import { ClientProfileModal } from '@/app/components/clientes/ClientProfileModal';
 import { Footer } from '@/app/components/shared/Footer';
 import { mockClients } from '@/app/lib/mockData';
 import { Button } from '@/app/components/shared/Button';
 import { Plus } from 'lucide-react';
 import { CreateClientModal } from '@/app/components/clientes/CreateClientModal';
+import { Client } from '@/app/components/clientes/ClientsTable';
 
 export default function ClientsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clients, setClients] = useState<Client[]>(mockClients);
 
   const handleViewProfile = (clientId: string) => {
-    console.log(`View profile for client: ${clientId}`);
-    // TODO: Implement profile view navigation
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      setSelectedClient(client);
+    }
   };
 
   const handleClientCreated = (newClient: any) => {
     console.log('New client created:', newClient);
-    // TODO: Refresh client list or add to state
+    // TODO: Add client to state or refresh list
+  };
+
+  const handleClientUpdated = (updatedClient: Client) => {
+    setClients(prevClients => 
+      prevClients.map(client => 
+        client.id === updatedClient.id ? updatedClient : client
+      )
+    );
   };
 
   return (
@@ -64,7 +78,7 @@ export default function ClientsPage() {
 
         {/* Clients Table */}
         <ClientsTable
-          clients={mockClients}
+          clients={clients}
           onViewProfile={handleViewProfile}
           className="mb-6 sm:mb-8"
         />
@@ -72,10 +86,19 @@ export default function ClientsPage() {
 
       <Footer />
 
+      {/* Create Client Modal */}
       <CreateClientModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onClientCreated={handleClientCreated}
+      />
+
+      {/* Client Profile Modal */}
+      <ClientProfileModal
+        isOpen={!!selectedClient}
+        onClose={() => setSelectedClient(null)}
+        client={selectedClient}
+        onClientUpdated={handleClientUpdated}
       />
     </div>
   );
