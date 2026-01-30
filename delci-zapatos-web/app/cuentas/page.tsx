@@ -20,7 +20,7 @@ export default function AccountsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
       <Navbar />
       <NavButton />
 

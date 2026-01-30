@@ -31,15 +31,15 @@ export default function ClientsPage() {
   };
 
   const handleClientUpdated = (updatedClient: Client) => {
-    setClients(prevClients => 
-      prevClients.map(client => 
+    setClients(prevClients =>
+      prevClients.map(client =>
         client.id === updatedClient.id ? updatedClient : client
       )
     );
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
       <Navbar />
       <NavButton />
 
