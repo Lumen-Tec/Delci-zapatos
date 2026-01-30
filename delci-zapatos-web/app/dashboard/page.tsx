@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { WelcomeSection } from '@/app/components/dashboard/WelcomeSection';
@@ -11,6 +12,7 @@ import { Footer } from '@/app/components/shared/Footer';
 import { mockStats, mockAccounts } from '@/app/lib/mockData';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [filters, setFilters] = useState<FilterState>({
     accountId: '',
     client: '',
@@ -28,7 +30,25 @@ export default function Dashboard() {
 
   const handleCardAction = (action: string) => {
     console.log(`Action: ${action}`);
-    // TODO: Implement navigation logic
+    switch (action) {
+      case 'view-clients':
+        router.push('/clientes');
+        break;
+      case 'add-product':
+        // TODO: Navigate to inventory/add
+        console.log('Navigate to add product');
+        break;
+      case 'view-accounts':
+        // TODO: Navigate to accounts
+        console.log('Navigate to accounts');
+        break;
+      case 'view-alerts':
+        // TODO: Navigate to alerts
+        console.log('Navigate to alerts');
+        break;
+      default:
+        console.log('Unknown action:', action);
+    }
   };
 
   const handleViewDetail = (accountId: string) => {
