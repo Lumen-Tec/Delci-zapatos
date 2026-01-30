@@ -17,24 +17,24 @@ export const LogoHeader = React.memo<LogoHeaderProps>(({
   className = '',
 }) => {
   return (
-    <div className={`flex flex-col items-center mb-8 ${className}`}>
+    <div className={`flex flex-col items-center mb-6 sm:mb-8 ${className}`}>
       {logoUrl && (
-        <div className="relative mb-6">
+        <div className="relative mb-4 sm:mb-6">
           <Image
             src={logoUrl}
             alt="Delci Zapatos Logo"
-            width={200}
-            height={200}
-            className="object-contain"
+            width={150}
+            height={150}
+            className="object-contain w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48"
             priority
           />
         </div>
       )}
-      <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 text-center">
         {title}
       </h1>
       {subtitle && (
-        <p className="text-sm text-gray-600 text-center max-w-sm">
+        <p className="text-xs sm:text-sm text-gray-600 text-center max-w-xs sm:max-w-sm">
           {subtitle}
         </p>
       )}

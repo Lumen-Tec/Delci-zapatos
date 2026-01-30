@@ -22,7 +22,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-200 via-pink-300 to-rose-300 px-4 py-12 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-200 via-pink-300 to-rose-300 px-4 py-8 sm:py-12 relative overflow-hidden">
       {/* Figuras geométricas decorativas animadas */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Forma 1: Grande, arriba-izquierda, flotando */}
@@ -54,18 +54,18 @@ export default function AuthPage() {
       </div>
 
       {/* Contenido principal (formulario) */}
-      <div className="relative z-10 w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-10 border border-gray-100">
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 md:p-10 border border-gray-100">
           <LogoHeader 
             subtitle="Ingresa tus credenciales para acceder al sistema"
           />
-          <div className="mt-6">
+          <div className="mt-4 sm:mt-6">
             <LoginForm onSubmit={handleLogin} />
           </div>
         </div>
         
-        <div className="mt-6 text-center">
-          <p className="text-sm text-white/80">
+        <div className="mt-4 sm:mt-6 text-center">
+          <p className="text-xs sm:text-sm text-white/80">
             ¿Necesitas ayuda? Contacta al administrador
           </p>
         </div>

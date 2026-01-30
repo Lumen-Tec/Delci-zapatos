@@ -51,7 +51,7 @@ export const Navbar = React.memo(() => {
     pathname === href || (href === '/dashboard' && pathname === '/');
 
   return (
-    <nav className="relative z-50 w-full bg-gradient-to-br from-pink-200 via-pink-300 to-rose-300 border-b border-rose-200 shadow-sm font-sans">
+    <nav className="sticky top-0 z-50 w-full bg-gradient-to-br from-pink-200/90 via-pink-300/90 to-rose-300/90 backdrop-blur-md border-b border-rose-200/50 shadow-sm font-sans">
       <div className="flex items-center justify-between max-w-7xl mx-auto px-4 py-2">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center shrink-0">
