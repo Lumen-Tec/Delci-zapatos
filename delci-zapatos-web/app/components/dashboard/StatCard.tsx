@@ -67,9 +67,9 @@ export const StatCard = React.memo<StatCardProps>(({
       {/* Button */}
       <Button
         variant={buttonVariant}
-        size="sm"
+        size="lg"
         onClick={onButtonClick}
-        className="w-full"
+        className="w-full font-bold"
       >
         {buttonText}
       </Button>
