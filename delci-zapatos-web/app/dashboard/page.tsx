@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { WelcomeSection } from '@/app/components/dashboard/WelcomeSection';
@@ -58,33 +59,41 @@ export default function Dashboard() {
 
   // Icons for cards - using same icons as navbar
   const inventoryIcon = (
-    <img
+    <Image
       src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/inventario_sdhozi.svg"
       alt="Inventario"
+      width={24}
+      height={24}
       className="w-6 h-6"
     />
   );
 
   const accountsIcon = (
-    <img
+    <Image
       src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg"
       alt="Cuentas"
+      width={24}
+      height={24}
       className="w-6 h-6"
     />
   );
 
   const clientsIcon = (
-    <img
+    <Image
       src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/clientes_t9s3kf.svg"
       alt="Clientes"
+      width={24}
+      height={24}
       className="w-6 h-6"
     />
   );
 
   const alertsIcon = (
-    <img
+    <Image
       src="https://res.cloudinary.com/drec8g03e/image/upload/v1769731416/alert_ur8ndd.svg"
       alt="Alertas"
+      width={24}
+      height={24}
       className="w-6 h-6"
     />
   );

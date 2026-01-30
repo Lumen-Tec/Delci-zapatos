@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { ClientsTable } from '@/app/components/clientes/ClientsTable';
@@ -35,9 +36,11 @@ export default function ClientsPage() {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg">
-                  <img
+                  <Image
                     src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/clientes_t9s3kf.svg"
                     alt="Clientes"
+                    width={24}
+                    height={24}
                     className="w-6 h-6 text-white"
                   />
                 </div>
