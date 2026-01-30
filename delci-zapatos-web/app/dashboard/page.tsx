@@ -74,7 +74,7 @@ export default function Dashboard() {
       <Navbar />
       <NavButton />
 
-      <div className="flex-grow relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full">
+      <div className="flex-grow relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 md:pb-8 w-full">
         {/* Welcome Section */}
         <WelcomeSection />
 
