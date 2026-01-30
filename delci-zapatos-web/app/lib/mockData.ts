@@ -1,4 +1,5 @@
 import { Account } from '@/app/components/dashboard/AccountsTableWithFilters';
+import { Client } from '@/app/components/clientes/ClientsTable';
 
 export const mockStats = {
   inventory: {
@@ -75,5 +76,56 @@ export const mockAccounts: Account[] = [
     productCount: 3,
     totalAmount: 1320.00,
     status: 'paid',
+  },
+];
+
+export const mockClients: Client[] = [
+  {
+    id: '001',
+    name: 'María García',
+    phone: '+506 8888-1234',
+    totalProducts: 3,
+  },
+  {
+    id: '002',
+    name: 'Juan López',
+    phone: '+506 8888-5678',
+    totalProducts: 5,
+  },
+  {
+    id: '003',
+    name: 'Ana Martínez',
+    phone: '+506 8888-9012',
+    totalProducts: 2,
+  },
+  {
+    id: '004',
+    name: 'Carlos Rodríguez',
+    phone: '+506 8888-3456',
+    totalProducts: 4,
+  },
+  {
+    id: '005',
+    name: 'Sofía Hernández',
+    phone: '+506 8888-7890',
+    totalProducts: 1,
+  },
+  {
+    id: '006',
+    name: 'Luis Pérez',
+    phone: '+506 8888-2345',
+    totalProducts: 6,
+  },
+  {
+    id: '007',
+    name: 'Carmen Sánchez',
+    phone: '+506 8888-6789',
+    totalProducts: 2,
+  },
+  {
+    id: '008',
+    name: 'Roberto Díaz',
+    phone: '+506 8888-0123',
+    totalProducts: 3,
   },
 ];

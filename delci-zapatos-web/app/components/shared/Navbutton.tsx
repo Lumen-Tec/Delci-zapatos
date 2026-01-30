@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
   },
   {
     label: 'Clientes',
-    href: '/client',
+    href: '/clientes',
     icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/clientes_t9s3kf.svg'
   },
 ];
