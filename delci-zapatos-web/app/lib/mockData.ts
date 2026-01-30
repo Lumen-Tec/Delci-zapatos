@@ -15,7 +15,7 @@ export const mockStats = {
   },
   paymentAlerts: {
     total: 7,
-    description: 'pagos proximos a vencer',
+    description: 'cuentas con pagos proximos a vencer',
   },
 };
 
