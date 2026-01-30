@@ -24,7 +24,7 @@ const navItems: NavItem[] = [
   },
   {
     label: 'Cuentas',
-    href: '/accounts',
+    href: '/cuentas',
     icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg'
   },
   {

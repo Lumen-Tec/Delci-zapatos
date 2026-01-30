@@ -1,33 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { WelcomeSection } from '@/app/components/dashboard/WelcomeSection';
 import { StatCard } from '@/app/components/dashboard/StatCard';
-import { AccountsTableWithFilters, FilterState } from '@/app/components/dashboard/AccountsTableWithFilters';
+import { DashboardAccountsTable } from '@/app/components/dashboard/DashboardAccountsTable';
 import { SupportPanel } from '@/app/components/dashboard/SupportPanel';
 import { Footer } from '@/app/components/shared/Footer';
 import { mockStats, mockAccounts } from '@/app/lib/mockData';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [filters, setFilters] = useState<FilterState>({
-    accountId: '',
-    client: '',
-    status: 'all',
-  });
-
-  // Filter accounts based on filters
-  const filteredAccounts = mockAccounts.filter(account => {
-    const matchesId = !filters.accountId || account.id.includes(filters.accountId);
-    const matchesClient = !filters.client || account.client.toLowerCase().includes(filters.client.toLowerCase());
-    const matchesStatus = filters.status === 'all' || account.status === filters.status;
-
-    return matchesId && matchesClient && matchesStatus;
-  });
 
   const handleCardAction = (action: string) => {
     console.log(`Action: ${action}`);
@@ -41,7 +27,7 @@ export default function Dashboard() {
         break;
       case 'view-accounts':
         // TODO: Navigate to accounts
-        console.log('Navigate to accounts');
+        router.push('/cuentas');
         break;
       case 'view-alerts':
         // TODO: Navigate to alerts
@@ -152,9 +138,9 @@ export default function Dashboard() {
         </div>
 
         {/* Accounts Table with Filters */}
-        <AccountsTableWithFilters
+        <DashboardAccountsTable
           accounts={mockAccounts}
-          onViewDetail={handleViewDetail}
+          onViewAccount={handleViewDetail}
           className="mb-6 sm:mb-8"
         />
 
