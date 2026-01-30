@@ -13,9 +13,10 @@ interface ClientProfileModalProps {
   onClose: () => void;
   client: Client | null;
   onClientUpdated?: (updatedClient: Client) => void;
+  onViewAccount?: (clientId: string) => void;
 }
 
-export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated }: ClientProfileModalProps) => {
+export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, onViewAccount }: ClientProfileModalProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedClient, setEditedClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,21 +45,27 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated }:
 
   const handleSave = async () => {
     if (!editedClient) return;
-
-    setIsLoading(true);
     
-    // TODO: Implement actual API call here
-    console.log('Updating client:', editedClient);
-
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    if (onClientUpdated) {
-      onClientUpdated(editedClient);
+    setIsLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setEditedClient({ ...editedClient });
+      setIsEditing(false);
+      onClientUpdated?.(editedClient);
+    } catch (error) {
+      console.error('Error saving client:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    setIsLoading(false);
-    setIsEditing(false);
+  const handleViewAccount = () => {
+    if (client && onViewAccount) {
+      onViewAccount(client.id);
+      onClose(); // Cerrar el modal después de navegar
+    }
   };
 
   const InfoField = ({ 
@@ -122,6 +129,16 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated }:
     <Image
       src="https://res.cloudinary.com/drec8g03e/image/upload/v1769808970/productos_dnz8zi.svg"
       alt="Productos"
+      width={20}
+      height={20}
+      className="w-5 h-5"
+    />
+  );
+
+  const AccountIcon = () => (
+    <Image
+      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg"
+      alt="Cuenta"
       width={20}
       height={20}
       className="w-5 h-5"
@@ -254,12 +271,23 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated }:
               />
 
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <ProductsIcon />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">Total de Productos</p>
-                    <p className="text-lg font-bold text-blue-600">{editedClient.totalProducts}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ProductsIcon />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Total de Productos</p>
+                      <p className="text-lg font-bold text-blue-600">{editedClient.totalProducts}</p>
+                    </div>
                   </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleViewAccount}
+                    className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white"
+                  >
+                    <AccountIcon />
+                    Ver Cuenta
+                  </Button>
                 </div>
               </div>
             </>
@@ -283,11 +311,26 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated }:
                 icon={<AddressIcon />}
               />
 
-              <InfoField
-                label="Total de Productos"
-                value={client.totalProducts}
-                icon={<ProductsIcon />}
-              />
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ProductsIcon />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Total de Productos</p>
+                      <p className="text-lg font-bold text-blue-600">{client.totalProducts}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleViewAccount}
+                    className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white"
+                  >
+                    <AccountIcon />
+                    Ver Cuenta
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </div>
