@@ -1,4 +1,4 @@
-import { Account } from '@/app/components/cuentas/AccountsTable';
+import { Account } from '@/app/components/cuentas/FullAccountsTable';
 import { Client } from '@/app/components/clientes/ClientsTable';
 
 export const mockStats = {

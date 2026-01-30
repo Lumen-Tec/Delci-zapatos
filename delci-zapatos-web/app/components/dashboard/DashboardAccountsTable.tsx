@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
-import { Account } from '@/app/components/cuentas/AccountsTable';
+import { Account } from '@/app/components/cuentas/FullAccountsTable';
 
 interface DashboardAccountsTableProps {
   accounts: Account[];
