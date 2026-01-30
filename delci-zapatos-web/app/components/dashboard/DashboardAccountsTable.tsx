@@ -152,27 +152,27 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {/* ID - Hidden on mobile */}
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 ID
               </th>
               {/* Cliente - Always visible */}
-              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Cliente
               </th>
               {/* Productos - Hidden on mobile */}
-              <th className="hidden lg:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <th className="hidden lg:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Productos
               </th>
               {/* Monto Total - Hidden on mobile */}
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Monto Total
               </th>
               {/* Estado - Always visible */}
-              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Estado
               </th>
               {/* Acción - Always visible */}
-              <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Acción
               </th>
             </tr>
@@ -192,7 +192,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
                 {/* Cliente - Always visible, shows more info on mobile */}
                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900">{account.clientName}</span>
+                    <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">{account.clientName}</span>
                     {/* Show ID and amount on mobile as subtitle */}
                     <span className="md:hidden text-xs text-gray-500 mt-0.5">
                       #{account.id} · {formatCurrency(account.totalAmount)}
@@ -219,7 +219,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
                   <button
                     onClick={() => onViewAccount?.(account.id)}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium whitespace-nowrap"
                     title="Ver cuenta"
                   >
                     Ver cuenta
