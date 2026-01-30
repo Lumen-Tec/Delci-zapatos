@@ -12,25 +12,25 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { 
-    label: 'Dashboard', 
-    href: '/dashboard', 
-    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/dashboard_dut33u.svg' 
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/dashboard_dut33u.svg'
   },
-  { 
-    label: 'Inventario', 
-    href: '/inventory', 
-    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/inventario_sdhozi.svg' 
+  {
+    label: 'Inventario',
+    href: '/inventory',
+    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/inventario_sdhozi.svg'
   },
-  { 
-    label: 'Cuentas', 
-    href: '/accounts', 
-    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg' 
+  {
+    label: 'Cuentas',
+    href: '/accounts',
+    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg'
   },
-  { 
-    label: 'Clientes', 
-    href: '/client', 
-    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/clientes_t9s3kf.svg' 
+  {
+    label: 'Clientes',
+    href: '/client',
+    icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/clientes_t9s3kf.svg'
   },
 ];
 
@@ -47,11 +47,16 @@ const NavIcon = ({ src, alt, className }: { src: string; alt: string; className?
 export const NavButton = () => {
   const pathname = usePathname();
 
-  const isActive = (href: string) => 
+  const isActive = (href: string) =>
     pathname === href || (href === '/dashboard' && pathname === '/');
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-pink-200 via-pink-300 to-rose-300 border-t border-rose-200 px-4 py-2 flex justify-around items-center z-50 md:hidden shadow-lg font-sans">
+    <div
+      className="fixed bottom-0 left-0 right-0 bg-gradient-to-br from-pink-200 via-pink-300 to-rose-300 border-t border-rose-200 px-4 py-2 flex justify-around items-center z-50 md:hidden shadow-lg font-sans"
+      style={{
+        paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))',
+      }}
+    >
       {navItems.map((item) => (
         <Link
           key={item.href}
@@ -64,8 +69,8 @@ export const NavButton = () => {
             }
           `}
         >
-          <NavIcon 
-            src={item.icon} 
+          <NavIcon
+            src={item.icon}
             alt={item.label}
             className="w-6 h-6 mb-1"
           />

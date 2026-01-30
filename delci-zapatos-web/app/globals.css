@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Safe area insets para dispositivos con notch (iPhone X+) */
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
 }
 
 @theme inline {
@@ -19,6 +24,52 @@
   }
 }
 
+/* ============================================
+   SAFARI iOS COMPATIBILITY FIXES
+   ============================================ */
+
+/* Soporte para viewport heights dinámicos en Safari iOS */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Prevenir zoom automático en inputs (iOS hace zoom cuando font-size < 16px) */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Prefijo webkit para backdrop-filter (Safari) */
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur {
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.backdrop-blur-md {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Fix para el overflow bouncing en iOS */
+html {
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
   background: #ffffff !important;
   color: var(--foreground);
@@ -27,52 +78,71 @@ body {
   background-repeat: no-repeat !important;
   background-position: center !important;
   background-size: cover !important;
+  /* Prevenir el efecto de rebote en iOS */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Animaciones para las figuras geométricas */
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) rotate(0deg);
   }
+
   33% {
     transform: translateY(-20px) rotate(120deg);
   }
+
   66% {
     transform: translateY(10px) rotate(240deg);
   }
 }
 
 @keyframes float-reverse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) rotate(0deg);
   }
+
   33% {
     transform: translateY(20px) rotate(-120deg);
   }
+
   66% {
     transform: translateY(-10px) rotate(-240deg);
   }
 }
 
 @keyframes float-slow {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px) rotate(0deg);
   }
+
   50% {
     transform: translateY(-15px) translateX(10px) rotate(180deg);
   }
 }
 
 @keyframes float-fast {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) translateX(0px) scale(1);
   }
+
   25% {
     transform: translateY(-30px) translateX(-15px) scale(1.1);
   }
+
   50% {
     transform: translateY(20px) translateX(15px) scale(0.9);
   }
+
   75% {
     transform: translateY(-10px) translateX(-10px) scale(1.05);
   }
@@ -80,16 +150,66 @@ body {
 
 .animate-float {
   animation: float 8s ease-in-out infinite;
+  -webkit-animation: float 8s ease-in-out infinite;
 }
 
 .animate-float-reverse {
   animation: float-reverse 10s ease-in-out infinite;
+  -webkit-animation: float-reverse 10s ease-in-out infinite;
 }
 
 .animate-float-slow {
   animation: float-slow 12s ease-in-out infinite;
+  -webkit-animation: float-slow 12s ease-in-out infinite;
 }
 
 .animate-float-fast {
   animation: float-fast 6s ease-in-out infinite;
+  -webkit-animation: float-fast 6s ease-in-out infinite;
+}
+
+/* ============================================
+   SAFE AREA UTILITIES PARA iOS
+   ============================================ */
+
+/* Clase para min-height que respeta safe areas */
+.min-h-screen-safe {
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+/* Padding bottom para safe areas (navegación móvil) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Padding top para safe areas (status bar) */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Padding lateral para safe areas */
+.px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Margin bottom extra para evitar que el contenido quede debajo de la navegación móvil */
+.mb-nav-mobile {
+  margin-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Fix para el scrollbar en iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Estabilizar el scroll en contenedores */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+  }
 }
