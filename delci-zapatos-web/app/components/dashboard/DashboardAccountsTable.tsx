@@ -78,8 +78,8 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
         </div>
 
         {/* Filters */}
-        <div className="mt-6 flex flex-col lg:flex-row gap-4">
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-3">
             {/* ID Cuenta */}
             <div>
               <label htmlFor="account-id" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
@@ -152,27 +152,27 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {/* ID - Hidden on mobile */}
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <th className="hidden md:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 ID
               </th>
               {/* Cliente - Always visible */}
-              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Cliente
               </th>
               {/* Productos - Hidden on mobile */}
-              <th className="hidden lg:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <th className="hidden lg:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Productos
               </th>
               {/* Monto Total - Hidden on mobile */}
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <th className="hidden md:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Monto Total
               </th>
               {/* Estado - Always visible */}
-              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Estado
               </th>
               {/* Acción - Always visible */}
-              <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Acción
               </th>
             </tr>
@@ -184,15 +184,15 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
                 className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
               >
                 {/* ID - Hidden on mobile */}
-                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-sm font-mono font-medium text-gray-700">
+                <td className="hidden md:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center px-1.5 sm:px-2 py-1 rounded-lg bg-gray-100 text-xs sm:text-sm font-mono font-medium text-gray-700">
                     #{account.id}
                   </span>
                 </td>
                 {/* Cliente - Always visible, shows more info on mobile */}
-                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap">
                   <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">{account.clientName}</span>
+                    <span className="text-xs sm:text-sm font-semibold text-gray-900 truncate max-w-[100px] sm:max-w-[150px] md:max-w-[200px]">{account.clientName}</span>
                     {/* Show ID and amount on mobile as subtitle */}
                     <span className="md:hidden text-xs text-gray-500 mt-0.5">
                       #{account.id} · {formatCurrency(account.totalAmount)}
@@ -200,29 +200,30 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
                   </div>
                 </td>
                 {/* Productos - Hidden on mobile */}
-                <td className="hidden lg:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-700">
+                <td className="hidden lg:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap">
+                  <span className="text-xs sm:text-sm text-gray-700">
                     {account.totalProducts}
                   </span>
                 </td>
                 {/* Monto Total - Hidden on mobile */}
-                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-semibold text-gray-900">
+                <td className="hidden md:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap">
+                  <span className="text-xs sm:text-sm font-semibold text-gray-900">
                     {formatCurrency(account.totalAmount)}
                   </span>
                 </td>
                 {/* Estado - Always visible */}
-                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap">
                   {getStatusBadge(account.status)}
                 </td>
                 {/* Acción - Always visible */}
-                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
+                <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap text-center">
                   <button
                     onClick={() => onViewAccount?.(account.id)}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium whitespace-nowrap"
+                    className="inline-flex items-center justify-center px-1.5 sm:px-2 py-1 sm:py-1.5 md:py-2 rounded-lg text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium whitespace-nowrap"
                     title="Ver cuenta"
                   >
-                    Ver cuenta
+                    <span className="hidden sm:inline">Ver cuenta</span>
+                    <span className="sm:hidden">Ver</span>
                   </button>
                 </td>
               </tr>
