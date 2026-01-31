@@ -39,8 +39,7 @@ export default function Dashboard() {
   };
 
   const handleViewDetail = (accountId: string) => {
-    console.log(`View detail for account: ${accountId}`);
-    // TODO: Implement detail view
+    router.push(`/cuentas/${accountId}`);
   };
 
   // Icons for cards - using same icons as navbar

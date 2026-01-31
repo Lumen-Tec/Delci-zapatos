@@ -26,6 +26,14 @@ import {
 } from '@/app/models/products';
 import { mockProducts } from '@/app/lib/mockData';
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-CR', {
+    style: 'currency',
+    currency: 'CRC',
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
 type Draft = {
   clientId: string;
   biweeklyAmount: number;
@@ -43,14 +51,6 @@ type FilterState = {
 };
 
 const DRAFT_KEY = 'delci_account_draft';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-CR', {
-    style: 'currency',
-    currency: 'CRC',
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
 
 const safeParse = <T,>(raw: string | null): T | null => {
   if (!raw) return null;
@@ -253,6 +253,18 @@ export default function SeleccionarProductosParaCuentaPage() {
     setDraft(next);
   };
 
+  const draftTotals = useMemo(() => {
+    const items = draft?.items ?? [];
+    const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const totalProducts = items.reduce((sum, item) => sum + item.quantity, 0);
+    return { totalAmount, totalProducts };
+  }, [draft]);
+
+  const handleRemoveItem = (itemId: string) => {
+    if (!draft) return;
+    updateDraft({ ...draft, items: draft.items.filter((i) => i.id !== itemId) });
+  };
+
   const handleAddProduct = (product: Product) => {
     if (!draft) return;
 
@@ -445,9 +457,9 @@ export default function SeleccionarProductosParaCuentaPage() {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
-                  <th className="hidden md:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
-                  <th className="hidden lg:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
-                  <th className="hidden xl:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subcategoría</th>
+                  <th className="hidden xl:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
+                  <th className="hidden xl:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
+                  <th className="hidden 2xl:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subcategoría</th>
                   <th className="hidden md:table-cell px-4 sm:px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
                   <th className="px-4 sm:px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Agregar</th>
                 </tr>
@@ -472,48 +484,51 @@ export default function SeleccionarProductosParaCuentaPage() {
                     return (
                       <tr key={product.id} className="hover:bg-pink-50/30 transition-all">
                         <td className="px-4 sm:px-6 py-4">
-                          <div className="text-sm font-semibold text-gray-900">{product.name}</div>
-                          <div className="text-xs text-gray-600 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</div>
-                          {product.category === 'zapatos' ? (
-                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Talla</label>
-                                <select
-                                  value={selectedSize}
-                                  onChange={(e) => setShoeSizeByProductId((prev) => ({ ...prev, [product.id]: e.target.value }))}
-                                  className="w-full pl-3 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400"
-                                >
-                                  <option value="">Seleccionar</option>
-                                  {availableSizesForProduct.map((s) => (
-                                    <option key={String(s.size)} value={String(s.size)}>
-                                      {String(s.size)} ({s.stock})
-                                    </option>
-                                  ))}
-                                </select>
+                          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-900 break-words">{product.name}</div>
+                              <div className="text-xs text-gray-600 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</div>
+                              <div className="text-xs text-gray-600 mt-0.5 xl:hidden">
+                                {product.category} · {product.group}
+                                {'subcategory' in product && product.subcategory ? ` · ${product.subcategory}` : ''}
                               </div>
-                              <div>
-                                <InputField
-                                  label="Cantidad"
+                            </div>
+
+                            <div className="flex flex-wrap items-end gap-2">
+                              {product.category === 'zapatos' ? (
+                                <div className="flex flex-col">
+                                  <label className="text-xs font-medium text-gray-600">Talla</label>
+                                  <select
+                                    value={selectedSize}
+                                    onChange={(e) => setShoeSizeByProductId((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                                    className="w-40 pl-3 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400"
+                                  >
+                                    <option value="">Seleccionar</option>
+                                    {availableSizesForProduct.map((s) => (
+                                      <option key={String(s.size)} value={String(s.size)}>
+                                        {String(s.size)} ({s.stock})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ) : null}
+
+                              <div className="flex flex-col">
+                                <label className="text-xs font-medium text-gray-600">Cantidad</label>
+                                <input
+                                  aria-label="Cantidad"
                                   type="number"
                                   value={qty}
-                                  onChange={(value) => setQuantityByProductId((prev) => ({ ...prev, [product.id]: value }))}
+                                  onChange={(e) => setQuantityByProductId((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                                  className="w-28 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400"
                                 />
                               </div>
                             </div>
-                          ) : (
-                            <div className="mt-2 max-w-[160px]">
-                              <InputField
-                                label="Cantidad"
-                                type="number"
-                                value={qty}
-                                onChange={(value) => setQuantityByProductId((prev) => ({ ...prev, [product.id]: value }))}
-                              />
-                            </div>
-                          )}
+                          </div>
                         </td>
-                        <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700 capitalize">{product.category}</td>
-                        <td className="hidden lg:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700">{product.group}</td>
-                        <td className="hidden xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700">
+                        <td className="hidden xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700 capitalize">{product.category}</td>
+                        <td className="hidden xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700">{product.group}</td>
+                        <td className="hidden 2xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700">
                           {'subcategory' in product && product.subcategory ? product.subcategory : '-'}
                         </td>
                         <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-sm text-gray-700">{formatCurrency(product.price)}</td>
@@ -540,6 +555,75 @@ export default function SeleccionarProductosParaCuentaPage() {
             <div className="text-sm text-gray-600 text-center">
               Mostrando <span className="font-medium text-gray-900">{filteredProducts.length}</span> de{' '}
               <span className="font-medium text-gray-900">{products.length}</span> productos
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Productos agregados</h2>
+              <p className="text-sm text-gray-600 mt-1">{draft?.items.length ?? 0} productos</p>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-gray-600">Total</div>
+              <div className="text-lg font-bold text-gray-900">{formatCurrency(draftTotals.totalAmount)}</div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {!draft || draft.items.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-sm font-semibold text-gray-900">No has agregado productos</div>
+                <div className="text-sm text-gray-600 mt-1">Selecciona talla/cantidad y presiona “Agregar”.</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Cant.</th>
+                      <th className="hidden sm:table-cell px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
+                      <th className="hidden sm:table-cell px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Subtotal</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {draft.items.map((item) => (
+                      <tr key={item.id} className="hover:bg-pink-50/30 transition-all">
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-semibold text-gray-900">{item.name}</div>
+                          <div className="text-xs text-gray-600 mt-0.5">
+                            {item.category === 'zapatos' ? `Talla: ${item.size} · ${item.color}` : item.category}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm text-gray-900">{item.quantity}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-right text-sm text-gray-700">{formatCurrency(item.unitPrice)}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-right text-sm font-semibold text-gray-900">
+                          {formatCurrency(item.unitPrice * item.quantity)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-gray-600 hover:text-white bg-gray-100 hover:bg-gray-600 transition-all duration-200 shadow-sm"
+                            title="Eliminar"
+                          >
+                            Quitar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="text-sm text-gray-600 text-center">
+              Total de unidades: <span className="font-medium text-gray-900">{draftTotals.totalProducts}</span>
             </div>
           </div>
         </div>
