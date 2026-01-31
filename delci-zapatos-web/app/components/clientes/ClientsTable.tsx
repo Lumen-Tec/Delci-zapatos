@@ -1,14 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-
-export interface Client {
-  id: string;
-  name: string;
-  phone: string;
-  address: string;
-  totalProducts: number;
-}
+import type { Client } from '@/app/models/client';
 
 export interface ClientFilterState {
   clientId: string;

@@ -11,7 +11,7 @@ import { mockClients } from '@/app/lib/mockData';
 import { Button } from '@/app/components/shared/Button';
 import { Plus } from 'lucide-react';
 import { CreateClientModal } from '@/app/components/clientes/CreateClientModal';
-import { Client } from '@/app/components/clientes/ClientsTable';
+import type { Client } from '@/app/models/client';
 
 export default function ClientsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

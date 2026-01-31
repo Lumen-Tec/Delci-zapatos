@@ -6,7 +6,7 @@ import { Modal } from '@/app/components/shared/Modal';
 import { InputField } from '@/app/components/shared/InputField';
 import { Button } from '@/app/components/shared/Button';
 import { X } from 'lucide-react';
-import { Client } from './ClientsTable';
+import type { Client } from '@/app/models/client';
 
 interface ClientProfileModalProps {
   isOpen: boolean;

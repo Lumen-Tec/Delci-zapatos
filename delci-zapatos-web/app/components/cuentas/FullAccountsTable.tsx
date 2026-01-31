@@ -4,19 +4,7 @@ import React, { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { Button } from '@/app/components/shared/Button';
 import Image from 'next/image';
-
-export interface Account {
-  id: string;
-  clientId: string;
-  clientName: string;
-  totalAmount: number;
-  totalPaid: number;
-  remainingAmount: number;
-  totalProducts: number;
-  status: 'active' | 'paid' | 'overdue';
-  lastPaymentDate?: string;
-  nextPaymentDate?: string;
-}
+import type { Account } from '@/app/models/account';
 
 export interface AccountFilterState {
   accountId: string;

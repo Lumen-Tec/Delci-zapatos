@@ -1,5 +1,5 @@
-import { Account } from '@/app/components/cuentas/FullAccountsTable';
-import { Client } from '@/app/components/clientes/ClientsTable';
+import type { Account } from '@/app/models/account';
+import type { Client } from '@/app/models/client';
 
 export const mockStats = {
   inventory: {
