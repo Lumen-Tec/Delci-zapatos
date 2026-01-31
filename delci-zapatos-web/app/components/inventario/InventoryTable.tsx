@@ -24,6 +24,7 @@ export interface InventoryFilterState {
   group: string;
   subcategory: string;
   status: ProductStatus | 'all';
+  shoeSize: string;
 }
 
 interface InventoryTableProps {
@@ -91,6 +92,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
     group: 'all',
     subcategory: 'all',
     status: 'all',
+    shoeSize: 'all',
   });
 
   const groups = useMemo(() => getGroupsForCategory(filters.category), [filters.category]);
@@ -121,9 +123,28 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
 
       const matchesStatus = filters.status === 'all' || (product.status ?? 'active') === filters.status;
 
-      return matchesQuery && matchesCategory && matchesGroup && matchesSubcategory && matchesStatus;
+      const matchesShoeSize =
+        filters.shoeSize === 'all' ||
+        (product.category === 'zapatos' && product.sizes.some((s) => s.size === filters.shoeSize && s.stock > 0));
+
+      return matchesQuery && matchesCategory && matchesGroup && matchesSubcategory && matchesStatus && matchesShoeSize;
     });
   }, [products, filters]);
+
+  const availableShoeSizes = useMemo(() => {
+    const sizes = new Set<string>();
+
+    for (const product of products) {
+      if (filters.category !== 'all' && product.category !== filters.category) continue;
+
+      if (product.category !== 'zapatos') continue;
+      for (const variant of product.sizes) {
+        if (variant.stock > 0) sizes.add(String(variant.size));
+      }
+    }
+
+    return Array.from(sizes).sort((a, b) => a.localeCompare(b));
+  }, [products, filters.category]);
 
   const handleFilterChange = (field: keyof InventoryFilterState, value: string) => {
     setFilters((prev) => ({
@@ -138,6 +159,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
       category: value,
       group: 'all',
       subcategory: 'all',
+      shoeSize: 'all',
     }));
   };
 
@@ -171,12 +193,9 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
               <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span>
               Inventario
             </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              <span className="font-medium text-pink-600">{filteredProducts.length}</span> de {products.length} productos encontrados
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1 lg:max-w-4xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 flex-1 lg:max-w-6xl">
             <div>
               <label htmlFor="inventory-query" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
                 Buscar
@@ -261,6 +280,52 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   {subcategories.map((s) => (
                     <option key={s} value={s}>
                       {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="inventory-status" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+                Estado
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                </div>
+                <select
+                  id="inventory-status"
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
+                >
+                  <option value="all">Todos</option>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="inventory-shoe-size" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+                Talla
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                </div>
+                <select
+                  id="inventory-shoe-size"
+                  value={filters.shoeSize}
+                  onChange={(e) => handleFilterChange('shoeSize', e.target.value)}
+                  disabled={filters.category !== 'zapatos'}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm disabled:opacity-50"
+                >
+                  <option value="all">Todas</option>
+                  {availableShoeSizes.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
                     </option>
                   ))}
                 </select>
@@ -398,6 +463,16 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div className="flex flex-col gap-1 text-center">
+          <div className="text-sm font-semibold text-gray-900">Inventario</div>
+          <div className="text-sm text-gray-600">
+            <span className="font-medium text-gray-900">{filteredProducts.length}</span> de{' '}
+            <span className="font-medium text-gray-900">{products.length}</span> productos encontrados
+          </div>
+        </div>
       </div>
     </div>
   );
