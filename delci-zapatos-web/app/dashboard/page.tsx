@@ -23,7 +23,7 @@ export default function Dashboard() {
         break;
       case 'add-product':
         // TODO: Navigate to inventory/add
-        console.log('Navigate to add product');
+        router.push('/inventario');
         break;
       case 'view-accounts':
         // TODO: Navigate to accounts
@@ -31,7 +31,7 @@ export default function Dashboard() {
         break;
       case 'view-alerts':
         // TODO: Navigate to alerts
-        console.log('Navigate to alerts');
+        router.push('/cuentas');
         break;
       default:
         console.log('Unknown action:', action);
@@ -100,7 +100,7 @@ export default function Dashboard() {
             value={mockStats.inventory.total}
             description={mockStats.inventory.description}
             icon={inventoryIcon}
-            buttonText="Agregar producto"
+            buttonText="Ver inventario"
             color="blue"
             onButtonClick={() => handleCardAction('add-product')}
           />

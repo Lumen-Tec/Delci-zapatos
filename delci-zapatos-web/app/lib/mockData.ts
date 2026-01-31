@@ -1,5 +1,6 @@
 import type { Account } from '@/app/models/account';
 import type { Client } from '@/app/models/client';
+import type { Product } from '@/app/models/products';
 
 export const mockStats = {
   inventory: {
@@ -175,5 +176,62 @@ export const mockClients: Client[] = [
     phone: '+506 8888-0123',
     address: 'San José, Costa Rica, Escazú centro',
     totalProducts: 3,
+  },
+];
+
+export const mockProducts: Product[] = [
+  {
+    id: 'P001',
+    sku: 'ZAP-SAN-NEG-001',
+    name: 'Sandalia cuña (Negro)',
+    price: 24500,
+    category: 'zapatos',
+    group: 'Sandalias',
+    subcategory: 'Sandalia cuña',
+    color: 'Negro',
+    sizes: [
+      { size: '36', stock: 2 },
+      { size: '37', stock: 5 },
+      { size: '38', stock: 1 },
+    ],
+    status: 'active',
+  },
+  {
+    id: 'P002',
+    sku: 'ZAP-TEN-BLA-002',
+    name: 'Tenis casual (Blanco)',
+    price: 32000,
+    category: 'zapatos',
+    group: 'Tenis',
+    subcategory: 'Tenis casuales',
+    color: 'Blanco',
+    sizes: [
+      { size: '35', stock: 1 },
+      { size: '36', stock: 0 },
+      { size: '37', stock: 3 },
+      { size: '38', stock: 2 },
+    ],
+    status: 'active',
+  },
+  {
+    id: 'P003',
+    sku: 'BOL-HOM-001',
+    name: 'Bolso de hombro (Café)',
+    price: 18500,
+    category: 'bolsos',
+    group: 'Bolsos de mano y hombro',
+    subcategory: 'Bolso de hombro',
+    stock: 7,
+    status: 'active',
+  },
+  {
+    id: 'P004',
+    sku: 'BOL-ESP-001',
+    name: 'Bolso de fiesta (Dorado)',
+    price: 22000,
+    category: 'bolsos',
+    group: 'Bolsos para ocasiones especiales',
+    stock: 4,
+    status: 'active',
   },
 ];

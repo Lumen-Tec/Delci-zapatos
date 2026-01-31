@@ -47,7 +47,8 @@ export const SANDALIA_SUBCATEGORIES = [
 export type SandaliaSubcategory = (typeof SANDALIA_SUBCATEGORIES)[number];
 
 export const BOTA_SUBCATEGORIES = [
-  'Bota baja / bota tacón alto',
+  'Bota baja',
+  'Bota tacón alto',
 ] as const;
 export type BotaSubcategory = (typeof BOTA_SUBCATEGORIES)[number];
 

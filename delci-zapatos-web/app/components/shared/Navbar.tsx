@@ -19,7 +19,7 @@ const navItems: NavItem[] = [
   },
   { 
     label: 'Inventario', 
-    href: '/inventory', 
+    href: '/inventario', 
     icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/inventario_sdhozi.svg' 
   },
   { 
