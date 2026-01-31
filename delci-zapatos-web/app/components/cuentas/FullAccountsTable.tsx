@@ -15,10 +15,11 @@ export interface AccountFilterState {
 interface FullAccountsTableProps {
   accounts: Account[];
   onViewAccount?: (accountId: string) => void;
+  onCreateAccount?: () => void;
   className?: string;
 }
 
-export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: FullAccountsTableProps) => {
+export const FullAccountsTable = ({ accounts, onViewAccount, onCreateAccount, className = '' }: FullAccountsTableProps) => {
   const [filters, setFilters] = useState<AccountFilterState>({
     accountId: '',
     clientName: '',
@@ -77,7 +78,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
           <Button
             variant="primary"
             size="md"
-            onClick={() => console.log('Create account clicked')}
+            onClick={() => onCreateAccount?.()}
           >
             Crear Cuenta
           </Button>

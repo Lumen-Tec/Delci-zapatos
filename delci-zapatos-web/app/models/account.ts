@@ -23,10 +23,17 @@ export type BagAccountItem = AccountItemBase &
 
 export type AccountItem = ShoeAccountItem | BagAccountItem;
 
+export type AccountPayment = {
+  id: string;
+  date: string;
+  amount: number;
+};
+
 export interface Account {
   id: string;
   clientId: string;
   clientName: string;
+  createdAt?: string;
   totalAmount: number;
   totalPaid: number;
   remainingAmount: number;
@@ -35,4 +42,6 @@ export interface Account {
   status: 'active' | 'paid' | 'overdue';
   lastPaymentDate?: string;
   nextPaymentDate?: string;
+  biweeklyAmount?: number;
+  payments?: AccountPayment[];
 }

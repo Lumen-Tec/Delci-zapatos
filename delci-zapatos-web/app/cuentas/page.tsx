@@ -1,22 +1,46 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { FullAccountsTable } from '@/app/components/cuentas/FullAccountsTable';
 import { Footer } from '@/app/components/shared/Footer';
 import { mockAccounts } from '@/app/lib/mockData';
+import type { Account } from '@/app/models/account';
 
 export default function AccountsPage() {
+  const router = useRouter();
+  const [accounts, setAccounts] = useState<Account[]>(mockAccounts);
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem('delci_accounts');
+    if (!raw) {
+      window.localStorage.setItem('delci_accounts', JSON.stringify(mockAccounts));
+      setAccounts(mockAccounts);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Account[];
+      setAccounts(parsed);
+    } catch {
+      window.localStorage.setItem('delci_accounts', JSON.stringify(mockAccounts));
+      setAccounts(mockAccounts);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('delci_accounts', JSON.stringify(accounts));
+  }, [accounts]);
+
   const handleViewAccount = (accountId: string) => {
-    console.log(`View account: ${accountId}`);
-    // TODO: Implement account detail view
+    router.push(`/cuentas/${accountId}`);
   };
 
   const handleCreateAccount = () => {
-    console.log('Create account clicked');
-    // TODO: Implement create account modal
+    router.push('/cuentas/nueva');
   };
 
   return (
@@ -46,8 +70,9 @@ export default function AccountsPage() {
 
         {/* Accounts Table */}
         <FullAccountsTable
-          accounts={mockAccounts}
+          accounts={accounts}
           onViewAccount={handleViewAccount}
+          onCreateAccount={handleCreateAccount}
           className="mb-6 sm:mb-8"
         />
       </div>
