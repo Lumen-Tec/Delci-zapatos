@@ -9,6 +9,7 @@ import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
+import { ClientAutocomplete } from '@/app/components/shared/ClientAutocomplete';
 import { mockClients } from '@/app/lib/mockData';
 import type { Client } from '@/app/models/client';
 import type { Account, AccountItem } from '@/app/models/account';
@@ -56,7 +57,6 @@ const safeParse = <T,>(raw: string | null): T | null => {
 export default function NuevaCuentaPage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>(mockClients);
-  const [clientQuery, setClientQuery] = useState('');
   const [draft, setDraft] = useState<AccountDraft>({
     clientId: mockClients[0]?.id ?? '',
     biweeklyAmount: 0,
@@ -79,17 +79,6 @@ export default function NuevaCuentaPage() {
   }, [draft]);
 
   const selectedClient = useMemo(() => clients.find((c) => c.id === draft.clientId) ?? null, [clients, draft.clientId]);
-
-  const filteredClients = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase();
-    const base = !q ? clients : clients.filter((c) => c.name.toLowerCase().includes(q));
-
-    if (selectedClient && !base.some((c) => c.id === selectedClient.id)) {
-      return [selectedClient, ...base];
-    }
-
-    return base;
-  }, [clients, clientQuery, selectedClient]);
 
   const { totalAmount, totalProducts } = useMemo(() => computeTotalsFromItems(draft.items), [draft.items]);
 
@@ -205,27 +194,15 @@ export default function NuevaCuentaPage() {
                 <h2 className="text-lg font-bold text-gray-900">Cliente</h2>
               </div>
               <div className="p-6 space-y-4">
-                <InputField
-                  label="Buscar cliente"
-                  value={clientQuery}
-                  onChange={setClientQuery}
-                  placeholder="Escribe un nombre..."
+                <ClientAutocomplete
+                  clients={clients}
+                  value={draft.clientId}
+                  onChange={(clientId) => setDraft((prev) => ({ ...prev, clientId }))}
+                  label="Cliente"
+                  placeholder="Buscar por nombre, teléfono o dirección..."
+                  required
+                  autoFocus
                 />
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Cliente</label>
-                  <select
-                    value={draft.clientId}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, clientId: e.target.value }))}
-                    className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
-                  >
-                    {filteredClients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
                 {selectedClient ? (
                   <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">

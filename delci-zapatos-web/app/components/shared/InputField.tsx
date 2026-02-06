@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 
 interface InputFieldProps {
   id?: string;
@@ -33,7 +33,8 @@ export const InputField = React.memo<InputFieldProps>(({
   icon,
   size = 'md',
 }) => {
-  const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const inputId = id || generatedId;
   const hasError = !!error;
 
   const baseInputStyles = 'w-full rounded-lg border bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-400';
