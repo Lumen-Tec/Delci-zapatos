@@ -25,6 +25,7 @@ import {
   TENIS_SUBCATEGORIES,
 } from '@/app/models/products';
 import { mockProducts } from '@/app/lib/mockData';
+import { getEffectivePrice, getRemainingOfferDays, getSizeEffectivePrice, isSizeOfferActive, getSizeRemainingDays } from '@/app/lib/discountUtils';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-CR', {
@@ -117,13 +118,19 @@ const createShoeAccountItem = (
   selectedSize: string,
   quantity: number
 ): AccountItem => {
+  const sizeVariant = product.sizes.find((s) => String(s.size) === selectedSize);
+  const { effectivePrice, hasDiscount, discountPercentage } = sizeVariant
+    ? getSizeEffectivePrice(product.price, sizeVariant)
+    : { effectivePrice: product.price, hasDiscount: false, discountPercentage: 0 };
+
   const base = {
     id: makeItemId(),
     productId: product.id,
     sku: product.sku,
     name: product.name,
     quantity,
-    unitPrice: product.price,
+    unitPrice: effectivePrice,
+    ...(hasDiscount ? { originalPrice: product.price, discountPercentage } : {}),
     category: 'zapatos' as const,
     color: product.color,
     size: selectedSize,
@@ -306,13 +313,16 @@ export default function SeleccionarProductosParaCuentaPage() {
       return;
     }
 
+    const { effectivePrice: bagPrice, hasDiscount: bagHasDiscount, discountPercentage: bagDiscount } = getEffectivePrice(product);
+
     const bagItem: AccountItem = {
       id: makeItemId(),
       productId: product.id,
       sku: product.sku,
       name: product.name,
       quantity,
-      unitPrice: product.price,
+      unitPrice: bagPrice,
+      ...(bagHasDiscount ? { originalPrice: product.price, discountPercentage: bagDiscount } : {}),
       category: 'bolsos',
       group: product.group,
       ...('subcategory' in product && product.subcategory ? { subcategory: product.subcategory } : {}),
@@ -481,12 +491,49 @@ export default function SeleccionarProductosParaCuentaPage() {
                     const canAddShoe =
                       product.category !== 'zapatos' || availableSizesForProduct.some((s) => String(s.size) === String(selectedSize));
 
+                    // For shoes: show discount based on selected size
+                    // For bags: show product-level discount
+                    let effectivePrice = product.price;
+                    let hasDiscount = false;
+                    let dp = 0;
+                    let remainingDays: number | null = null;
+
+                    if (product.category === 'zapatos') {
+                      const selectedSizeVariant = product.sizes.find((s) => String(s.size) === selectedSize);
+                      if (selectedSizeVariant) {
+                        const sizeInfo = getSizeEffectivePrice(product.price, selectedSizeVariant);
+                        effectivePrice = sizeInfo.effectivePrice;
+                        hasDiscount = sizeInfo.hasDiscount;
+                        dp = sizeInfo.discountPercentage;
+                        remainingDays = getSizeRemainingDays(selectedSizeVariant);
+                      } else {
+                        // No size selected, check if any size has discount
+                        const anySizeDiscount = product.sizes.some((s) => isSizeOfferActive(s));
+                        if (anySizeDiscount) {
+                          hasDiscount = true;
+                        }
+                      }
+                    } else {
+                      const bagInfo = getEffectivePrice(product);
+                      effectivePrice = bagInfo.effectivePrice;
+                      hasDiscount = bagInfo.hasDiscount;
+                      dp = bagInfo.discountPercentage;
+                      remainingDays = getRemainingOfferDays(product);
+                    }
+
                     return (
                       <tr key={product.id} className="hover:bg-pink-50/30 transition-all">
                         <td className="px-4 sm:px-6 py-4">
                           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 break-words">{product.name}</div>
+                              <div className="text-sm font-semibold text-gray-900 break-words">
+                                {product.name}
+                                {hasDiscount && (
+                                  <span className="ml-2 inline-block px-1.5 py-0.5 bg-rose-100 text-rose-600 text-xs font-medium rounded-full">
+                                    Oferta
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-gray-600 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</div>
                               <div className="text-xs text-gray-600 mt-0.5 xl:hidden">
                                 {product.category} · {product.group}
@@ -506,7 +553,7 @@ export default function SeleccionarProductosParaCuentaPage() {
                                     <option value="">Seleccionar</option>
                                     {availableSizesForProduct.map((s) => (
                                       <option key={String(s.size)} value={String(s.size)}>
-                                        {String(s.size)} ({s.stock})
+                                        {String(s.size)} ({s.stock}){isSizeOfferActive(s) ? ` -${s.discountPercentage}%` : ''}
                                       </option>
                                     ))}
                                   </select>
@@ -531,7 +578,24 @@ export default function SeleccionarProductosParaCuentaPage() {
                         <td className="hidden 2xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700">
                           {'subcategory' in product && product.subcategory ? product.subcategory : '-'}
                         </td>
-                        <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-sm text-gray-700">{formatCurrency(product.price)}</td>
+                        <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-sm">
+                          {hasDiscount ? (
+                            <div>
+                              <span className="line-through text-gray-400 text-xs">{formatCurrency(product.price)}</span>
+                              <div className="text-rose-600 font-semibold">{formatCurrency(effectivePrice)}</div>
+                              <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs font-medium rounded-full">
+                                -{dp}%
+                              </span>
+                              {remainingDays !== null && (
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {remainingDays === 0 ? 'Ultimo dia' : `${remainingDays} dia${remainingDays > 1 ? 's' : ''}`}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-700">{formatCurrency(product.price)}</span>
+                          )}
+                        </td>
                         <td className="px-4 sm:px-6 py-4 text-center">
                           <Button
                             variant="primary"
@@ -599,7 +663,16 @@ export default function SeleccionarProductosParaCuentaPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-gray-900">{item.quantity}</td>
-                        <td className="hidden sm:table-cell px-4 py-3 text-right text-sm text-gray-700">{formatCurrency(item.unitPrice)}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-right text-sm text-gray-700">
+                          {item.originalPrice && item.discountPercentage ? (
+                            <div>
+                              <span className="line-through text-gray-400 text-xs">{formatCurrency(item.originalPrice)}</span>
+                              <div className="text-rose-600 font-semibold">{formatCurrency(item.unitPrice)}</div>
+                            </div>
+                          ) : (
+                            formatCurrency(item.unitPrice)
+                          )}
+                        </td>
                         <td className="hidden sm:table-cell px-4 py-3 text-right text-sm font-semibold text-gray-900">
                           {formatCurrency(item.unitPrice * item.quantity)}
                         </td>

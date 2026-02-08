@@ -9,14 +9,11 @@ import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InventoryTable } from '@/app/components/inventario/InventoryTable';
-import { ProductDetailModal } from '@/app/components/inventario/ProductDetailModal';
 import { mockProducts } from '@/app/lib/mockData';
 import type { Product } from '@/app/models/products';
 
 export default function InventarioPage() {
   const router = useRouter();
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>(mockProducts);
 
   useEffect(() => {
@@ -40,18 +37,8 @@ export default function InventarioPage() {
     window.localStorage.setItem('delci_products', JSON.stringify(products));
   }, [products]);
 
-  const handleProductCreated = (product: Product) => {
-    setProducts((prev) => [product, ...prev]);
-  };
-
   const handleViewProduct = (product: Product) => {
-    setSelectedProduct(product);
-    setIsDetailModalOpen(true);
-  };
-
-  const handleProductUpdated = (updatedProduct: Product) => {
-    setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
-    setSelectedProduct(updatedProduct);
+    router.push(`/inventario/${product.id}/editar`);
   };
 
   return (
@@ -93,16 +80,6 @@ export default function InventarioPage() {
       </div>
 
       <Footer />
-
-      <ProductDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedProduct(null);
-        }}
-        product={selectedProduct}
-        onProductUpdated={handleProductUpdated}
-      />
     </div>
   );
 }

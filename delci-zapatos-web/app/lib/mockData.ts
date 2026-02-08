@@ -190,9 +190,9 @@ export const mockProducts: Product[] = [
     subcategory: 'Sandalia cuña',
     color: 'Negro',
     sizes: [
-      { size: '36', stock: 2 },
+      { size: '36', stock: 2, discountPercentage: 20, offerDurationDays: 10, offerStartDate: '2026-02-05' },
       { size: '37', stock: 5 },
-      { size: '38', stock: 1 },
+      { size: '38', stock: 1, discountPercentage: 15, offerDurationDays: 7, offerStartDate: '2026-02-06' },
     ],
     status: 'active',
   },
@@ -223,6 +223,9 @@ export const mockProducts: Product[] = [
     subcategory: 'Bolso de hombro',
     stock: 7,
     status: 'active',
+    discountPercentage: 15,
+    offerDurationDays: 7,
+    offerStartDate: '2026-02-06',
   },
   {
     id: 'P004',

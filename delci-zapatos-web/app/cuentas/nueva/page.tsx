@@ -58,7 +58,7 @@ export default function NuevaCuentaPage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>(mockClients);
   const [draft, setDraft] = useState<AccountDraft>({
-    clientId: mockClients[0]?.id ?? '',
+    clientId: '',
     biweeklyAmount: 0,
     nextPaymentDate: addDaysISO(todayISO(), 15),
     items: [],
@@ -201,7 +201,6 @@ export default function NuevaCuentaPage() {
                   label="Cliente"
                   placeholder="Buscar por nombre, teléfono o dirección..."
                   required
-                  autoFocus
                 />
 
                 {selectedClient ? (
@@ -286,7 +285,17 @@ export default function NuevaCuentaPage() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right text-sm text-gray-900">{item.quantity}</td>
-                            <td className="hidden sm:table-cell px-4 py-3 text-right text-sm text-gray-700">{formatCurrency(item.unitPrice)}</td>
+                            <td className="hidden sm:table-cell px-4 py-3 text-right text-sm text-gray-700">
+                              {item.originalPrice && item.discountPercentage ? (
+                                <div>
+                                  <span className="line-through text-gray-400 text-xs">{formatCurrency(item.originalPrice)}</span>
+                                  <div className="text-rose-600 font-semibold">{formatCurrency(item.unitPrice)}</div>
+                                  <span className="text-xs text-rose-500">-{item.discountPercentage}%</span>
+                                </div>
+                              ) : (
+                                formatCurrency(item.unitPrice)
+                              )}
+                            </td>
                             <td className="hidden sm:table-cell px-4 py-3 text-right text-sm font-semibold text-gray-900">
                               {formatCurrency(item.unitPrice * item.quantity)}
                             </td>

@@ -17,6 +17,7 @@ import {
   TENIS_SUBCATEGORIES,
 } from '@/app/models/products';
 import { getProductTotalStock } from '@/app/models/inventory';
+import { isOfferActive, getEffectivePrice, getRemainingOfferDays, productHasActiveDiscount, isSizeOfferActive, getSizeEffectivePrice, getSizeRemainingDays } from '@/app/lib/discountUtils';
 
 export interface InventoryFilterState {
   query: string;
@@ -26,6 +27,8 @@ export interface InventoryFilterState {
   status: ProductStatus | 'all';
   shoeSize: string;
 }
+
+type InventoryTab = 'todos' | 'descuento' | 'activos';
 
 interface InventoryTableProps {
   products: Product[];
@@ -85,7 +88,14 @@ const getSubcategoriesFor = (category: InventoryFilterState['category'], group: 
   return [];
 };
 
+const TABS: { key: InventoryTab; label: string }[] = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'descuento', label: 'Con descuento' },
+  { key: 'activos', label: 'Activos' },
+];
+
 export const InventoryTable = React.memo<InventoryTableProps>(({ products, onViewProduct, className = '' }) => {
+  const [activeTab, setActiveTab] = useState<InventoryTab>('todos');
   const [filters, setFilters] = useState<InventoryFilterState>({
     query: '',
     category: 'all',
@@ -101,10 +111,19 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
     [filters.category, filters.group]
   );
 
+  const tabCounts = useMemo(() => {
+    const discountCount = products.filter((p) => productHasActiveDiscount(p)).length;
+    const activeCount = products.filter((p) => (p.status ?? 'active') === 'active').length;
+    return { todos: products.length, descuento: discountCount, activos: activeCount };
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
 
     return products.filter((product) => {
+      if (activeTab === 'descuento' && !productHasActiveDiscount(product)) return false;
+      if (activeTab === 'activos' && (product.status ?? 'active') !== 'active') return false;
+
       const matchesQuery =
         !q ||
         product.name.toLowerCase().includes(q) ||
@@ -129,7 +148,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
 
       return matchesQuery && matchesCategory && matchesGroup && matchesSubcategory && matchesStatus && matchesShoeSize;
     });
-  }, [products, filters]);
+  }, [products, filters, activeTab]);
 
   const availableShoeSizes = useMemo(() => {
     const sizes = new Set<string>();
@@ -184,18 +203,279 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
       .join(', ');
   };
 
+  const renderAllTable = () => (
+    <>
+      <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
+        <tr>
+          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
+          <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
+          <th className="hidden xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
+          <th className="hidden xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
+          <th className="hidden 2xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subcategoría</th>
+          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
+          <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
+          <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-50">
+        {filteredProducts.length === 0 ? (
+          <tr>
+            <td colSpan={8} className="px-4 sm:px-6 py-16 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center mb-4 shadow-sm">
+                <Search className="w-8 h-8 text-pink-400" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 mb-2">No hay productos</h3>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto">No se encontraron productos con los filtros seleccionados.</p>
+            </td>
+          </tr>
+        ) : (
+          filteredProducts.map((product, index) => {
+            const totalStock = getProductTotalStock(product);
+            const sizesLabel = getShoeSizesLabel(product);
+            const subtitleParts: string[] = [];
+
+            if (product.category === 'zapatos') subtitleParts.push(product.color);
+            subtitleParts.push(product.group);
+            if ('subcategory' in product && product.subcategory) subtitleParts.push(product.subcategory);
+            if (product.category === 'zapatos' && sizesLabel !== '-') subtitleParts.push(`Tallas: ${sizesLabel}`);
+
+            return (
+              <tr key={product.id} className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-sm font-mono font-medium text-gray-700">#{product.id}</span>
+                </td>
+                <td className="px-4 sm:px-6 py-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
+                    <span className="text-xs text-gray-500 mt-0.5 md:hidden">#{product.id} · {subtitleParts.join(' · ')}</span>
+                    <span className="hidden md:inline text-xs text-gray-500 mt-0.5">{subtitleParts.join(' · ')}</span>
+                  </div>
+                </td>
+                <td className="hidden xl:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
+                <td className="hidden xl:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700">{product.group}</span></td>
+                <td className="hidden 2xl:table-cell px-3 sm:px-4 py-4">
+                  {'subcategory' in product && product.subcategory ? <span className="text-sm text-gray-700">{product.subcategory}</span> : <span className="text-sm text-gray-400">-</span>}
+                </td>
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap"><span className="text-sm text-gray-700">{formatCurrency(product.price)}</span></td>
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">{totalStock}</span>
+                </td>
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
+                  <button onClick={() => onViewProduct?.(product)} className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium" title="Ver / Editar">
+                    <Eye className="w-4 h-4 mr-1.5" />Ver
+                  </button>
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </>
+  );
+
+  const renderDiscountTable = () => (
+    <>
+      <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
+        <tr>
+          <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
+          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Detalle descuento</th>
+          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
+          <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-50">
+        {filteredProducts.length === 0 ? (
+          <tr>
+            <td colSpan={4} className="px-4 sm:px-6 py-16 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center mb-4 shadow-sm">
+                <Search className="w-8 h-8 text-pink-400" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 mb-2">Sin ofertas activas</h3>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto">No hay productos con descuento activo actualmente.</p>
+            </td>
+          </tr>
+        ) : (
+          filteredProducts.map((product, index) => {
+            const totalStock = getProductTotalStock(product);
+
+            if (product.category === 'zapatos') {
+              const discountedSizes = product.sizes.filter((s) => isSizeOfferActive(s));
+              return (
+                <tr key={product.id} className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                  <td className="px-4 sm:px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
+                      <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                    </div>
+                  </td>
+                  <td className="hidden md:table-cell px-4 sm:px-6 py-4">
+                    <div className="space-y-1">
+                      {discountedSizes.map((s) => {
+                        const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
+                        const remaining = getSizeRemainingDays(s);
+                        return (
+                          <div key={String(s.size)} className="flex items-center gap-2 text-xs">
+                            <span className="font-medium text-gray-700">T.{s.size}</span>
+                            <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                            <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{dp}%</span>
+                            <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                            {remaining !== null && (
+                              <span className={`${remaining <= 2 ? 'text-red-600' : 'text-gray-500'}`}>
+                                {remaining === 0 ? 'Ultimo dia' : `${remaining}d`}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </td>
+                  <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">{totalStock}</span>
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
+                    <button onClick={() => onViewProduct?.(product)} className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium" title="Ver / Editar">
+                      <Eye className="w-4 h-4 mr-1.5" />Ver
+                    </button>
+                  </td>
+                </tr>
+              );
+            }
+
+            // Bag product - product-level discount
+            const { effectivePrice, discountPercentage } = getEffectivePrice(product);
+            const remaining = getRemainingOfferDays(product);
+
+            return (
+              <tr key={product.id} className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                <td className="px-4 sm:px-6 py-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
+                    <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                  </div>
+                </td>
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                    <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{discountPercentage}%</span>
+                    <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                    {remaining !== null && (
+                      <span className={`${remaining <= 2 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {remaining === 0 ? 'Ultimo dia' : `${remaining}d`}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">{totalStock}</span>
+                </td>
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
+                  <button onClick={() => onViewProduct?.(product)} className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium" title="Ver / Editar">
+                    <Eye className="w-4 h-4 mr-1.5" />Ver
+                  </button>
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </>
+  );
+
+  const renderActiveTable = () => (
+    <>
+      <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
+        <tr>
+          <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
+          <th className="hidden md:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
+          <th className="hidden lg:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
+          <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
+          <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
+          <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-50">
+        {filteredProducts.length === 0 ? (
+          <tr>
+            <td colSpan={6} className="px-4 sm:px-6 py-16 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center mb-4 shadow-sm">
+                <Search className="w-8 h-8 text-pink-400" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 mb-2">Sin productos activos</h3>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto">No hay productos activos con los filtros seleccionados.</p>
+            </td>
+          </tr>
+        ) : (
+          filteredProducts.map((product, index) => {
+            const totalStock = getProductTotalStock(product);
+            const hasDiscount = productHasActiveDiscount(product);
+
+            return (
+              <tr key={product.id} className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                <td className="px-4 sm:px-6 py-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-900 break-words">
+                      {product.name}
+                      {hasDiscount && (
+                        <span className="ml-2 inline-block px-1.5 py-0.5 bg-rose-100 text-rose-600 text-xs font-medium rounded-full">Oferta</span>
+                      )}
+                    </span>
+                    <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                  </div>
+                </td>
+                <td className="hidden md:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
+                <td className="hidden lg:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700">{product.group}</span></td>
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                  <span className="text-sm text-gray-700">{formatCurrency(product.price)}</span>
+                </td>
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">{totalStock}</span>
+                </td>
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
+                  <button onClick={() => onViewProduct?.(product)} className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium" title="Ver / Editar">
+                    <Eye className="w-4 h-4 mr-1.5" />Ver
+                  </button>
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </>
+  );
+
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden ${className}`}>
       <div className="px-4 sm:px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-pink-50/50 via-white to-rose-50/50">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span>
               Inventario
             </h3>
+
+            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                    activeTab === tab.key
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs rounded-full ${
+                    activeTab === tab.key ? 'bg-pink-100 text-pink-700' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {tabCounts[tab.key]}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 flex-1 lg:max-w-6xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <div>
               <label htmlFor="inventory-query" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
                 Buscar
@@ -253,9 +533,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 >
                   <option value="all">Todos</option>
                   {groups.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
+                    <option key={g} value={g}>{g}</option>
                   ))}
                 </select>
               </div>
@@ -278,9 +556,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 >
                   <option value="all">Todas</option>
                   {subcategories.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
+                    <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
@@ -324,9 +600,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 >
                   <option value="all">Todas</option>
                   {availableShoeSizes.map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
+                    <option key={size} value={size}>{size}</option>
                   ))}
                 </select>
               </div>
@@ -334,134 +608,12 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
           </div>
         </div>
       </div>
-  
+
       <div className="overflow-x-auto lg:overflow-x-visible">
         <table className="w-full">
-          <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
-            <tr>
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                ID
-              </th>
-              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Producto
-              </th>
-              <th className="hidden xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Categoría
-              </th>
-              <th className="hidden xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Grupo
-              </th>
-              <th className="hidden 2xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Subcategoría
-              </th>
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Precio
-              </th>
-              <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Stock
-              </th>
-              <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Acción
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-50">
-            {filteredProducts.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 sm:px-6 py-16 text-center">
-                  <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center mb-4 shadow-sm">
-                    <Search className="w-8 h-8 text-pink-400" />
-                  </div>
-                  <h3 className="text-base font-semibold text-gray-900 mb-2">No hay productos</h3>
-                  <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                    No se encontraron productos con los filtros seleccionados. Intenta ajustar tus criterios.
-                  </p>
-                </td>
-              </tr>
-            ) : (
-              filteredProducts.map((product, index) => {
-                const totalStock = getProductTotalStock(product);
-                const sizesLabel = getShoeSizesLabel(product);
-                const subtitleParts: string[] = [];
-
-                if (product.category === 'zapatos') {
-                  subtitleParts.push(product.color);
-                }
-
-                subtitleParts.push(product.group);
-
-                if ('subcategory' in product && product.subcategory) {
-                  subtitleParts.push(product.subcategory);
-                }
-
-                if (product.category === 'zapatos' && sizesLabel !== '-') {
-                  subtitleParts.push(`Tallas: ${sizesLabel}`);
-                }
-
-                return (
-                  <tr
-                    key={product.id}
-                    className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                  >
-                    <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-sm font-mono font-medium text-gray-700">
-                        #{product.id}
-                      </span>
-                    </td>
-
-                    <td className="px-4 sm:px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
-                        <span className="text-xs text-gray-500 mt-0.5 md:hidden">
-                          #{product.id} · {subtitleParts.join(' · ')}
-                        </span>
-                        <span className="hidden md:inline text-xs text-gray-500 mt-0.5">
-                          {subtitleParts.join(' · ')}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="hidden xl:table-cell px-3 sm:px-4 py-4">
-                      <span className="text-sm text-gray-700 capitalize">{product.category}</span>
-                    </td>
-
-                    <td className="hidden xl:table-cell px-3 sm:px-4 py-4">
-                      <span className="text-sm text-gray-700">{product.group}</span>
-                    </td>
-
-                    <td className="hidden 2xl:table-cell px-3 sm:px-4 py-4">
-                      {'subcategory' in product && product.subcategory ? (
-                        <span className="text-sm text-gray-700">{product.subcategory}</span>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-
-                    <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-700">{formatCurrency(product.price)}</span>
-                    </td>
-
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">
-                        {totalStock}
-                      </span>
-                    </td>
-
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => onViewProduct?.(product)}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium"
-                        title="Ver / Editar"
-                      >
-                        <Eye className="w-4 h-4 mr-1.5" />
-                        Ver
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
+          {activeTab === 'todos' && renderAllTable()}
+          {activeTab === 'descuento' && renderDiscountTable()}
+          {activeTab === 'activos' && renderActiveTable()}
         </table>
       </div>
 

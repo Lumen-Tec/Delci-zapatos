@@ -6,6 +6,7 @@ import { Modal } from '@/app/components/shared/Modal';
 import { InputField } from '@/app/components/shared/InputField';
 import { Button } from '@/app/components/shared/Button';
 import type { Product, ProductCategory, ProductStatus, ShoeProduct } from '@/app/models/products';
+import { isOfferActive, getRemainingOfferDays, isSizeOfferActive, getSizeEffectivePrice, getSizeRemainingDays, productHasActiveDiscount } from '@/app/lib/discountUtils';
 import {
   BAG_GROUPS,
   BOLSOS_MANO_HOMBRO_SUBCATEGORIES,
@@ -30,6 +31,8 @@ interface ProductDetailModalProps {
 type SizeRow = {
   size: string;
   stock: string;
+  discountPercentage: string;
+  offerDurationDays: string;
 };
 
 const getGroupsForCategory = (category: ProductCategory): string[] => {
@@ -80,7 +83,12 @@ const formatCurrency = (amount: number) => {
 };
 
 const toSizeRows = (product: ShoeProduct): SizeRow[] => {
-  return product.sizes.map((s) => ({ size: s.size, stock: String(s.stock) }));
+  return product.sizes.map((s) => ({
+    size: s.size,
+    stock: String(s.stock),
+    discountPercentage: s.discountPercentage != null ? String(s.discountPercentage) : '',
+    offerDurationDays: s.offerDurationDays != null ? String(s.offerDurationDays) : '',
+  }));
 };
 
 export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated }: ProductDetailModalProps) => {
@@ -96,6 +104,9 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
     color: '' as string,
     stock: '0',
     sizes: [] as SizeRow[],
+    discountPercentage: '',
+    offerDurationDays: '',
+    offerStartDate: '',
   });
 
   const category = product?.category;
@@ -129,6 +140,9 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
       color: product.category === 'zapatos' ? product.color : '',
       stock: product.category === 'bolsos' ? String(product.stock) : '0',
       sizes: product.category === 'zapatos' ? toSizeRows(product) : [],
+      discountPercentage: product.discountPercentage != null ? String(product.discountPercentage) : '',
+      offerDurationDays: product.offerDurationDays != null ? String(product.offerDurationDays) : '',
+      offerStartDate: product.offerStartDate ?? '',
     });
   }, [product]);
 
@@ -166,7 +180,7 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
   const handleAddSize = () => {
     setDraft((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0' }],
+      sizes: [...prev.sizes, { size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }],
     }));
   };
 
@@ -179,12 +193,29 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
 
   const handleSave = () => {
     const price = Number(draft.price) || 0;
+    const discountPct = Number(draft.discountPercentage) || 0;
+    const offerDays = Number(draft.offerDurationDays) || 0;
 
     let updated: Product;
 
     if (product.category === 'zapatos') {
       const sizes = draft.sizes
-        .map((s) => ({ size: s.size.trim(), stock: Number(s.stock) || 0 }))
+        .map((s) => {
+          const dpct = Number(s.discountPercentage) || 0;
+          const ddays = Number(s.offerDurationDays) || 0;
+          const originalSize = product.sizes.find((os) => os.size === s.size.trim());
+          return {
+            size: s.size.trim(),
+            stock: Number(s.stock) || 0,
+            ...(dpct > 0 && ddays > 0
+              ? {
+                  discountPercentage: dpct,
+                  offerDurationDays: ddays,
+                  offerStartDate: originalSize?.offerStartDate ?? new Date().toISOString().slice(0, 10),
+                }
+              : {}),
+          };
+        })
         .filter((s) => s.size.length > 0);
 
       updated = {
@@ -200,6 +231,18 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
       };
     } else {
       const stock = Number(draft.stock) || 0;
+      const discountFields = discountPct > 0 && offerDays > 0
+        ? {
+            discountPercentage: discountPct,
+            offerDurationDays: offerDays,
+            offerStartDate: draft.offerStartDate || new Date().toISOString().slice(0, 10),
+          }
+        : {
+            discountPercentage: undefined,
+            offerDurationDays: undefined,
+            offerStartDate: undefined,
+          };
+
       const base = {
         ...product,
         name: draft.name,
@@ -208,6 +251,7 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
         status: draft.status,
         group: draft.group as any,
         stock,
+        ...discountFields,
       };
 
       updated = (hasSubcategory
@@ -449,6 +493,75 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
             )}
           </div>
         )}
+
+        <div className="border-t border-gray-100 pt-4">
+          <div className="text-xs sm:text-sm font-medium text-gray-700 mb-3">Descuento / Oferta</div>
+          {isEditing ? (
+            product.category === 'bolsos' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <InputField
+                  label="Descuento (%)"
+                  type="number"
+                  value={draft.discountPercentage}
+                  onChange={(value) => setField('discountPercentage', value)}
+                  placeholder="Ej: 15"
+                />
+                <InputField
+                  label="Duracion (dias)"
+                  type="number"
+                  value={draft.offerDurationDays}
+                  onChange={(value) => setField('offerDurationDays', value)}
+                  placeholder="Ej: 7"
+                />
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">El descuento se configura por talla en la seccion de tallas.</div>
+            )
+          ) : product.category === 'zapatos' ? (
+            product.sizes.some((s) => isSizeOfferActive(s)) ? (
+              <div className="space-y-2">
+                {product.sizes.filter((s) => isSizeOfferActive(s)).map((s) => {
+                  const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
+                  const remaining = getSizeRemainingDays(s);
+                  return (
+                    <div key={String(s.size)} className="rounded-xl bg-rose-50 border border-rose-100 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-700">Talla {s.size}</span>
+                        <span className="text-xs text-rose-600 font-medium">-{dp}%</span>
+                        <span className="text-xs text-rose-700 font-semibold">{formatCurrency(effectivePrice)}</span>
+                        {remaining !== null && (
+                          <span className={`text-xs ${remaining <= 2 ? 'text-red-600' : 'text-gray-500'}`}>
+                            {remaining === 0 ? 'Ultimo dia' : `${remaining}d`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-3 py-2 sm:px-4 sm:py-3 rounded-lg border border-gray-200 bg-gray-50 text-gray-500">
+                Sin oferta activa en ninguna talla
+              </div>
+            )
+          ) : isOfferActive(product) && product.discountPercentage ? (
+            <div className="rounded-xl bg-rose-50 border border-rose-100 p-3">
+              <div className="text-xs text-rose-600 font-medium">Oferta activa</div>
+              <div className="text-sm font-semibold text-rose-700 mt-1">
+                {product.discountPercentage}% de descuento
+              </div>
+              {getRemainingOfferDays(product) !== null && (
+                <div className="text-xs text-gray-600 mt-0.5">
+                  {getRemainingOfferDays(product)} dia(s) restantes
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="px-3 py-2 sm:px-4 sm:py-3 rounded-lg border border-gray-200 bg-gray-50 text-gray-500">
+              Sin oferta activa
+            </div>
+          )}
+        </div>
 
         <div className="flex justify-end gap-3 pt-2">
           {isEditing ? (

@@ -7,6 +7,8 @@ export type AccountItemBase = {
   name: string;
   quantity: number;
   unitPrice: number;
+  originalPrice?: number;
+  discountPercentage?: number;
 };
 
 export type ShoeAccountItem = AccountItemBase &

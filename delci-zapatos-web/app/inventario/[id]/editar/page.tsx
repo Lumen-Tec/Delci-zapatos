@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChevronLeft, Plus, Trash2, Upload } from 'lucide-react';
 import { Navbar } from '@/app/components/shared/Navbar';
@@ -9,7 +9,7 @@ import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
-import type { Product, ProductCategory, ProductImage } from '@/app/models/products';
+import type { Product, ProductCategory, ProductImage, ProductStatus } from '@/app/models/products';
 import {
   BAG_GROUPS,
   BOLSOS_MANO_HOMBRO_SUBCATEGORIES,
@@ -76,9 +76,18 @@ const getSubcategoriesFor = (category: ProductCategory, group: string): string[]
   }
 };
 
-export default function NuevoProductoPage() {
+export default function EditarProductoPage() {
   const router = useRouter();
+  const params = useParams();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isSaving, setIsSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
+
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -93,26 +102,74 @@ export default function NuevoProductoPage() {
     discountPercentage: '',
     offerDurationDays: '',
     images: [{ url: '', alt: '' }] as ImageRow[],
+    status: 'active' as ProductStatus,
   });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  useEffect(() => {
+    const raw = window.localStorage.getItem('delci_products');
+    let products: Product[] = [];
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setSelectedFiles((prev) => [...prev, ...files]);
-    const previews = files.map((f) => URL.createObjectURL(f));
-    setFilePreviews((prev) => [...prev, ...previews]);
-    e.target.value = '';
-  };
+    if (!raw) {
+      products = [...mockProducts];
+    } else {
+      try {
+        products = JSON.parse(raw) as Product[];
+      } catch {
+        products = [...mockProducts];
+      }
+    }
 
-  const handleRemoveFile = (index: number) => {
-    URL.revokeObjectURL(filePreviews[index]);
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    setFilePreviews((prev) => prev.filter((_, i) => i !== index));
-  };
+    const product = products.find((p) => p.id === params.id);
+
+    if (!product) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+
+    setOriginalProduct(product);
+
+    const hasSubcategory = 'subcategory' in product && product.subcategory != null;
+
+    setFormData({
+      name: product.name,
+      sku: product.sku ?? '',
+      category: product.category,
+      group: product.group,
+      subcategory: hasSubcategory ? (product.subcategory as string) : '',
+      color: product.category === 'zapatos' ? product.color : '',
+      sizes:
+        product.category === 'zapatos'
+          ? product.sizes.map((s) => ({
+              size: s.size,
+              stock: String(s.stock),
+              discountPercentage: s.discountPercentage != null ? String(s.discountPercentage) : '',
+              offerDurationDays: s.offerDurationDays != null ? String(s.offerDurationDays) : '',
+            }))
+          : [],
+      bagStock: product.category === 'bolsos' ? String(product.stock) : '0',
+      price: String(product.price),
+      discountPercentage:
+        product.discountPercentage != null ? String(product.discountPercentage) : '',
+      offerDurationDays:
+        product.offerDurationDays != null ? String(product.offerDurationDays) : '',
+      images:
+        product.images && product.images.length > 0
+          ? product.images.map((img) => ({ url: img.url, alt: img.alt ?? '' }))
+          : [{ url: '', alt: '' }],
+      status: product.status ?? 'active',
+    });
+
+    setLoading(false);
+  }, [params.id]);
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const groups = useMemo(() => getGroupsForCategory(formData.category), [formData.category]);
   const subcategories = useMemo(
@@ -201,11 +258,31 @@ export default function NuevoProductoPage() {
     });
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newFiles = Array.from(files);
+    const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
+
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    setFilePreviews((prev) => [...prev, ...newPreviews]);
+
+    // Reset file input so selecting the same file again triggers onChange
+    e.target.value = '';
+  };
+
+  const handleRemoveFile = (index: number) => {
+    URL.revokeObjectURL(filePreviews[index]);
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setFilePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!originalProduct) return;
     setIsSaving(true);
 
-    const id = `P${Date.now()}`;
     const price = Number(formData.price) || 0;
     const discountPct = Number(formData.discountPercentage) || 0;
     const offerDays = Number(formData.offerDurationDays) || 0;
@@ -215,27 +292,32 @@ export default function NuevoProductoPage() {
       .filter((img) => img.url.length > 0);
 
     const base = {
-      id,
+      id: originalProduct.id,
       sku: formData.sku || undefined,
       name: formData.name,
       price,
-      status: 'active' as const,
+      status: formData.status,
       images: images.length > 0 ? images : undefined,
     };
 
     let product: Product;
 
     if (formData.category === 'zapatos') {
-      const todayISO = new Date().toISOString().slice(0, 10);
+      const originalSizes = originalProduct.category === 'zapatos' ? originalProduct.sizes : [];
       const sizes = formData.sizes
         .map((row) => {
           const dpct = Number(row.discountPercentage) || 0;
           const ddays = Number(row.offerDurationDays) || 0;
+          const originalSize = originalSizes.find((s) => s.size === row.size.trim());
           return {
             size: row.size.trim(),
             stock: Number(row.stock) || 0,
             ...(dpct > 0 && ddays > 0
-              ? { discountPercentage: dpct, offerDurationDays: ddays, offerStartDate: todayISO }
+              ? {
+                  discountPercentage: dpct,
+                  offerDurationDays: ddays,
+                  offerStartDate: originalSize?.offerStartDate ?? new Date().toISOString().slice(0, 10),
+                }
               : {}),
           };
         })
@@ -259,7 +341,7 @@ export default function NuevoProductoPage() {
           ? {
               discountPercentage: discountPct,
               offerDurationDays: offerDays,
-              offerStartDate: new Date().toISOString().slice(0, 10),
+              offerStartDate: originalProduct.offerStartDate ?? new Date().toISOString().slice(0, 10),
             }
           : {}),
         category: 'bolsos',
@@ -282,7 +364,7 @@ export default function NuevoProductoPage() {
       }
     }
 
-    const next = [product, ...current];
+    const next = current.map((p) => (p.id === originalProduct.id ? product : p));
     window.localStorage.setItem('delci_products', JSON.stringify(next));
 
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -290,6 +372,36 @@ export default function NuevoProductoPage() {
     setIsSaving(false);
     router.push('/inventario');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
+        <Navbar />
+        <NavButton />
+        <div className="flex-grow flex items-center justify-center">
+          <p className="text-gray-500 text-sm">Cargando producto...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
+        <Navbar />
+        <NavButton />
+        <div className="flex-grow flex flex-col items-center justify-center gap-4">
+          <p className="text-gray-700 text-base font-medium">Producto no encontrado</p>
+          <Button variant="secondary" onClick={() => router.push('/inventario')}>
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Volver al inventario
+          </Button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
@@ -320,8 +432,8 @@ export default function NuevoProductoPage() {
               </div>
 
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Nuevo producto</h1>
-                <p className="text-sm text-gray-600 mt-1">Crea un producto para el inventario</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Editar producto</h1>
+                <p className="text-sm text-gray-600 mt-1">Modifica los datos del producto</p>
               </div>
             </div>
           </div>
@@ -348,7 +460,7 @@ export default function NuevoProductoPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categor&iacute;a</label>
                 <select
                   value={formData.category}
                   onChange={(e) => handleCategoryChange(e.target.value as ProductCategory)}
@@ -375,7 +487,7 @@ export default function NuevoProductoPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategor&iacute;a</label>
                 <select
                   value={formData.subcategory}
                   onChange={(e) => setField('subcategory', e.target.value)}
@@ -489,6 +601,18 @@ export default function NuevoProductoPage() {
                 onChange={(value) => setField('price', value)}
                 required
               />
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setField('status', e.target.value as ProductStatus)}
+                  className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
+                >
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
+              </div>
             </div>
 
             {formData.category === 'bolsos' && (
@@ -517,31 +641,13 @@ export default function NuevoProductoPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">Fotos</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Agrega URLs o sube desde tu dispositivo</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Agrega una o m&aacute;s URLs (ej. Cloudinary)</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <Button type="button" variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="w-4 h-4 mr-1" />
-                    Subir desde dispositivo
-                  </Button>
-                  <Button type="button" variant="secondary" size="sm" onClick={handleAddImage}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Agregar URL
-                  </Button>
-                </div>
+                <Button type="button" variant="secondary" size="sm" onClick={handleAddImage}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Agregar foto
+                </Button>
               </div>
-
-              {selectedFiles.length > 0 && (
-                <div className="text-xs text-gray-500">{selectedFiles.length} archivo(s) seleccionado(s)</div>
-              )}
 
               <div className="space-y-2">
                 {formData.images.map((img, index) => (
@@ -577,7 +683,26 @@ export default function NuevoProductoPage() {
                 ))}
               </div>
 
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button type="button" variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="w-4 h-4 mr-1" />
+                  Subir desde dispositivo
+                </Button>
+                {selectedFiles.length > 0 && (
+                  <span className="text-xs text-gray-500">{selectedFiles.length} archivo(s) seleccionado(s)</span>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {/* URL previews */}
                 {formData.images
                   .map((img) => img.url.trim())
                   .filter((url) => url.length > 0)
@@ -587,6 +712,7 @@ export default function NuevoProductoPage() {
                       <img src={url} alt="" className="w-full h-28 object-cover" />
                     </div>
                   ))}
+                {/* File previews */}
                 {filePreviews.map((preview, index) => (
                   <div key={preview} className="relative rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
                     <img src={preview} alt="" className="w-full h-28 object-cover" />
@@ -607,7 +733,7 @@ export default function NuevoProductoPage() {
                 Cancelar
               </Button>
               <Button type="submit" variant="primary" loading={isSaving}>
-                Guardar producto
+                Guardar cambios
               </Button>
             </div>
           </form>
