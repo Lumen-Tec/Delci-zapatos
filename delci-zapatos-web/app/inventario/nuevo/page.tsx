@@ -420,7 +420,7 @@ export default function NuevoProductoPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                           <div className="sm:col-span-3">
                             <InputField
-                              label={index === 0 ? 'Talla' : undefined}
+                              label="Talla"
                               value={row.size}
                               onChange={(value) => handleSizeChange(index, 'size', value)}
                               placeholder="Ej: 37"
@@ -429,7 +429,7 @@ export default function NuevoProductoPage() {
                           </div>
                           <div className="sm:col-span-2">
                             <InputField
-                              label={index === 0 ? 'Stock' : undefined}
+                              label="Stock"
                               type="number"
                               value={row.stock}
                               onChange={(value) => handleSizeChange(index, 'stock', value)}
@@ -438,7 +438,7 @@ export default function NuevoProductoPage() {
                           </div>
                           <div className="sm:col-span-3">
                             <InputField
-                              label={index === 0 ? 'Descuento (%)' : undefined}
+                              label="Descuento (%)"
                               type="number"
                               value={row.discountPercentage}
                               onChange={(value) => handleSizeChange(index, 'discountPercentage', value)}
@@ -447,7 +447,7 @@ export default function NuevoProductoPage() {
                           </div>
                           <div className="sm:col-span-3">
                             <InputField
-                              label={index === 0 ? 'Dias oferta' : undefined}
+                              label="Dias oferta"
                               type="number"
                               value={row.offerDurationDays}
                               onChange={(value) => handleSizeChange(index, 'offerDurationDays', value)}
