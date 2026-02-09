@@ -379,6 +379,17 @@ export default function AccountDetailPage() {
                               <div className="text-xs text-gray-600 mt-0.5">
                                 {item.category === 'zapatos' ? `Talla: ${item.size} · ${item.color}` : item.category}
                               </div>
+                              <div className="sm:hidden text-xs mt-0.5">
+                                {item.originalPrice && item.discountPercentage ? (
+                                  <span className="flex items-center gap-1 flex-wrap">
+                                    <span className="line-through text-gray-400">{formatCurrency(item.originalPrice)}</span>
+                                    <span className="text-rose-500">-{item.discountPercentage}%</span>
+                                    <span className="font-semibold text-rose-600">{formatCurrency(item.unitPrice)}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-500">{formatCurrency(item.unitPrice)} · Sub: {formatCurrency(item.unitPrice * item.quantity)}</span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right text-sm text-gray-900">{item.quantity}</td>
                             <td className="hidden sm:table-cell px-4 py-3 text-right text-sm text-gray-700">

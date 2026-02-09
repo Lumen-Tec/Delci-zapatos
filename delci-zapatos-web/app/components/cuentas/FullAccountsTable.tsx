@@ -86,7 +86,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, onCreateAccount, cl
 
         {/* Filters */}
         <div className="mt-6 flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* ID Cuenta */}
             <div>
               <label htmlFor="account-id" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">

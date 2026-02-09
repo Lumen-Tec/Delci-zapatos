@@ -247,7 +247,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 <td className="px-4 sm:px-6 py-4">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
-                    <span className="text-xs text-gray-500 mt-0.5 md:hidden">#{product.id} · {subtitleParts.join(' · ')}</span>
+                    <span className="text-xs text-gray-500 mt-0.5 md:hidden">#{product.id} · {formatCurrency(product.price)} · {subtitleParts.join(' · ')}</span>
                     <span className="hidden md:inline text-xs text-gray-500 mt-0.5">{subtitleParts.join(' · ')}</span>
                   </div>
                 </td>
@@ -306,6 +306,25 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
                       <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                      <div className="md:hidden mt-1 space-y-0.5">
+                        {discountedSizes.map((s) => {
+                          const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
+                          const remaining = getSizeRemainingDays(s);
+                          return (
+                            <div key={String(s.size)} className="flex items-center gap-1.5 text-xs flex-wrap">
+                              <span className="font-medium text-gray-700">T.{s.size}</span>
+                              <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                              <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{dp}%</span>
+                              <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                              {remaining !== null && (
+                                <span className={`${remaining <= 2 ? 'text-red-600' : 'text-gray-500'}`}>
+                                  {remaining === 0 ? 'Ultimo dia' : `${remaining}d`}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </td>
                   <td className="hidden md:table-cell px-4 sm:px-6 py-4">
@@ -351,6 +370,16 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
                     <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                    <div className="md:hidden mt-1 flex items-center gap-1.5 text-xs flex-wrap">
+                      <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                      <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{discountPercentage}%</span>
+                      <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                      {remaining !== null && (
+                        <span className={`${remaining <= 2 ? 'text-red-600' : 'text-gray-500'}`}>
+                          {remaining === 0 ? 'Ultimo dia' : `${remaining}d`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4">
