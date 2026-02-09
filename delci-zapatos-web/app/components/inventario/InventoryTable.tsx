@@ -190,19 +190,6 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
     }));
   };
 
-  const getShoeSizesLabel = (product: Product) => {
-    if (product.category !== 'zapatos') return '-';
-
-    const withStock = product.sizes.filter((s) => s.stock > 0);
-    if (withStock.length === 0) return '-';
-
-    return withStock
-      .slice()
-      .sort((a, b) => String(a.size).localeCompare(String(b.size)))
-      .map((s) => `${s.size}(${s.stock})`)
-      .join(', ');
-  };
-
   const renderAllTable = () => (
     <>
       <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
@@ -213,7 +200,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
           <th className="hidden xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
           <th className="hidden 2xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subcategoría</th>
           <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
-          <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
+          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
           <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
         </tr>
       </thead>
@@ -231,13 +218,11 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
         ) : (
           filteredProducts.map((product, index) => {
             const totalStock = getProductTotalStock(product);
-            const sizesLabel = getShoeSizesLabel(product);
             const subtitleParts: string[] = [];
 
             if (product.category === 'zapatos') subtitleParts.push(product.color);
             subtitleParts.push(product.group);
             if ('subcategory' in product && product.subcategory) subtitleParts.push(product.subcategory);
-            if (product.category === 'zapatos' && sizesLabel !== '-') subtitleParts.push(`Tallas: ${sizesLabel}`);
 
             return (
               <tr key={product.id} className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
@@ -247,8 +232,40 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 <td className="px-4 sm:px-6 py-4">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
-                    <span className="text-xs text-gray-500 mt-0.5 md:hidden">#{product.id} · {formatCurrency(product.price)} · {subtitleParts.join(' · ')}</span>
+                    <span className="text-xs text-gray-500 mt-0.5 md:hidden">
+                      #{product.id} · {subtitleParts.join(' · ')}
+                    </span>
                     <span className="hidden md:inline text-xs text-gray-500 mt-0.5">{subtitleParts.join(' · ')}</span>
+                    {/* Mobile: show price + sizes info inline */}
+                    <div className="md:hidden mt-1.5 space-y-1">
+                      {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {product.sizes
+                            .filter((s) => s.stock > 0)
+                            .sort((a, b) => String(a.size).localeCompare(String(b.size)))
+                            .map((s) => {
+                              const sizePrice = s.price ?? product.price;
+                              const { effectivePrice, hasDiscount } = getSizeEffectivePrice(product.price, s);
+                              return (
+                                <span key={String(s.size)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs">
+                                  <span className="font-medium text-gray-700">T.{s.size}</span>
+                                  <span className="text-gray-400">({s.stock})</span>
+                                  {hasDiscount ? (
+                                    <>
+                                      <span className="line-through text-gray-400">{formatCurrency(sizePrice)}</span>
+                                      <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-600">{formatCurrency(sizePrice)}</span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                        </div>
+                      ) : product.category === 'bolsos' ? (
+                        <span className="text-xs text-gray-600">{formatCurrency(product.price)} · Stock: {product.stock}</span>
+                      ) : null}
+                    </div>
                   </div>
                 </td>
                 <td className="hidden xl:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
@@ -256,8 +273,35 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 <td className="hidden 2xl:table-cell px-3 sm:px-4 py-4">
                   {'subcategory' in product && product.subcategory ? <span className="text-sm text-gray-700">{product.subcategory}</span> : <span className="text-sm text-gray-400">-</span>}
                 </td>
-                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap"><span className="text-sm text-gray-700">{formatCurrency(product.price)}</span></td>
-                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4">
+                  {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                    <div className="space-y-0.5">
+                      {product.sizes
+                        .filter((s) => s.stock > 0)
+                        .sort((a, b) => String(a.size).localeCompare(String(b.size)))
+                        .map((s) => {
+                          const sizePrice = s.price ?? product.price;
+                          const { effectivePrice, hasDiscount } = getSizeEffectivePrice(product.price, s);
+                          return (
+                            <div key={String(s.size)} className="flex items-center gap-1.5 text-xs">
+                              <span className="text-gray-500 font-medium">T.{s.size}:</span>
+                              {hasDiscount ? (
+                                <>
+                                  <span className="line-through text-gray-400">{formatCurrency(sizePrice)}</span>
+                                  <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-700">{formatCurrency(sizePrice)}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-700">{formatCurrency(product.price)}</span>
+                  )}
+                </td>
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-right">
                   <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">{totalStock}</span>
                 </td>
                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
@@ -419,8 +463,8 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
           <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
           <th className="hidden md:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
           <th className="hidden lg:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
-          <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
-          <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
+          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
+          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
           <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
         </tr>
       </thead>
@@ -451,14 +495,69 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                       )}
                     </span>
                     <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                    {/* Mobile: show price + sizes info inline */}
+                    <div className="md:hidden mt-1.5 space-y-1">
+                      {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {product.sizes
+                            .filter((s) => s.stock > 0)
+                            .sort((a, b) => String(a.size).localeCompare(String(b.size)))
+                            .map((s) => {
+                              const sizePrice = s.price ?? product.price;
+                              const { effectivePrice, hasDiscount: sizeHasDiscount } = getSizeEffectivePrice(product.price, s);
+                              return (
+                                <span key={String(s.size)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs">
+                                  <span className="font-medium text-gray-700">T.{s.size}</span>
+                                  <span className="text-gray-400">({s.stock})</span>
+                                  {sizeHasDiscount ? (
+                                    <>
+                                      <span className="line-through text-gray-400">{formatCurrency(sizePrice)}</span>
+                                      <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-600">{formatCurrency(sizePrice)}</span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                        </div>
+                      ) : product.category === 'bolsos' ? (
+                        <span className="text-xs text-gray-600">{formatCurrency(product.price)} · Stock: {product.stock}</span>
+                      ) : null}
+                    </div>
                   </div>
                 </td>
                 <td className="hidden md:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
                 <td className="hidden lg:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700">{product.group}</span></td>
-                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
-                  <span className="text-sm text-gray-700">{formatCurrency(product.price)}</span>
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4">
+                  {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                    <div className="space-y-0.5">
+                      {product.sizes
+                        .filter((s) => s.stock > 0)
+                        .sort((a, b) => String(a.size).localeCompare(String(b.size)))
+                        .map((s) => {
+                          const sizePrice = s.price ?? product.price;
+                          const { effectivePrice, hasDiscount: sizeHasDiscount } = getSizeEffectivePrice(product.price, s);
+                          return (
+                            <div key={String(s.size)} className="flex items-center gap-1.5 text-xs">
+                              <span className="text-gray-500 font-medium">T.{s.size}:</span>
+                              {sizeHasDiscount ? (
+                                <>
+                                  <span className="line-through text-gray-400">{formatCurrency(sizePrice)}</span>
+                                  <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-700">{formatCurrency(sizePrice)}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-700">{formatCurrency(product.price)}</span>
+                  )}
                 </td>
-                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-right">
                   <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">{totalStock}</span>
                 </td>
                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
