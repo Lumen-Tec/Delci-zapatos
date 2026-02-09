@@ -310,10 +310,11 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                         {discountedSizes.map((s) => {
                           const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
                           const remaining = getSizeRemainingDays(s);
+                          const sizeBasePrice = s.price ?? product.price;
                           return (
                             <div key={String(s.size)} className="flex items-center gap-1.5 text-xs flex-wrap">
                               <span className="font-medium text-gray-700">T.{s.size}</span>
-                              <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                              <span className="line-through text-gray-400">{formatCurrency(sizeBasePrice)}</span>
                               <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{dp}%</span>
                               <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
                               {remaining !== null && (
@@ -332,10 +333,11 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                       {discountedSizes.map((s) => {
                         const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
                         const remaining = getSizeRemainingDays(s);
+                        const sizeBasePrice = s.price ?? product.price;
                         return (
                           <div key={String(s.size)} className="flex items-center gap-2 text-xs">
                             <span className="font-medium text-gray-700">T.{s.size}</span>
-                            <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                            <span className="line-through text-gray-400">{formatCurrency(sizeBasePrice)}</span>
                             <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{dp}%</span>
                             <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
                             {remaining !== null && (

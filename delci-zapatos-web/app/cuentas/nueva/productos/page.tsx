@@ -119,9 +119,10 @@ const createShoeAccountItem = (
   quantity: number
 ): AccountItem => {
   const sizeVariant = product.sizes.find((s) => String(s.size) === selectedSize);
+  const sizeBasePrice = sizeVariant?.price ?? product.price;
   const { effectivePrice, hasDiscount, discountPercentage } = sizeVariant
     ? getSizeEffectivePrice(product.price, sizeVariant)
-    : { effectivePrice: product.price, hasDiscount: false, discountPercentage: 0 };
+    : { effectivePrice: sizeBasePrice, hasDiscount: false, discountPercentage: 0 };
 
   const base = {
     id: makeItemId(),
@@ -130,7 +131,7 @@ const createShoeAccountItem = (
     name: product.name,
     quantity,
     unitPrice: effectivePrice,
-    ...(hasDiscount ? { originalPrice: product.price, discountPercentage } : {}),
+    ...(hasDiscount ? { originalPrice: sizeBasePrice, discountPercentage } : {}),
     category: 'zapatos' as const,
     color: product.color,
     size: selectedSize,
@@ -497,10 +498,12 @@ export default function SeleccionarProductosParaCuentaPage() {
                     let hasDiscount = false;
                     let dp = 0;
                     let remainingDays: number | null = null;
+                    let displayBasePrice = product.price;
 
                     if (product.category === 'zapatos') {
                       const selectedSizeVariant = product.sizes.find((s) => String(s.size) === selectedSize);
                       if (selectedSizeVariant) {
+                        displayBasePrice = selectedSizeVariant.price ?? product.price;
                         const sizeInfo = getSizeEffectivePrice(product.price, selectedSizeVariant);
                         effectivePrice = sizeInfo.effectivePrice;
                         hasDiscount = sizeInfo.hasDiscount;
@@ -581,7 +584,7 @@ export default function SeleccionarProductosParaCuentaPage() {
                         <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-sm">
                           {hasDiscount ? (
                             <div>
-                              <span className="line-through text-gray-400 text-xs">{formatCurrency(product.price)}</span>
+                              <span className="line-through text-gray-400 text-xs">{formatCurrency(displayBasePrice)}</span>
                               <div className="text-rose-600 font-semibold">{formatCurrency(effectivePrice)}</div>
                               <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs font-medium rounded-full">
                                 -{dp}%
@@ -593,7 +596,7 @@ export default function SeleccionarProductosParaCuentaPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-gray-700">{formatCurrency(product.price)}</span>
+                            <span className="text-gray-700">{formatCurrency(displayBasePrice)}</span>
                           )}
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-center">

@@ -87,6 +87,7 @@ export type ShoeSize = string;
 export interface ShoeSizeVariant {
   size: ShoeSize;
   stock: number;
+  price?: number;
   discountPercentage?: number;
   offerDurationDays?: number;
   offerStartDate?: string;

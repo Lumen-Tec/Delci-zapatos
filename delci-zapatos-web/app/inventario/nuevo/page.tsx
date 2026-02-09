@@ -28,6 +28,7 @@ import { mockProducts } from '@/app/lib/mockData';
 type SizeRow = {
   size: string;
   stock: string;
+  price: string;
   discountPercentage: string;
   offerDurationDays: string;
 };
@@ -87,7 +88,7 @@ export default function NuevoProductoPage() {
     group: SHOE_GROUPS[0] as string,
     subcategory: SANDALIA_SUBCATEGORIES[0] as string,
     color: '',
-    sizes: [{ size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }] as SizeRow[],
+    sizes: [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] as SizeRow[],
     bagStock: '0',
     price: '0',
     discountPercentage: '',
@@ -137,7 +138,7 @@ export default function NuevoProductoPage() {
       category: value,
       group: nextGroup,
       subcategory: nextSubcategories[0] ?? '',
-      sizes: value === 'zapatos' ? [{ size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }] : [],
+      sizes: value === 'zapatos' ? [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] : [],
     }));
   };
 
@@ -154,7 +155,7 @@ export default function NuevoProductoPage() {
   const handleAddSize = () => {
     setFormData((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }],
+      sizes: [...prev.sizes, { size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }],
     }));
   };
 
@@ -231,9 +232,11 @@ export default function NuevoProductoPage() {
         .map((row) => {
           const dpct = Number(row.discountPercentage) || 0;
           const ddays = Number(row.offerDurationDays) || 0;
+          const sizePrice = Number(row.price) || 0;
           return {
             size: row.size.trim(),
             stock: Number(row.stock) || 0,
+            ...(sizePrice > 0 ? { price: sizePrice } : {}),
             ...(dpct > 0 && ddays > 0
               ? { discountPercentage: dpct, offerDurationDays: ddays, offerStartDate: todayISO }
               : {}),
@@ -418,7 +421,7 @@ export default function NuevoProductoPage() {
                     {formData.sizes.map((row, index) => (
                       <div key={`${index}`} className="space-y-2 pb-3 border-b border-gray-50 last:border-b-0">
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-                          <div className="sm:col-span-3">
+                          <div className="sm:col-span-2">
                             <InputField
                               label="Talla"
                               value={row.size}
@@ -436,7 +439,16 @@ export default function NuevoProductoPage() {
                               required
                             />
                           </div>
-                          <div className="sm:col-span-3">
+                          <div className="sm:col-span-2">
+                            <InputField
+                              label="Precio"
+                              type="number"
+                              value={row.price}
+                              onChange={(value) => handleSizeChange(index, 'price', value)}
+                              placeholder={formData.price || '0'}
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
                             <InputField
                               label="Descuento (%)"
                               type="number"
@@ -481,7 +493,7 @@ export default function NuevoProductoPage() {
               />
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <InputField
                 label="Precio"
                 type="number"
@@ -489,6 +501,21 @@ export default function NuevoProductoPage() {
                 onChange={(value) => setField('price', value)}
                 required
               />
+              {formData.category === 'zapatos' && formData.sizes.length > 0 && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      sizes: prev.sizes.map((row) => ({ ...row, price: prev.price })),
+                    }));
+                  }}
+                >
+                  Aplicar precio a todas las tallas
+                </Button>
+              )}
             </div>
 
             {formData.category === 'bolsos' && (

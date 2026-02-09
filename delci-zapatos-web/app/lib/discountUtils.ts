@@ -91,11 +91,13 @@ export function getSizeEffectivePrice(
   hasDiscount: boolean;
   discountPercentage: number;
 } {
+  const actualBase = variant.price ?? basePrice;
+
   if (!isSizeOfferActive(variant) || !variant.discountPercentage) {
-    return { effectivePrice: basePrice, hasDiscount: false, discountPercentage: 0 };
+    return { effectivePrice: actualBase, hasDiscount: false, discountPercentage: 0 };
   }
 
-  const discounted = Math.round(basePrice * (1 - variant.discountPercentage / 100));
+  const discounted = Math.round(actualBase * (1 - variant.discountPercentage / 100));
 
   return {
     effectivePrice: discounted,

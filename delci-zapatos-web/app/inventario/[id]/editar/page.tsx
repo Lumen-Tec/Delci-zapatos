@@ -28,6 +28,7 @@ import { mockProducts } from '@/app/lib/mockData';
 type SizeRow = {
   size: string;
   stock: string;
+  price: string;
   discountPercentage: string;
   offerDurationDays: string;
 };
@@ -96,7 +97,7 @@ export default function EditarProductoPage() {
     group: SHOE_GROUPS[0] as string,
     subcategory: SANDALIA_SUBCATEGORIES[0] as string,
     color: '',
-    sizes: [{ size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }] as SizeRow[],
+    sizes: [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] as SizeRow[],
     bagStock: '0',
     price: '0',
     discountPercentage: '',
@@ -143,6 +144,7 @@ export default function EditarProductoPage() {
           ? product.sizes.map((s) => ({
               size: s.size,
               stock: String(s.stock),
+              price: s.price != null ? String(s.price) : '',
               discountPercentage: s.discountPercentage != null ? String(s.discountPercentage) : '',
               offerDurationDays: s.offerDurationDays != null ? String(s.offerDurationDays) : '',
             }))
@@ -194,7 +196,7 @@ export default function EditarProductoPage() {
       category: value,
       group: nextGroup,
       subcategory: nextSubcategories[0] ?? '',
-      sizes: value === 'zapatos' ? [{ size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }] : [],
+      sizes: value === 'zapatos' ? [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] : [],
     }));
   };
 
@@ -211,7 +213,7 @@ export default function EditarProductoPage() {
   const handleAddSize = () => {
     setFormData((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }],
+      sizes: [...prev.sizes, { size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }],
     }));
   };
 
@@ -308,10 +310,12 @@ export default function EditarProductoPage() {
         .map((row) => {
           const dpct = Number(row.discountPercentage) || 0;
           const ddays = Number(row.offerDurationDays) || 0;
+          const sizePrice = Number(row.price) || 0;
           const originalSize = originalSizes.find((s) => s.size === row.size.trim());
           return {
             size: row.size.trim(),
             stock: Number(row.stock) || 0,
+            ...(sizePrice > 0 ? { price: sizePrice } : {}),
             ...(dpct > 0 && ddays > 0
               ? {
                   discountPercentage: dpct,
@@ -530,7 +534,7 @@ export default function EditarProductoPage() {
                     {formData.sizes.map((row, index) => (
                       <div key={`${index}`} className="space-y-2 pb-3 border-b border-gray-50 last:border-b-0">
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-                          <div className="sm:col-span-3">
+                          <div className="sm:col-span-2">
                             <InputField
                               label="Talla"
                               value={row.size}
@@ -548,7 +552,16 @@ export default function EditarProductoPage() {
                               required
                             />
                           </div>
-                          <div className="sm:col-span-3">
+                          <div className="sm:col-span-2">
+                            <InputField
+                              label="Precio"
+                              type="number"
+                              value={row.price}
+                              onChange={(value) => handleSizeChange(index, 'price', value)}
+                              placeholder={formData.price || '0'}
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
                             <InputField
                               label="Descuento (%)"
                               type="number"
@@ -593,7 +606,7 @@ export default function EditarProductoPage() {
               />
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <InputField
                 label="Precio"
                 type="number"
@@ -601,18 +614,33 @@ export default function EditarProductoPage() {
                 onChange={(value) => setField('price', value)}
                 required
               />
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setField('status', e.target.value as ProductStatus)}
-                  className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
+              {formData.category === 'zapatos' && formData.sizes.length > 0 && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      sizes: prev.sizes.map((row) => ({ ...row, price: prev.price })),
+                    }));
+                  }}
                 >
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                </select>
-              </div>
+                  Aplicar precio a todas las tallas
+                </Button>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setField('status', e.target.value as ProductStatus)}
+                className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
+              >
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+              </select>
             </div>
 
             {formData.category === 'bolsos' && (

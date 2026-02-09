@@ -31,6 +31,7 @@ interface ProductDetailModalProps {
 type SizeRow = {
   size: string;
   stock: string;
+  price: string;
   discountPercentage: string;
   offerDurationDays: string;
 };
@@ -86,6 +87,7 @@ const toSizeRows = (product: ShoeProduct): SizeRow[] => {
   return product.sizes.map((s) => ({
     size: s.size,
     stock: String(s.stock),
+    price: s.price != null ? String(s.price) : '',
     discountPercentage: s.discountPercentage != null ? String(s.discountPercentage) : '',
     offerDurationDays: s.offerDurationDays != null ? String(s.offerDurationDays) : '',
   }));
@@ -180,7 +182,7 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
   const handleAddSize = () => {
     setDraft((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0', discountPercentage: '', offerDurationDays: '' }],
+      sizes: [...prev.sizes, { size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }],
     }));
   };
 
@@ -203,10 +205,12 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
         .map((s) => {
           const dpct = Number(s.discountPercentage) || 0;
           const ddays = Number(s.offerDurationDays) || 0;
+          const sizePrice = Number(s.price) || 0;
           const originalSize = product.sizes.find((os) => os.size === s.size.trim());
           return {
             size: s.size.trim(),
             stock: Number(s.stock) || 0,
+            ...(sizePrice > 0 ? { price: sizePrice } : {}),
             ...(dpct > 0 && ddays > 0
               ? {
                   discountPercentage: dpct,
@@ -270,7 +274,10 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
     ? product.sizes
         .filter((s) => s.stock > 0)
         .sort((a, b) => String(a.size).localeCompare(String(b.size)))
-        .map((s) => `${s.size}(${s.stock})`)
+        .map((s) => {
+          const priceLabel = s.price != null ? ` ${formatCurrency(s.price)}` : '';
+          return `${s.size}(${s.stock})${priceLabel}`;
+        })
         .join(', ')
     : '';
 
@@ -437,7 +444,7 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
                 <div className="space-y-2">
                   {draft.sizes.map((row, index) => (
                     <div key={`${index}`} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-                      <div className="sm:col-span-5">
+                      <div className="sm:col-span-3">
                         <InputField
                           label={index === 0 ? 'Talla' : undefined}
                           value={row.size}
@@ -445,7 +452,7 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
                           placeholder="Ej: 37"
                         />
                       </div>
-                      <div className="sm:col-span-5">
+                      <div className="sm:col-span-2">
                         <InputField
                           label={index === 0 ? 'Stock' : undefined}
                           type="number"
@@ -453,7 +460,16 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
                           onChange={(value) => handleSizeChange(index, 'stock', value)}
                         />
                       </div>
-                      <div className="sm:col-span-2 flex justify-end">
+                      <div className="sm:col-span-3">
+                        <InputField
+                          label={index === 0 ? 'Precio' : undefined}
+                          type="number"
+                          value={row.price}
+                          onChange={(value) => handleSizeChange(index, 'price', value)}
+                          placeholder={draft.price || '0'}
+                        />
+                      </div>
+                      <div className="sm:col-span-2 flex justify-end gap-1">
                         <button
                           type="button"
                           onClick={() => handleRemoveSize(index)}
@@ -465,6 +481,19 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
                       </div>
                     </div>
                   ))}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setDraft((prev) => ({
+                        ...prev,
+                        sizes: prev.sizes.map((row) => ({ ...row, price: prev.price })),
+                      }));
+                    }}
+                  >
+                    Aplicar precio a todas las tallas
+                  </Button>
                 </div>
               ) : (
                 <div className="px-3 py-2 sm:px-4 sm:py-3 rounded-lg border border-gray-200 bg-gray-50 text-gray-900">
@@ -523,10 +552,12 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
                 {product.sizes.filter((s) => isSizeOfferActive(s)).map((s) => {
                   const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
                   const remaining = getSizeRemainingDays(s);
+                  const sizeBasePrice = s.price ?? product.price;
                   return (
                     <div key={String(s.size)} className="rounded-xl bg-rose-50 border border-rose-100 p-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-gray-700">Talla {s.size}</span>
+                        <span className="text-xs line-through text-gray-400">{formatCurrency(sizeBasePrice)}</span>
                         <span className="text-xs text-rose-600 font-medium">-{dp}%</span>
                         <span className="text-xs text-rose-700 font-semibold">{formatCurrency(effectivePrice)}</span>
                         {remaining !== null && (
