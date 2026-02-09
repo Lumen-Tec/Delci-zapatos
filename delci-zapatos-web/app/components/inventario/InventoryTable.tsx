@@ -583,12 +583,12 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
               Inventario
             </h3>
 
-            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
+            <div className="grid grid-cols-3 sm:flex sm:items-center gap-1 p-1 bg-gray-100 rounded-xl w-full sm:w-auto">
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                  className={`text-center px-2 sm:px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
                     activeTab === tab.key
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
