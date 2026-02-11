@@ -2,18 +2,20 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { ClientsTable } from '@/app/components/clientes/ClientsTable';
 import { ClientProfileModal } from '@/app/components/clientes/ClientProfileModal';
 import { Footer } from '@/app/components/shared/Footer';
-import { mockClients } from '@/app/lib/mockData';
+import { mockClients, mockAccounts } from '@/app/lib/mockData';
 import { Button } from '@/app/components/shared/Button';
 import { Plus } from 'lucide-react';
 import { CreateClientModal } from '@/app/components/clientes/CreateClientModal';
 import type { Client } from '@/app/models/client';
 
 export default function ClientsPage() {
+  const router = useRouter();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>(mockClients);
@@ -31,10 +33,23 @@ export default function ClientsPage() {
   };
 
   const handleViewAccount = (clientId: string) => {
-    console.log(`View account for client: ${clientId}`);
-    // TODO: Navigate to accounts page filtered by client
-    // Por ahora, solo mostramos en consola
-    // Más adelante se puede implementar la navegación a /cuentas?cliente=${clientId}
+    // Buscar la cuenta asociada al cliente en localStorage o en mockData
+    const raw = window.localStorage.getItem('delci_accounts');
+    let accounts = mockAccounts;
+    if (raw) {
+      try {
+        accounts = JSON.parse(raw);
+      } catch { /* usar mockAccounts */ }
+    }
+    const account = accounts.find(a => a.clientId === clientId);
+    if (account) {
+      setSelectedClient(null); // Cerrar el modal
+      router.push(`/cuentas/${account.id}`);
+    } else {
+      // Si no tiene cuenta, ir a crear una nueva
+      setSelectedClient(null);
+      router.push('/cuentas/nueva');
+    }
   };
 
   const handleClientUpdated = (updatedClient: Client) => {
