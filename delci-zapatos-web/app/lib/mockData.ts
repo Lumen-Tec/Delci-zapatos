@@ -33,6 +33,7 @@ export const mockAccounts: Account[] = [
     status: 'active',
     lastPaymentDate: '2024-01-15',
     nextPaymentDate: '2024-02-01',
+    biweeklyAmount: 7500,
   },
   {
     id: 'ACC002',
@@ -57,6 +58,7 @@ export const mockAccounts: Account[] = [
     status: 'active',
     lastPaymentDate: '2024-01-10',
     nextPaymentDate: '2024-01-25',
+    biweeklyAmount: 5000,
   },
   {
     id: 'ACC004',
@@ -69,6 +71,7 @@ export const mockAccounts: Account[] = [
     status: 'overdue',
     lastPaymentDate: '2023-12-28',
     nextPaymentDate: '2024-01-15',
+    biweeklyAmount: 10000,
   },
   {
     id: 'ACC005',
@@ -81,6 +84,7 @@ export const mockAccounts: Account[] = [
     status: 'active',
     lastPaymentDate: '2024-01-18',
     nextPaymentDate: '2024-02-01',
+    biweeklyAmount: 5000,
   },
   {
     id: 'ACC006',
@@ -93,6 +97,7 @@ export const mockAccounts: Account[] = [
     status: 'active',
     lastPaymentDate: '2024-01-12',
     nextPaymentDate: '2024-01-30',
+    biweeklyAmount: 15000,
   },
   {
     id: 'ACC007',
@@ -105,6 +110,7 @@ export const mockAccounts: Account[] = [
     status: 'active',
     lastPaymentDate: '2024-01-14',
     nextPaymentDate: '2024-01-29',
+    biweeklyAmount: 7500,
   },
   {
     id: 'ACC008',

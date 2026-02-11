@@ -32,6 +32,8 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastViewportWidthRef = useRef<number>(typeof window !== 'undefined' ? window.innerWidth : 0);
+  const openTimestampRef = useRef<number>(0);
   const inputId = useId();
 
   // Filtrar clientes por nombre, teléfono o dirección
@@ -66,6 +68,8 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
         left: rect.left,
         width: rect.width,
       });
+      lastViewportWidthRef.current = window.innerWidth;
+      openTimestampRef.current = Date.now();
     }
   }, [isOpen]);
 
@@ -73,6 +77,8 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
   useEffect(() => {
     if (isOpen) {
       const handleScroll = (e: Event) => {
+        // Ignorar scroll events dentro de los primeros 300ms (auto-scroll del navegador al enfocar en móviles)
+        if (Date.now() - openTimestampRef.current < 300) return;
         // Solo cerrar si el scroll NO es dentro del dropdown
         if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
           setIsOpen(false);
@@ -80,7 +86,10 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
       };
 
       const handleResize = () => {
-        setIsOpen(false);
+        // Solo cerrar si el ancho del viewport cambió (no la altura, que cambia al abrir el teclado virtual)
+        if (window.innerWidth !== lastViewportWidthRef.current) {
+          setIsOpen(false);
+        }
       };
 
       window.addEventListener('scroll', handleScroll, true);
