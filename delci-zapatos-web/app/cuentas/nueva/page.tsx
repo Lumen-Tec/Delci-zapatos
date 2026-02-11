@@ -3,16 +3,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, UserPlus, X } from 'lucide-react';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
-import { ClientAutocomplete } from '@/app/components/shared/ClientAutocomplete';
 import { mockClients } from '@/app/lib/mockData';
 import type { Client } from '@/app/models/client';
 import type { Account, AccountItem } from '@/app/models/account';
+
 
 type AccountDraft = {
   clientId: string;
@@ -56,7 +56,7 @@ const safeParse = <T,>(raw: string | null): T | null => {
 
 export default function NuevaCuentaPage() {
   const router = useRouter();
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients] = useState<Client[]>(mockClients);
   const [draft, setDraft] = useState<AccountDraft>({
     clientId: '',
     biweeklyAmount: 0,
@@ -179,11 +179,6 @@ export default function NuevaCuentaPage() {
                 <p className="text-sm text-gray-600 mt-1">Selecciona cliente, productos y monto quincenal</p>
               </div>
             </div>
-
-            <Button onClick={() => router.push('/cuentas/nueva/productos')} variant="primary">
-              <Plus className="w-5 h-5 mr-2" />
-              Agregar productos
-            </Button>
           </div>
         </div>
 
@@ -194,22 +189,44 @@ export default function NuevaCuentaPage() {
                 <h2 className="text-lg font-bold text-gray-900">Cliente</h2>
               </div>
               <div className="p-6 space-y-4">
-                <ClientAutocomplete
-                  clients={clients}
-                  value={draft.clientId}
-                  onChange={(clientId) => setDraft((prev) => ({ ...prev, clientId }))}
-                  label="Cliente"
-                  placeholder="Buscar por nombre, teléfono o dirección..."
-                  required
-                />
-
                 {selectedClient ? (
                   <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <div className="text-sm font-semibold text-gray-900">{selectedClient.name}</div>
-                    <div className="text-xs text-gray-600 mt-1">{selectedClient.phone}</div>
-                    <div className="text-xs text-gray-600 mt-1">{selectedClient.address}</div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{selectedClient.name}</div>
+                        <div className="text-xs text-gray-600 mt-1">{selectedClient.phone}</div>
+                        <div className="text-xs text-gray-600 mt-1">{selectedClient.address}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((prev) => ({ ...prev, clientId: '' }))}
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                        title="Quitar cliente"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/cuentas/nueva/cliente')}
+                      className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-pink-600 bg-pink-50 hover:bg-pink-100 transition-all duration-200"
+                    >
+                      Cambiar cliente
+                    </button>
                   </div>
-                ) : null}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/cuentas/nueva/cliente')}
+                    className="w-full flex flex-col items-center gap-3 py-8 rounded-xl border-2 border-dashed border-gray-200 hover:border-pink-300 hover:bg-pink-50/50 transition-all duration-200 cursor-pointer"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center">
+                      <UserPlus className="w-6 h-6 text-pink-500" />
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900">Seleccionar cliente</div>
+                    <div className="text-xs text-gray-500">Toca para buscar y elegir un cliente</div>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -246,14 +263,16 @@ export default function NuevaCuentaPage() {
 
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Productos</h2>
-                  <p className="text-sm text-gray-600 mt-1">{draft.items.length} agregados</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-gray-600">Total</div>
-                  <div className="text-lg font-bold text-gray-900">{formatCurrency(totalAmount)}</div>
+              <div className="p-4 sm:p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Productos</h2>
+                    <p className="text-sm text-gray-600 mt-1">{draft.items.length} agregados</p>
+                  </div>
+                  <Button onClick={() => router.push('/cuentas/nueva/productos')} variant="primary" className="whitespace-nowrap">
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
+                    <span className="hidden sm:inline">Agregar productos</span>
+                  </Button>
                 </div>
               </div>
 
@@ -316,9 +335,16 @@ export default function NuevaCuentaPage() {
                   </div>
                 )}
               </div>
+
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium text-gray-600">Total de productos</div>
+                  <div className="text-xl font-bold text-gray-900">{formatCurrency(totalAmount)}</div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mb-8 sm:mb-0">
               <Button variant="secondary" onClick={() => {
                 window.localStorage.removeItem(DRAFT_KEY);
                 router.push('/cuentas');
@@ -329,12 +355,6 @@ export default function NuevaCuentaPage() {
                 Crear cuenta
               </Button>
             </div>
-
-            {!canCreate ? (
-              <div className="text-sm text-gray-600">
-                Debes seleccionar un cliente, agregar al menos un producto y definir el monto quincenal.
-              </div>
-            ) : null}
           </div>
         </div>
       </div>
