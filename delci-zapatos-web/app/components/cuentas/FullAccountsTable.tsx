@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, Calendar } from 'lucide-react';
 import type { Account } from '@/app/models/account';
+import { usePagination } from '@/app/hooks/usePagination';
+import { Pagination } from '@/app/components/shared/Pagination';
 
 export interface AccountFilterState {
   accountId: string;
@@ -73,6 +75,24 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
       return matchesId && matchesClient && matchesStatus;
     });
   }, [accounts, filters, activeTab]);
+
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedAccounts,
+    startIndex,
+    endIndex,
+    setPage,
+    setPageSize,
+    resetPage,
+  } = usePagination(filteredAccounts, { initialPageSize: 10 });
+
+  // Reset to page 1 when filters or tab change
+  useEffect(() => {
+    resetPage();
+  }, [filters, activeTab, resetPage]);
 
   const getStatusBadge = (status: Account['status']) => {
     const styles = {
@@ -166,7 +186,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
             </td>
           </tr>
         ) : (
-          filteredAccounts.map((account) => (
+          paginatedAccounts.map((account) => (
             <tr key={account.id} className="hover:bg-gray-50 transition-colors duration-150">
               <td className="hidden sm:table-cell px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                 <div className="flex items-center">
@@ -260,7 +280,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
             </td>
           </tr>
         ) : (
-          filteredAccounts.map((account) => (
+          paginatedAccounts.map((account) => (
             <tr key={account.id} className="hover:bg-gray-50 transition-colors duration-150">
               <td className="px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                 <div>
@@ -441,6 +461,23 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
           {activeTab === 'proximos_pagos' && renderProximosPagosTable()}
         </table>
       </div>
+
+      {/* Pagination */}
+      {filteredAccounts.length > 0 && (
+        <div className="border-t border-gray-100">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="cuentas"
+          />
+        </div>
+      )}
 
       {/* Footer with stats */}
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-2xl">

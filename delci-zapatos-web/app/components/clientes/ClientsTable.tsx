@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Client } from '@/app/models/client';
+import { usePagination } from '@/app/hooks/usePagination';
+import { Pagination } from '@/app/components/shared/Pagination';
 
 export interface ClientFilterState {
   clientId: string;
@@ -42,12 +44,30 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
     return matchesId && matchesName && matchesPhone;
   });
 
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedClients,
+    startIndex,
+    endIndex,
+    setPage,
+    setPageSize,
+    resetPage,
+  } = usePagination(filteredClients, { initialPageSize: 10 });
+
   const handleFilterChange = (field: keyof ClientFilterState, value: string) => {
     setFilters({
       ...filters,
       [field]: value,
     });
   };
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    resetPage();
+  }, [filters, resetPage]);
 
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden ${className}`}>
@@ -158,7 +178,7 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-50">
-            {filteredClients.map((client, index) => (
+            {paginatedClients.map((client, index) => (
               <tr
                 key={client.id}
                 className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
@@ -210,6 +230,23 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {filteredClients.length > 0 && (
+        <div className="border-t border-gray-100">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="clientes"
+          />
+        </div>
+      )}
 
       {/* Empty State */}
       {filteredClients.length === 0 && (

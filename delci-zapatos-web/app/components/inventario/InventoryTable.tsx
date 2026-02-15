@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Eye, Filter, Search } from 'lucide-react';
 import type { Product, ProductCategory, ProductStatus } from '@/app/models/products';
 import {
@@ -18,6 +18,8 @@ import {
 } from '@/app/models/products';
 import { getProductTotalStock } from '@/app/models/inventory';
 import { isOfferActive, getEffectivePrice, getRemainingOfferDays, productHasActiveDiscount, isSizeOfferActive, getSizeEffectivePrice, getSizeRemainingDays } from '@/app/lib/discountUtils';
+import { usePagination } from '@/app/hooks/usePagination';
+import { Pagination } from '@/app/components/shared/Pagination';
 
 export interface InventoryFilterState {
   query: string;
@@ -190,6 +192,24 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
     }));
   };
 
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedProducts,
+    startIndex,
+    endIndex,
+    setPage,
+    setPageSize,
+    resetPage,
+  } = usePagination(filteredProducts, { initialPageSize: 10 });
+
+  // Reset to page 1 when filters or tab change
+  useEffect(() => {
+    resetPage();
+  }, [filters, activeTab, resetPage]);
+
   const renderAllTable = () => (
     <>
       <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
@@ -216,7 +236,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
             </td>
           </tr>
         ) : (
-          filteredProducts.map((product, index) => {
+          paginatedProducts.map((product, index) => {
             const totalStock = getProductTotalStock(product);
             const subtitleParts: string[] = [];
 
@@ -339,7 +359,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
             </td>
           </tr>
         ) : (
-          filteredProducts.map((product, index) => {
+          paginatedProducts.map((product, index) => {
             const totalStock = getProductTotalStock(product);
 
             if (product.category === 'zapatos') {
@@ -480,7 +500,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
             </td>
           </tr>
         ) : (
-          filteredProducts.map((product, index) => {
+          paginatedProducts.map((product, index) => {
             const totalStock = getProductTotalStock(product);
             const hasDiscount = productHasActiveDiscount(product);
 
@@ -746,6 +766,23 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
           {activeTab === 'activos' && renderActiveTable()}
         </table>
       </div>
+
+      {/* Pagination */}
+      {filteredProducts.length > 0 && (
+        <div className="border-t border-gray-100">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="productos"
+          />
+        </div>
+      )}
 
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
         <div className="flex flex-col gap-1 text-center">
