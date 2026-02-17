@@ -7,6 +7,8 @@ import { ChevronLeft, Search, Check } from 'lucide-react';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
+import { Pagination } from '@/app/components/shared/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { mockClients } from '@/app/lib/mockData';
 import type { Client } from '@/app/models/client';
 import type { AccountItem } from '@/app/models/account';
@@ -53,6 +55,24 @@ export default function SeleccionarClientePage() {
         c.phone.toLowerCase().includes(q)
     );
   }, [clients, query]);
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems,
+    startIndex,
+    endIndex,
+    pageSize,
+    setPage,
+    setPageSize,
+    resetPage,
+  } = usePagination(filteredClients, { initialPageSize: 10 });
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    resetPage();
+  }, [query, resetPage]);
 
   const handleSelect = (clientId: string) => {
     if (!draft) return;
@@ -150,7 +170,7 @@ export default function SeleccionarClientePage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredClients.map((client) => {
+                  paginatedItems.map((client) => {
                     const isSelected = draft.clientId === client.id;
                     return (
                       <tr
@@ -202,12 +222,19 @@ export default function SeleccionarClientePage() {
             </table>
           </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-            <div className="text-sm text-gray-600 text-center">
-              Mostrando <span className="font-medium text-gray-900">{filteredClients.length}</span> de{' '}
-              <span className="font-medium text-gray-900">{clients.length}</span> clientes
-            </div>
+          {/* Pagination */}
+          <div className="bg-gray-50 border-t border-gray-200">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="clientes"
+            />
           </div>
         </div>
       </div>
