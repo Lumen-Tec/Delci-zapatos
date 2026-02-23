@@ -26,6 +26,7 @@ import {
 import { mockProducts } from '@/app/lib/mockData';
 
 type SizeRow = {
+  _key: string;
   size: string;
   stock: string;
   price: string;
@@ -33,10 +34,15 @@ type SizeRow = {
   offerDurationDays: string;
 };
 
+const newSizeRow = (): SizeRow => ({ _key: String(Date.now() + Math.random()), size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' });
+
 type ImageRow = {
+  _key: string;
   url: string;
   alt: string;
 };
+
+const newImageRow = (): ImageRow => ({ _key: String(Date.now() + Math.random()), url: '', alt: '' });
 
 const getGroupsForCategory = (category: ProductCategory): string[] => {
   if (category === 'zapatos') return [...SHOE_GROUPS];
@@ -83,12 +89,9 @@ export default function EditarProductoPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
+  const [pageState, setPageState] = useState<{ loading: boolean; notFound: boolean; originalProduct: Product | null }>({ loading: true, notFound: false, originalProduct: null });
 
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const [fileUploads, setFileUploads] = useState<{ files: File[]; previews: string[] }>({ files: [], previews: [] });
 
   const [formData, setFormData] = useState({
     name: '',
@@ -97,12 +100,12 @@ export default function EditarProductoPage() {
     group: SHOE_GROUPS[0] as string,
     subcategory: SANDALIA_SUBCATEGORIES[0] as string,
     color: '',
-    sizes: [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] as SizeRow[],
+    sizes: [newSizeRow()] as SizeRow[],
     bagStock: '0',
     price: '0',
     discountPercentage: '',
     offerDurationDays: '',
-    images: [{ url: '', alt: '' }] as ImageRow[],
+    images: [newImageRow()] as ImageRow[],
     status: 'active' as ProductStatus,
   });
 
@@ -123,12 +126,9 @@ export default function EditarProductoPage() {
     const product = products.find((p) => p.id === params.id);
 
     if (!product) {
-      setNotFound(true);
-      setLoading(false);
+      setPageState({ loading: false, notFound: true, originalProduct: null });
       return;
     }
-
-    setOriginalProduct(product);
 
     const hasSubcategory = 'subcategory' in product && product.subcategory != null;
 
@@ -142,6 +142,7 @@ export default function EditarProductoPage() {
       sizes:
         product.category === 'zapatos'
           ? product.sizes.map((s) => ({
+              _key: String(s.size),
               size: s.size,
               stock: String(s.stock),
               price: s.price != null ? String(s.price) : '',
@@ -157,18 +158,18 @@ export default function EditarProductoPage() {
         product.offerDurationDays != null ? String(product.offerDurationDays) : '',
       images:
         product.images && product.images.length > 0
-          ? product.images.map((img) => ({ url: img.url, alt: img.alt ?? '' }))
-          : [{ url: '', alt: '' }],
+          ? product.images.map((img) => ({ _key: img.url || String(Date.now() + Math.random()), url: img.url, alt: img.alt ?? '' }))
+          : [newImageRow()],
       status: product.status ?? 'active',
     });
 
-    setLoading(false);
+    setPageState({ loading: false, notFound: false, originalProduct: product });
   }, [params.id]);
 
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
-      filePreviews.forEach((url) => URL.revokeObjectURL(url));
+      fileUploads.previews.forEach((url) => URL.revokeObjectURL(url));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -196,7 +197,7 @@ export default function EditarProductoPage() {
       category: value,
       group: nextGroup,
       subcategory: nextSubcategories[0] ?? '',
-      sizes: value === 'zapatos' ? [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] : [],
+      sizes: value === 'zapatos' ? [newSizeRow()] : [],
     }));
   };
 
@@ -213,7 +214,7 @@ export default function EditarProductoPage() {
   const handleAddSize = () => {
     setFormData((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }],
+      sizes: [...prev.sizes, newSizeRow()],
     }));
   };
 
@@ -238,7 +239,7 @@ export default function EditarProductoPage() {
   const handleAddImage = () => {
     setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, { url: '', alt: '' }],
+      images: [...prev.images, newImageRow()],
     }));
   };
 
@@ -267,22 +268,26 @@ export default function EditarProductoPage() {
     const newFiles = Array.from(files);
     const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
 
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
-    setFilePreviews((prev) => [...prev, ...newPreviews]);
+    setFileUploads((prev) => ({
+      files: [...prev.files, ...newFiles],
+      previews: [...prev.previews, ...newPreviews],
+    }));
 
     // Reset file input so selecting the same file again triggers onChange
     e.target.value = '';
   };
 
   const handleRemoveFile = (index: number) => {
-    URL.revokeObjectURL(filePreviews[index]);
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    setFilePreviews((prev) => prev.filter((_, i) => i !== index));
+    URL.revokeObjectURL(fileUploads.previews[index]);
+    setFileUploads((prev) => ({
+      files: prev.files.filter((_, i) => i !== index),
+      previews: prev.previews.filter((_, i) => i !== index),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!originalProduct) return;
+    if (!pageState.originalProduct) return;
     setIsSaving(true);
 
     const price = Number(formData.price) || 0;
@@ -294,7 +299,7 @@ export default function EditarProductoPage() {
       .filter((img) => img.url.length > 0);
 
     const base = {
-      id: originalProduct.id,
+      id: pageState.originalProduct.id,
       sku: formData.sku || undefined,
       name: formData.name,
       price,
@@ -305,7 +310,7 @@ export default function EditarProductoPage() {
     let product: Product;
 
     if (formData.category === 'zapatos') {
-      const originalSizes = originalProduct.category === 'zapatos' ? originalProduct.sizes : [];
+      const originalSizes = pageState.originalProduct.category === 'zapatos' ? pageState.originalProduct.sizes : [];
       const sizes = formData.sizes
         .map((row) => {
           const dpct = Number(row.discountPercentage) || 0;
@@ -345,7 +350,7 @@ export default function EditarProductoPage() {
           ? {
               discountPercentage: discountPct,
               offerDurationDays: offerDays,
-              offerStartDate: originalProduct.offerStartDate ?? new Date().toISOString().slice(0, 10),
+              offerStartDate: pageState.originalProduct.offerStartDate ?? new Date().toISOString().slice(0, 10),
             }
           : {}),
         category: 'bolsos',
@@ -368,7 +373,7 @@ export default function EditarProductoPage() {
       }
     }
 
-    const next = current.map((p) => (p.id === originalProduct.id ? product : p));
+    const next = current.map((p) => (p.id === pageState.originalProduct!.id ? product : p));
     window.localStorage.setItem('delci_products', JSON.stringify(next));
 
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -377,7 +382,7 @@ export default function EditarProductoPage() {
     router.push('/inventario');
   };
 
-  if (loading) {
+  if (pageState.loading) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
         <Navbar />
@@ -390,7 +395,7 @@ export default function EditarProductoPage() {
     );
   }
 
-  if (notFound) {
+  if (pageState.notFound) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
         <Navbar />
@@ -464,8 +469,9 @@ export default function EditarProductoPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categor&iacute;a</label>
+                <label htmlFor="edit-category" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categor&iacute;a</label>
                 <select
+                  id="edit-category"
                   value={formData.category}
                   onChange={(e) => handleCategoryChange(e.target.value as ProductCategory)}
                   className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
@@ -476,8 +482,9 @@ export default function EditarProductoPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
+                <label htmlFor="edit-group" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
                 <select
+                  id="edit-group"
                   value={formData.group}
                   onChange={(e) => handleGroupChange(e.target.value)}
                   className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
@@ -491,8 +498,9 @@ export default function EditarProductoPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategor&iacute;a</label>
+                <label htmlFor="edit-subcategory" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategor&iacute;a</label>
                 <select
+                  id="edit-subcategory"
                   value={formData.subcategory}
                   onChange={(e) => setField('subcategory', e.target.value)}
                   disabled={subcategories.length === 0}
@@ -523,7 +531,7 @@ export default function EditarProductoPage() {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700">Tallas</label>
+                    <span className="block text-xs sm:text-sm font-medium text-gray-700">Tallas</span>
                     <Button type="button" variant="secondary" size="sm" onClick={handleAddSize}>
                       <Plus className="w-4 h-4 mr-1" />
                       Agregar talla
@@ -532,7 +540,7 @@ export default function EditarProductoPage() {
 
                   <div className="space-y-2">
                     {formData.sizes.map((row, index) => (
-                      <div key={`${index}`} className="space-y-2 pb-3 border-b border-gray-50 last:border-b-0">
+                      <div key={row._key} className="space-y-2 pb-3 border-b border-gray-50 last:border-b-0">
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                           <div className="sm:col-span-2">
                             <InputField
@@ -632,8 +640,9 @@ export default function EditarProductoPage() {
             </div>
 
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
+              <label htmlFor="edit-status" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
               <select
+                id="edit-status"
                 value={formData.status}
                 onChange={(e) => setField('status', e.target.value as ProductStatus)}
                 className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
@@ -679,7 +688,7 @@ export default function EditarProductoPage() {
 
               <div className="space-y-2">
                 {formData.images.map((img, index) => (
-                  <div key={`${index}`} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end">
+                  <div key={img._key} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end">
                     <div className="lg:col-span-7">
                       <InputField
                         label={index === 0 ? 'URL' : undefined}
@@ -724,8 +733,8 @@ export default function EditarProductoPage() {
                   <Upload className="w-4 h-4 mr-1" />
                   Subir desde dispositivo
                 </Button>
-                {selectedFiles.length > 0 && (
-                  <span className="text-xs text-gray-500">{selectedFiles.length} archivo(s) seleccionado(s)</span>
+                {fileUploads.files.length > 0 && (
+                  <span className="text-xs text-gray-500">{fileUploads.files.length} archivo(s) seleccionado(s)</span>
                 )}
               </div>
 
@@ -737,13 +746,13 @@ export default function EditarProductoPage() {
                   .slice(0, 8)
                   .map((url) => (
                     <div key={url} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                      <img src={url} alt="" className="w-full h-28 object-cover" />
+                      <Image src={url} alt="" width={112} height={112} className="w-full h-28 object-cover" />
                     </div>
                   ))}
                 {/* File previews */}
-                {filePreviews.map((preview, index) => (
+                {fileUploads.previews.map((preview, index) => (
                   <div key={preview} className="relative rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                    <img src={preview} alt="" className="w-full h-28 object-cover" />
+                    <Image src={preview} alt="" width={112} height={112} className="w-full h-28 object-cover" />
                     <button
                       type="button"
                       onClick={() => handleRemoveFile(index)}

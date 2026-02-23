@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { Modal } from '@/app/components/shared/Modal';
 import { InputField } from '@/app/components/shared/InputField';
 import { Button } from '@/app/components/shared/Button';
+import { InfoField } from '@/app/components/shared/InfoField';
+import { UserIcon, PhoneIcon, AddressIcon, ProductsIcon, AccountIcon, EditIcon, SaveIcon } from '@/app/components/shared/IconComponents';
 import { X } from 'lucide-react';
 import type { Client } from '@/app/models/client';
 
@@ -22,15 +24,13 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
   const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
-    if (client) {
-      setEditedClient({ ...client });
-    }
     setIsEditing(false);
   }, [client]);
 
-  if (!client || !editedClient) return null;
+  if (!client) return null;
 
   const handleEdit = () => {
+    setEditedClient({ ...client });
     setIsEditing(true);
   };
 
@@ -67,103 +67,6 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
       onClose(); // Cerrar el modal después de navegar
     }
   };
-
-  const InfoField = ({ 
-    label, 
-    value, 
-    icon, 
-    editable = true 
-  }: { 
-    label: string; 
-    value: string | number; 
-    icon: React.ReactNode; 
-    editable?: boolean;
-  }) => (
-    <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white flex items-center justify-center text-pink-600 border border-pink-200">
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-          {label}
-        </p>
-        <p className="text-sm text-gray-900 break-words">
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-
-  // Icon components using Next.js Image
-  const UserIcon = () => (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769808970/perfil_cv6pdw.svg"
-      alt="Usuario"
-      width={20}
-      height={20}
-      className="w-5 h-5"
-    />
-  );
-
-  const PhoneIcon = () => (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769808970/telefono_l4dkby.svg"
-      alt="Teléfono"
-      width={20}
-      height={20}
-      className="w-5 h-5"
-    />
-  );
-
-  const AddressIcon = () => (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769808970/ubicacion_zapqrd.svg"
-      alt="Dirección"
-      width={20}
-      height={20}
-      className="w-5 h-5"
-    />
-  );
-
-  const ProductsIcon = () => (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769808970/productos_dnz8zi.svg"
-      alt="Productos"
-      width={20}
-      height={20}
-      className="w-5 h-5"
-    />
-  );
-
-  const AccountIcon = () => (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg"
-      alt="Cuenta"
-      width={20}
-      height={20}
-      className="w-5 h-5"
-    />
-  );
-
-  const EditIcon = () => (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769809182/edit_w5bmhc.svg"
-      alt="Editar"
-      width={16}
-      height={16}
-      className="w-4 h-4"
-    />
-  );
-
-  const SaveIcon = () => (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769809182/save_cj0ltc.svg"
-      alt="Guardar"
-      width={16}
-      height={16}
-      className="w-4 h-4"
-    />
-  );
 
   return (
     <Modal 
@@ -244,7 +147,7 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
             <>
               <InputField
                 label="Nombre Completo"
-                value={editedClient.name}
+                value={(editedClient ?? client).name}
                 onChange={(value) => handleChange('name', value)}
                 placeholder="Ej: Juan Pérez"
                 required
@@ -253,7 +156,7 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
 
               <InputField
                 label="Teléfono"
-                value={editedClient.phone}
+                value={(editedClient ?? client).phone}
                 onChange={(value) => handleChange('phone', value)}
                 placeholder="Ej: +506 8888-8888"
                 required
@@ -263,7 +166,7 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
 
               <InputField
                 label="Dirección"
-                value={editedClient.address}
+                value={(editedClient ?? client).address}
                 onChange={(value) => handleChange('address', value)}
                 placeholder="Ej: San José, Costa Rica"
                 required
@@ -276,7 +179,7 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
                     <ProductsIcon />
                     <div>
                       <p className="text-sm font-medium text-blue-900">Total de Productos</p>
-                      <p className="text-lg font-bold text-blue-600">{editedClient.totalProducts}</p>
+                      <p className="text-lg font-bold text-blue-600">{(editedClient ?? client).totalProducts}</p>
                     </div>
                   </div>
                   <Button

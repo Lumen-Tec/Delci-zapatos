@@ -29,6 +29,7 @@ interface ProductDetailModalProps {
 }
 
 type SizeRow = {
+  _key: string;
   size: string;
   stock: string;
   price: string;
@@ -85,6 +86,7 @@ const formatCurrency = (amount: number) => {
 
 const toSizeRows = (product: ShoeProduct): SizeRow[] => {
   return product.sizes.map((s) => ({
+    _key: String(s.size),
     size: s.size,
     stock: String(s.stock),
     price: s.price != null ? String(s.price) : '',
@@ -92,6 +94,15 @@ const toSizeRows = (product: ShoeProduct): SizeRow[] => {
     offerDurationDays: s.offerDurationDays != null ? String(s.offerDurationDays) : '',
   }));
 };
+
+const newSizeRow = (): SizeRow => ({
+  _key: String(Date.now() + Math.random()),
+  size: '',
+  stock: '0',
+  price: '',
+  discountPercentage: '',
+  offerDurationDays: '',
+});
 
 export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated }: ProductDetailModalProps) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -182,7 +193,7 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
   const handleAddSize = () => {
     setDraft((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }],
+      sizes: [...prev.sizes, newSizeRow()],
     }));
   };
 
@@ -345,9 +356,10 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
           )}
 
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
+            <label htmlFor="detail-status" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
             {isEditing ? (
               <select
+                id="detail-status"
                 value={draft.status}
                 onChange={(e) => setField('status', e.target.value as ProductStatus)}
                 className="w-full pl-4 pr-4 py-2 sm:py-3 rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500 hover:border-gray-400"
@@ -365,9 +377,10 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
+            <label htmlFor="detail-group" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
             {isEditing ? (
               <select
+                id="detail-group"
                 value={draft.group}
                 onChange={(e) => handleGroupChange(e.target.value)}
                 className="w-full pl-4 pr-4 py-2 sm:py-3 rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500 hover:border-gray-400"
@@ -386,10 +399,11 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
           </div>
 
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
+            <label htmlFor="detail-subcategory" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
             {hasSubcategory ? (
               isEditing ? (
                 <select
+                  id="detail-subcategory"
                   value={draft.subcategory}
                   onChange={(e) => setField('subcategory', e.target.value)}
                   className="w-full pl-4 pr-4 py-2 sm:py-3 rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500 hover:border-gray-400"
@@ -443,7 +457,7 @@ export const ProductDetailModal = ({ isOpen, onClose, product, onProductUpdated 
               {isEditing ? (
                 <div className="space-y-2">
                   {draft.sizes.map((row, index) => (
-                    <div key={`${index}`} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                    <div key={row._key} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                       <div className="sm:col-span-3">
                         <InputField
                           label={index === 0 ? 'Talla' : undefined}

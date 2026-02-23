@@ -104,7 +104,6 @@ export const LoginForm = React.memo<LoginFormProps>(({
         required
         error={errors.username}
         icon={usernameIcon}
-        autoFocus
         disabled={isSubmitting || isLoading}
       />
 

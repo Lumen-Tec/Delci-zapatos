@@ -1,10 +1,13 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { LogoHeader } from '@/app/components/auth/LogoHeader';
 import { LoginForm } from '@/app/components/auth/LoginForm';
 
 export default function AuthPage() {
+  const router = useRouter();
+
   const handleLogin = async (username: string, password: string) => {
     // Aquí irá la lógica de autenticación
     console.log('Login attempt:', { username, password });
@@ -15,7 +18,7 @@ export default function AuthPage() {
     // Simulación de validación
     if (username === 'admin' && password === 'admin') {
       // Redirección al dashboard
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
     } else {
       throw new Error('Credenciales incorrectas');
     }

@@ -1,20 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Client } from '@/app/models/client';
 import { usePagination } from '@/app/hooks/usePagination';
 import { Pagination } from '@/app/components/shared/Pagination';
-
-export interface ClientFilterState {
-  clientId: string;
-  clientName: string;
-  clientPhone: string;
-}
 
 interface ClientsTableProps {
   clients: Client[];
   onViewProfile?: (clientId: string) => void;
   className?: string;
+}
+
+interface ClientFilterState {
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
 }
 
 // Search icon component
@@ -35,7 +35,6 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
     clientPhone: '',
   });
 
-  // Filter clients based on filters
   const filteredClients = clients.filter(client => {
     const matchesId = !filters.clientId || client.id.includes(filters.clientId);
     const matchesName = !filters.clientName || client.name.toLowerCase().includes(filters.clientName.toLowerCase());
@@ -62,12 +61,8 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
       ...filters,
       [field]: value,
     });
-  };
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
     resetPage();
-  }, [filters, resetPage]);
+  };
 
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden ${className}`}>

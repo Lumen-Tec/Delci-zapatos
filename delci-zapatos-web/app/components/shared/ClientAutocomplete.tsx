@@ -11,7 +11,6 @@ interface ClientAutocompleteProps {
   label?: string;
   placeholder?: string;
   required?: boolean;
-  autoFocus?: boolean;
   disabled?: boolean;
 }
 
@@ -22,7 +21,6 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
   label,
   placeholder = 'Buscar por nombre, teléfono o dirección...',
   required = false,
-  autoFocus = false,
   disabled = false,
 }) => {
   const [query, setQuery] = useState('');
@@ -34,6 +32,8 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const lastViewportWidthRef = useRef<number>(typeof window !== 'undefined' ? window.innerWidth : 0);
   const openTimestampRef = useRef<number>(0);
+  const isOpenRef = useRef(false);
+  isOpenRef.current = isOpen;
   const inputId = useId();
 
   // Filtrar clientes por nombre, teléfono o dirección
@@ -75,32 +75,32 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
 
   // Cerrar dropdown cuando hay scroll en la página
   useEffect(() => {
-    if (isOpen) {
-      const handleScroll = (e: Event) => {
-        // Ignorar scroll events dentro de los primeros 300ms (auto-scroll del navegador al enfocar en móviles)
-        if (Date.now() - openTimestampRef.current < 300) return;
-        // Solo cerrar si el scroll NO es dentro del dropdown
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-          setIsOpen(false);
-        }
-      };
+    const handleScroll = (e: Event) => {
+      if (!isOpenRef.current) return;
+      // Ignorar scroll events dentro de los primeros 300ms (auto-scroll del navegador al enfocar en móviles)
+      if (Date.now() - openTimestampRef.current < 300) return;
+      // Solo cerrar si el scroll NO es dentro del dropdown
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
 
-      const handleResize = () => {
-        // Solo cerrar si el ancho del viewport cambió (no la altura, que cambia al abrir el teclado virtual)
-        if (window.innerWidth !== lastViewportWidthRef.current) {
-          setIsOpen(false);
-        }
-      };
+    const handleResize = () => {
+      if (!isOpenRef.current) return;
+      // Solo cerrar si el ancho del viewport cambió (no la altura, que cambia al abrir el teclado virtual)
+      if (window.innerWidth !== lastViewportWidthRef.current) {
+        setIsOpen(false);
+      }
+    };
 
-      window.addEventListener('scroll', handleScroll, true);
-      window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
 
-      return () => {
-        window.removeEventListener('scroll', handleScroll, true);
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-  }, [isOpen]);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Auto-scroll del elemento resaltado
   useEffect(() => {
@@ -217,18 +217,21 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
       const regex = new RegExp(`(${query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
       const parts = text.split(regex);
 
-      return parts.map((part, index) =>
-        regex.test(part) ? (
+      let charOffset = 0;
+      return parts.map((part) => {
+        const key = String(charOffset);
+        charOffset += part.length;
+        return regex.test(part) ? (
           <mark
-            key={index}
+            key={key}
             className="bg-yellow-200 text-gray-900 font-semibold px-0.5 rounded"
           >
             {part}
           </mark>
         ) : (
-          <span key={index}>{part}</span>
-        )
-      );
+          <span key={key}>{part}</span>
+        );
+      });
     } catch {
       return text;
     }
@@ -266,7 +269,6 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          autoFocus={autoFocus}
           role="combobox"
           aria-expanded={isOpen}
           aria-controls={`${inputId}-listbox`}
@@ -368,6 +370,7 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
                 aria-selected={client.id === value}
                 tabIndex={-1}
                 onClick={() => handleSelect(client)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(client); } }}
                 onMouseEnter={() => setHighlightedIndex(index)}
                 className={`
                   px-4 py-3

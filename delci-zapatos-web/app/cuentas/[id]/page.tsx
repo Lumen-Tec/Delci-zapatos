@@ -1,32 +1,64 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useReducer } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, CreditCard, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, CreditCard } from 'lucide-react';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
+import { AccountSummary } from '@/app/components/accounts/AccountSummary';
+import { PaymentForm } from '@/app/components/accounts/PaymentForm';
 import { mockAccounts, mockClients } from '@/app/lib/mockData';
+import { formatCurrency, todayISO, addDaysISO, computeStatus } from '@/app/lib/accountUtils';
 import type { Account, AccountPayment } from '@/app/models/account';
 import type { Client } from '@/app/models/client';
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-CR', {
-    style: 'currency',
-    currency: 'CRC',
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
+interface AccountState {
+  account: Account | null;
+  client: Client | null;
+  paymentDate: string;
+  paymentAmount: string;
+  biweeklyAmount: string;
+}
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+type AccountAction =
+  | { type: 'SET_ACCOUNT'; payload: Account | null }
+  | { type: 'SET_CLIENT'; payload: Client | null }
+  | { type: 'SET_PAYMENT_DATE'; payload: string }
+  | { type: 'SET_PAYMENT_AMOUNT'; payload: string }
+  | { type: 'SET_BIWEEKLY_AMOUNT'; payload: string }
+  | { type: 'RESET_PAYMENT_FORM'; payload: { date: string; amount: string } }
+  | { type: 'INIT_ACCOUNT'; payload: { account: Account | null; client: Client | null; paymentDate: string; biweeklyAmount: string; paymentAmount: string } };
 
-const addDaysISO = (dateISO: string, days: number) => {
-  const d = new Date(dateISO);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+const accountReducer = (state: AccountState, action: AccountAction): AccountState => {
+  switch (action.type) {
+    case 'SET_ACCOUNT':
+      return { ...state, account: action.payload };
+    case 'SET_CLIENT':
+      return { ...state, client: action.payload };
+    case 'SET_PAYMENT_DATE':
+      return { ...state, paymentDate: action.payload };
+    case 'SET_PAYMENT_AMOUNT':
+      return { ...state, paymentAmount: action.payload };
+    case 'SET_BIWEEKLY_AMOUNT':
+      return { ...state, biweeklyAmount: action.payload };
+    case 'RESET_PAYMENT_FORM':
+      return { ...state, paymentDate: action.payload.date, paymentAmount: action.payload.amount };
+    case 'INIT_ACCOUNT':
+      return {
+        ...state,
+        account: action.payload.account,
+        client: action.payload.client,
+        paymentDate: action.payload.paymentDate,
+        biweeklyAmount: action.payload.biweeklyAmount,
+        paymentAmount: action.payload.paymentAmount,
+      };
+    default:
+      return state;
+  }
 };
 
 const safeParse = <T,>(raw: string | null): T | null => {
@@ -48,86 +80,82 @@ const saveAccounts = (accounts: Account[]) => {
   window.localStorage.setItem('delci_accounts', JSON.stringify(accounts));
 };
 
-const computeStatus = (remainingAmount: number, nextPaymentDate?: string) => {
-  if (remainingAmount <= 0) return 'paid' as const;
-
-  if (nextPaymentDate) {
-    const today = todayISO();
-    if (nextPaymentDate < today) return 'overdue' as const;
-  }
-
-  return 'active' as const;
-};
-
 export default function AccountDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const accountId = params?.id;
 
-  const [account, setAccount] = useState<Account | null>(null);
-  const [client, setClient] = useState<Client | null>(null);
+  const initialState: AccountState = {
+    account: null,
+    client: null,
+    paymentDate: todayISO(),
+    paymentAmount: '',
+    biweeklyAmount: '',
+  };
 
-  const [paymentDate, setPaymentDate] = useState<string>(todayISO());
-  const [paymentAmount, setPaymentAmount] = useState<string>('');
-  const [biweeklyAmount, setBiweeklyAmount] = useState<string>('');
+  const [state, dispatch] = useReducer(accountReducer, initialState);
 
   useEffect(() => {
     if (!accountId) return;
 
     const accounts = loadAccounts();
     const found = accounts.find((a) => a.id === accountId) ?? null;
-    setAccount(found);
 
     const foundClient = mockClients.find((c) => c.id === found?.clientId) ?? null;
-    setClient(foundClient);
 
     const computedNext =
       found && found.remainingAmount > 0
         ? found.nextPaymentDate ?? (found.createdAt ? addDaysISO(found.createdAt, 15) : undefined)
         : undefined;
 
+    let nextFound: Account | undefined;
     if (found && found.remainingAmount > 0 && !found.nextPaymentDate && computedNext) {
-      const nextFound: Account = { ...found, nextPaymentDate: computedNext };
-      const updated = accounts.map((a) => (a.id === nextFound.id ? nextFound : a));
+      nextFound = { ...found, nextPaymentDate: computedNext };
+      const updated = accounts.map((a) => (a.id === nextFound!.id ? nextFound! : a));
       saveAccounts(updated);
-      setAccount(nextFound);
     }
 
-    setPaymentDate(computedNext ?? todayISO());
-
     const biweekly = found?.biweeklyAmount;
-    setBiweeklyAmount(biweekly != null ? String(biweekly) : '');
-
     const remaining = found?.remainingAmount ?? 0;
     const defaultAmount = biweekly != null ? Math.min(biweekly, remaining) : remaining;
-    setPaymentAmount(defaultAmount > 0 ? String(defaultAmount) : '');
+
+    dispatch({
+      type: 'INIT_ACCOUNT',
+      payload: {
+        account: nextFound ?? found,
+        client: foundClient,
+        paymentDate: computedNext ?? todayISO(),
+        biweeklyAmount: biweekly != null ? String(biweekly) : '',
+        paymentAmount: defaultAmount > 0 ? String(defaultAmount) : '',
+      },
+    });
   }, [accountId]);
 
-  const payments = useMemo(() => account?.payments ?? [], [account]);
-  const items = useMemo(() => account?.items ?? [], [account]);
+  const payments = useMemo(() => state.account?.payments ?? [], [state.account]);
+  const items = useMemo(() => state.account?.items ?? [], [state.account]);
 
   const handlePersistAccount = (next: Account) => {
     const accounts = loadAccounts();
     const updated = accounts.map((a) => (a.id === next.id ? next : a));
     saveAccounts(updated);
-    setAccount(next);
+    dispatch({ type: 'SET_ACCOUNT', payload: next });
   };
 
   const handleRemoveItem = (itemId: string) => {
-    if (!account) return;
+    if (!state.account) return;
 
-    const nextItems = (account.items ?? []).filter((i) => i.id !== itemId);
-    const totalAmount = nextItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const totalProducts = nextItems.reduce((sum, item) => sum + item.quantity, 0);
+    const nextItems = (state.account.items ?? []).filter((i: any) => i.id !== itemId);
+    const totalAmount = nextItems.reduce((sum: number, item: any) => sum + item.quantity * item.unitPrice, 0);
+    const totalProducts = nextItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
 
-    const totalPaid = account.totalPaid;
+    const totalPaid = state.account.totalPaid;
     const remainingAmount = Math.max(0, totalAmount - totalPaid);
 
-    const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate : undefined;
+    const nextPaymentDate = remainingAmount > 0 ? state.account.nextPaymentDate : undefined;
     const status = computeStatus(remainingAmount, nextPaymentDate);
 
     const next: Account = {
-      ...account,
+      ...state.account,
       items: nextItems.length > 0 ? nextItems : undefined,
       totalAmount,
       totalProducts,
@@ -140,12 +168,12 @@ export default function AccountDetailPage() {
   };
 
   const handleSaveBiweeklyAmount = () => {
-    if (!account) return;
-    const amt = Number(biweeklyAmount);
+    if (!state.account) return;
+    const amt = Number(state.biweeklyAmount);
     if (!Number.isFinite(amt) || amt <= 0) return;
 
     const next: Account = {
-      ...account,
+      ...state.account,
       biweeklyAmount: amt,
     };
 
@@ -153,42 +181,47 @@ export default function AccountDetailPage() {
   };
 
   const handleRegisterPayment = () => {
-    if (!account) return;
+    if (!state.account) return;
 
-    const amt = Number(paymentAmount);
+    const amt = Number(state.paymentAmount);
     if (!Number.isFinite(amt) || amt <= 0) return;
-    if (!paymentDate) return;
+    if (!state.paymentDate) return;
 
-    const nextTotalPaid = account.totalPaid + amt;
-    const remainingAmount = Math.max(0, account.totalAmount - nextTotalPaid);
+    const nextTotalPaid = state.account.totalPaid + amt;
+    const remainingAmount = Math.max(0, state.account.totalAmount - nextTotalPaid);
 
     const payment: AccountPayment = {
       id: `PAY-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      date: paymentDate,
+      date: state.paymentDate,
       amount: amt,
     };
 
-    const nextPaymentDate = remainingAmount > 0 ? addDaysISO(paymentDate, 15) : undefined;
+    const nextPaymentDate = remainingAmount > 0 ? addDaysISO(state.paymentDate, 15) : undefined;
     const status = computeStatus(remainingAmount, nextPaymentDate);
 
     const next: Account = {
-      ...account,
+      ...state.account,
       totalPaid: nextTotalPaid,
       remainingAmount,
-      lastPaymentDate: paymentDate,
+      lastPaymentDate: state.paymentDate,
       nextPaymentDate,
-      payments: [...(account.payments ?? []), payment],
+      payments: [...(state.account.payments ?? []), payment],
       status,
     };
 
     handlePersistAccount(next);
 
     const nextSuggestedAmount = next.biweeklyAmount != null ? Math.min(next.biweeklyAmount, next.remainingAmount) : next.remainingAmount;
-    setPaymentAmount(nextSuggestedAmount > 0 ? String(nextSuggestedAmount) : '');
-    setPaymentDate(next.nextPaymentDate ?? todayISO());
+    dispatch({ 
+      type: 'RESET_PAYMENT_FORM', 
+      payload: {
+        date: next.nextPaymentDate ?? todayISO(),
+        amount: nextSuggestedAmount > 0 ? String(nextSuggestedAmount) : ''
+      }
+    });
   };
 
-  if (!account) {
+  if (!state.account) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
         <Navbar />
@@ -240,12 +273,12 @@ export default function AccountDetailPage() {
               </div>
 
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cuenta #{account.id}</h1>
-                <p className="text-sm text-gray-600 mt-1">{account.clientName}</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cuenta #{state.account.id}</h1>
+                <p className="text-sm text-gray-600 mt-1">{state.account.clientName}</p>
               </div>
             </div>
 
-            <Button onClick={() => router.push(`/cuentas/${account.id}/productos`)} variant="primary">
+            <Button onClick={() => router.push(`/cuentas/${state.account!.id}/productos`)} variant="primary">
               <Plus className="w-5 h-5 mr-2" />
               Agregar productos
             </Button>
@@ -259,11 +292,11 @@ export default function AccountDetailPage() {
                 <h2 className="text-lg font-bold text-gray-900">Cliente</h2>
               </div>
               <div className="p-6">
-                {client ? (
+                {state.client ? (
                   <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                    <div className="text-sm font-semibold text-gray-900">{client.name}</div>
-                    <div className="text-xs text-gray-600 mt-1">{client.phone}</div>
-                    <div className="text-xs text-gray-600 mt-1">{client.address}</div>
+                    <div className="text-sm font-semibold text-gray-900">{state.client.name}</div>
+                    <div className="text-xs text-gray-600 mt-1">{state.client.phone}</div>
+                    <div className="text-xs text-gray-600 mt-1">{state.client.address}</div>
                   </div>
                 ) : (
                   <div className="text-sm text-gray-600">No hay datos extra del cliente.</div>
@@ -271,33 +304,7 @@ export default function AccountDetailPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
-              <div className="p-6 border-b border-gray-100">
-                <h2 className="text-lg font-bold text-gray-900">Resumen</h2>
-              </div>
-              <div className="p-6 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total</span>
-                  <span className="font-semibold text-gray-900">{formatCurrency(account.totalAmount)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Pagado</span>
-                  <span className="font-semibold text-gray-900">{formatCurrency(account.totalPaid)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Pendiente</span>
-                  <span className="font-semibold text-gray-900">{formatCurrency(account.remainingAmount)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Próximo pago</span>
-                  <span className="font-semibold text-gray-900">{account.nextPaymentDate ?? '-'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Último pago</span>
-                  <span className="font-semibold text-gray-900">{account.lastPaymentDate ?? '-'}</span>
-                </div>
-              </div>
-            </div>
+            <AccountSummary account={state.account} />
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
               <div className="p-6 border-b border-gray-100">
@@ -307,8 +314,8 @@ export default function AccountDetailPage() {
                 <InputField
                   label="Monto quincenal"
                   type="number"
-                  value={biweeklyAmount}
-                  onChange={(value) => setBiweeklyAmount(value)}
+                  value={state.biweeklyAmount}
+                  onChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
                   placeholder="Ej: 5000"
                 />
                 <Button onClick={handleSaveBiweeklyAmount} variant="secondary">
@@ -317,35 +324,14 @@ export default function AccountDetailPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
-              <div className="p-6 border-b border-gray-100">
-                <h2 className="text-lg font-bold text-gray-900">Registrar pago</h2>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Fecha</label>
-                  <input
-                    type="date"
-                    value={paymentDate}
-                    onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 shadow-sm"
-                  />
-                </div>
-
-                <InputField
-                  label="Monto"
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(value) => setPaymentAmount(value)}
-                  placeholder={account.biweeklyAmount ? String(account.biweeklyAmount) : 'Monto'}
-                />
-
-                <Button onClick={handleRegisterPayment} variant="primary">
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Marcar pagado
-                </Button>
-              </div>
-            </div>
+            <PaymentForm
+              account={state.account}
+              paymentDate={state.paymentDate}
+              paymentAmount={state.paymentAmount}
+              onPaymentDateChange={(value) => dispatch({ type: 'SET_PAYMENT_DATE', payload: value })}
+              onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
+              onRegisterPayment={handleRegisterPayment}
+            />
           </div>
 
           <div className="lg:col-span-2 space-y-6">

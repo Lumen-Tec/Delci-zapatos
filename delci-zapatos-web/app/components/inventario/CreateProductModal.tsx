@@ -27,9 +27,12 @@ interface CreateProductModalProps {
 }
 
 type SizeRow = {
+  _key: string;
   size: string;
   stock: string;
 };
+
+const newSizeRow = (): SizeRow => ({ _key: String(Date.now() + Math.random()), size: '', stock: '0' });
 
 const getGroupsForCategory = (category: ProductCategory): string[] => {
   if (category === 'zapatos') return [...SHOE_GROUPS];
@@ -79,7 +82,7 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
     group: SHOE_GROUPS[0] as string,
     subcategory: SANDALIA_SUBCATEGORIES[0] as string,
     color: '',
-    sizes: [{ size: '', stock: '0' }] as SizeRow[],
+    sizes: [newSizeRow()] as SizeRow[],
     bagStock: '0',
     price: '0',
   });
@@ -107,7 +110,7 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
       category: value,
       group: nextGroup,
       subcategory: nextSubcategories[0] ?? '',
-      sizes: value === 'zapatos' ? [{ size: '', stock: '0' }] : [],
+      sizes: value === 'zapatos' ? [newSizeRow()] : [],
     }));
   };
 
@@ -177,7 +180,7 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
       group: SHOE_GROUPS[0] as string,
       subcategory: SANDALIA_SUBCATEGORIES[0] as string,
       color: '',
-      sizes: [{ size: '', stock: '0' }],
+      sizes: [newSizeRow()],
       bagStock: '0',
       price: '0',
     });
@@ -186,7 +189,7 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
   const handleAddSize = () => {
     setFormData((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0' }],
+      sizes: [...prev.sizes, newSizeRow()],
     }));
   };
 
@@ -230,8 +233,9 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
+            <label htmlFor="create-category" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
             <select
+              id="create-category"
               value={formData.category}
               onChange={(e) => handleCategoryChange(e.target.value as ProductCategory)}
               className="w-full pl-4 pr-4 py-2 sm:py-3 rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500 hover:border-gray-400"
@@ -242,8 +246,9 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
           </div>
 
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
+            <label htmlFor="create-group" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
             <select
+              id="create-group"
               value={formData.group}
               onChange={(e) => handleGroupChange(e.target.value)}
               className="w-full pl-4 pr-4 py-2 sm:py-3 rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500 hover:border-gray-400"
@@ -259,8 +264,9 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
 
         {subcategories.length > 0 && (
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
+            <label htmlFor="create-subcategory" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
             <select
+              id="create-subcategory"
               value={formData.subcategory}
               onChange={(e) => setField('subcategory', e.target.value)}
               className="w-full pl-4 pr-4 py-2 sm:py-3 rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500 hover:border-gray-400"
@@ -287,7 +293,7 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Tallas</label>
+                <span className="block text-xs sm:text-sm font-medium text-gray-700">Tallas</span>
                 <Button type="button" variant="secondary" size="sm" onClick={handleAddSize}>
                   <Plus className="w-4 h-4 mr-1" />
                   Agregar talla
@@ -296,7 +302,7 @@ export const CreateProductModal = ({ isOpen, onClose, onProductCreated }: Create
 
               <div className="space-y-2">
                 {formData.sizes.map((row, index) => (
-                  <div key={`${index}`} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                  <div key={row._key} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                     <div className="sm:col-span-5">
                       <InputField
                         label={index === 0 ? 'Talla' : undefined}

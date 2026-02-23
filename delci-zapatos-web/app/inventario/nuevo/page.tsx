@@ -26,6 +26,7 @@ import {
 import { mockProducts } from '@/app/lib/mockData';
 
 type SizeRow = {
+  _key: string;
   size: string;
   stock: string;
   price: string;
@@ -33,10 +34,15 @@ type SizeRow = {
   offerDurationDays: string;
 };
 
+const newSizeRow = (): SizeRow => ({ _key: String(Date.now() + Math.random()), size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' });
+
 type ImageRow = {
+  _key: string;
   url: string;
   alt: string;
 };
+
+const newImageRow = (): ImageRow => ({ _key: String(Date.now() + Math.random()), url: '', alt: '' });
 
 const getGroupsForCategory = (category: ProductCategory): string[] => {
   if (category === 'zapatos') return [...SHOE_GROUPS];
@@ -88,12 +94,12 @@ export default function NuevoProductoPage() {
     group: SHOE_GROUPS[0] as string,
     subcategory: SANDALIA_SUBCATEGORIES[0] as string,
     color: '',
-    sizes: [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] as SizeRow[],
+    sizes: [newSizeRow()] as SizeRow[],
     bagStock: '0',
     price: '0',
     discountPercentage: '',
     offerDurationDays: '',
-    images: [{ url: '', alt: '' }] as ImageRow[],
+    images: [newImageRow()] as ImageRow[],
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,7 +144,7 @@ export default function NuevoProductoPage() {
       category: value,
       group: nextGroup,
       subcategory: nextSubcategories[0] ?? '',
-      sizes: value === 'zapatos' ? [{ size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }] : [],
+      sizes: value === 'zapatos' ? [newSizeRow()] : [],
     }));
   };
 
@@ -155,7 +161,7 @@ export default function NuevoProductoPage() {
   const handleAddSize = () => {
     setFormData((prev) => ({
       ...prev,
-      sizes: [...prev.sizes, { size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' }],
+      sizes: [...prev.sizes, newSizeRow()],
     }));
   };
 
@@ -180,7 +186,7 @@ export default function NuevoProductoPage() {
   const handleAddImage = () => {
     setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, { url: '', alt: '' }],
+      images: [...prev.images, newImageRow()],
     }));
   };
 
@@ -351,8 +357,9 @@ export default function NuevoProductoPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
+                <label htmlFor="category" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
                 <select
+                  id="category"
                   value={formData.category}
                   onChange={(e) => handleCategoryChange(e.target.value as ProductCategory)}
                   className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
@@ -363,8 +370,9 @@ export default function NuevoProductoPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
+                <label htmlFor="group" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
                 <select
+                  id="group"
                   value={formData.group}
                   onChange={(e) => handleGroupChange(e.target.value)}
                   className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
@@ -378,8 +386,9 @@ export default function NuevoProductoPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
+                <label htmlFor="subcategory" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
                 <select
+                  id="subcategory"
                   value={formData.subcategory}
                   onChange={(e) => setField('subcategory', e.target.value)}
                   disabled={subcategories.length === 0}
@@ -410,7 +419,7 @@ export default function NuevoProductoPage() {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700">Tallas</label>
+                    <span className="block text-xs sm:text-sm font-medium text-gray-700">Tallas</span>
                     <Button type="button" variant="secondary" size="sm" onClick={handleAddSize}>
                       <Plus className="w-4 h-4 mr-1" />
                       Agregar talla
@@ -419,7 +428,7 @@ export default function NuevoProductoPage() {
 
                   <div className="space-y-2">
                     {formData.sizes.map((row, index) => (
-                      <div key={`${index}`} className="space-y-2 pb-3 border-b border-gray-50 last:border-b-0">
+                      <div key={row._key} className="space-y-2 pb-3 border-b border-gray-50 last:border-b-0">
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                           <div className="sm:col-span-2">
                             <InputField
@@ -572,7 +581,7 @@ export default function NuevoProductoPage() {
 
               <div className="space-y-2">
                 {formData.images.map((img, index) => (
-                  <div key={`${index}`} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end">
+                  <div key={img._key} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end">
                     <div className="lg:col-span-7">
                       <InputField
                         label={index === 0 ? 'URL' : undefined}
@@ -611,12 +620,12 @@ export default function NuevoProductoPage() {
                   .slice(0, 8)
                   .map((url) => (
                     <div key={url} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                      <img src={url} alt="" className="w-full h-28 object-cover" />
+                      <Image src={url} alt="" width={112} height={112} className="w-full h-28 object-cover" />
                     </div>
                   ))}
                 {filePreviews.map((preview, index) => (
                   <div key={preview} className="relative rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                    <img src={preview} alt="" className="w-full h-28 object-cover" />
+                    <Image src={preview} alt="" width={112} height={112} className="w-full h-28 object-cover" />
                     <button
                       type="button"
                       onClick={() => handleRemoveFile(index)}

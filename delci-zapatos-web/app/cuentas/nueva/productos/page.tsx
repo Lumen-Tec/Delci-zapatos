@@ -42,6 +42,8 @@ type Draft = {
   items: AccountItem[];
 };
 
+export type { Draft };
+
 type FilterState = {
   query: string;
   category: ProductCategory | 'all';
@@ -165,15 +167,14 @@ export default function SeleccionarProductosParaCuentaPage() {
     shoeSize: 'all',
   });
 
-  const [quantityByProductId, setQuantityByProductId] = useState<Record<string, string>>({});
-  const [shoeSizeByProductId, setShoeSizeByProductId] = useState<Record<string, string>>({});
+  const [productSelections, setProductSelections] = useState<Record<string, { qty: string; size: string }>>({});
 
   useEffect(() => {
     setProducts(getStoredProducts());
 
     const storedDraft = safeParse<Draft>(window.localStorage.getItem(DRAFT_KEY));
     if (!storedDraft) {
-      router.push('/cuentas/nueva');
+      router.replace('/cuentas/nueva');
       return;
     }
 
@@ -276,10 +277,10 @@ export default function SeleccionarProductosParaCuentaPage() {
   const handleAddProduct = (product: Product) => {
     if (!draft) return;
 
-    const quantity = Math.max(1, Number(quantityByProductId[product.id] ?? '1') || 1);
+    const quantity = Math.max(1, Number(productSelections[product.id]?.qty ?? '1') || 1);
 
     if (product.category === 'zapatos') {
-      const selectedSize = shoeSizeByProductId[product.id] ?? '';
+      const selectedSize = productSelections[product.id]?.size ?? '';
       const validSize = product.sizes.some((s) => String(s.size) === selectedSize && s.stock > 0);
       if (!validSize) return;
 
@@ -385,8 +386,9 @@ export default function SeleccionarProductosParaCuentaPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
+                <label htmlFor="filter-category" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
                 <select
+                  id="filter-category"
                   value={filters.category}
                   onChange={(e) => handleCategoryChange(e.target.value as FilterState['category'])}
                   className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
@@ -398,8 +400,9 @@ export default function SeleccionarProductosParaCuentaPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
+                <label htmlFor="filter-group" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
                 <select
+                  id="filter-group"
                   value={filters.group}
                   onChange={(e) => handleGroupChange(e.target.value)}
                   disabled={filters.category === 'all'}
@@ -415,8 +418,9 @@ export default function SeleccionarProductosParaCuentaPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
+                <label htmlFor="filter-subcategory" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
                 <select
+                  id="filter-subcategory"
                   value={filters.subcategory}
                   onChange={(e) => handleFilterChange('subcategory', e.target.value)}
                   disabled={filters.category === 'all' || filters.group === 'all' || subcategories.length === 0}
@@ -432,8 +436,9 @@ export default function SeleccionarProductosParaCuentaPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
+                <label htmlFor="filter-status" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Estado</label>
                 <select
+                  id="filter-status"
                   value={filters.status}
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                   className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
@@ -445,8 +450,9 @@ export default function SeleccionarProductosParaCuentaPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Talla</label>
+                <label htmlFor="filter-shoe-size" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Talla</label>
                 <select
+                  id="filter-shoe-size"
                   value={filters.shoeSize}
                   onChange={(e) => handleFilterChange('shoeSize', e.target.value)}
                   disabled={filters.category !== 'zapatos'}
@@ -485,8 +491,8 @@ export default function SeleccionarProductosParaCuentaPage() {
                   </tr>
                 ) : (
                   filteredProducts.map((product) => {
-                    const qty = quantityByProductId[product.id] ?? '1';
-                    const selectedSize = shoeSizeByProductId[product.id] ?? '';
+                    const qty = productSelections[product.id]?.qty ?? '1';
+                    const selectedSize = productSelections[product.id]?.size ?? '';
                     const availableSizesForProduct = product.category === 'zapatos' ? product.sizes.filter((s) => s.stock > 0) : [];
 
                     const canAddShoe =
@@ -547,10 +553,11 @@ export default function SeleccionarProductosParaCuentaPage() {
                             <div className="flex flex-wrap items-end gap-2">
                               {product.category === 'zapatos' ? (
                                 <div className="flex flex-col">
-                                  <label className="text-xs font-medium text-gray-600">Talla</label>
+                                  <label htmlFor={`product-talla-${product.id}`} className="text-xs font-medium text-gray-600">Talla</label>
                                   <select
+                                    id={`product-talla-${product.id}`}
                                     value={selectedSize}
-                                    onChange={(e) => setShoeSizeByProductId((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                                    onChange={(e) => setProductSelections((prev) => ({ ...prev, [product.id]: { ...prev[product.id], size: e.target.value } }))}
                                     className="w-40 pl-3 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400"
                                   >
                                     <option value="">Seleccionar</option>
@@ -564,12 +571,12 @@ export default function SeleccionarProductosParaCuentaPage() {
                               ) : null}
 
                               <div className="flex flex-col">
-                                <label className="text-xs font-medium text-gray-600">Cantidad</label>
+                                <label htmlFor={`product-cantidad-${product.id}`} className="text-xs font-medium text-gray-600">Cantidad</label>
                                 <input
-                                  aria-label="Cantidad"
+                                  id={`product-cantidad-${product.id}`}
                                   type="number"
                                   value={qty}
-                                  onChange={(e) => setQuantityByProductId((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                                  onChange={(e) => setProductSelections((prev) => ({ ...prev, [product.id]: { ...prev[product.id], qty: e.target.value } }))}
                                   className="w-28 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400"
                                 />
                               </div>
@@ -642,7 +649,7 @@ export default function SeleccionarProductosParaCuentaPage() {
             {!draft || draft.items.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-sm font-semibold text-gray-900">No has agregado productos</div>
-                <div className="text-sm text-gray-600 mt-1">Selecciona talla/cantidad y presiona “Agregar”.</div>
+                <div className="text-sm text-gray-600 mt-1">Selecciona talla/cantidad y presiona "Agregar".</div>
               </div>
             ) : (
               <div className="overflow-x-auto">

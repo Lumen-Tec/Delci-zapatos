@@ -1,26 +1,22 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { ChevronLeft, Search, Check } from 'lucide-react';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
+import { Button } from '@/app/components/shared/Button';
+import { InputField } from '@/app/components/shared/InputField';
+import { ClientsTable } from '@/app/components/clientes/ClientsTable';
 import { Pagination } from '@/app/components/shared/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { mockClients } from '@/app/lib/mockData';
 import type { Client } from '@/app/models/client';
-import type { AccountItem } from '@/app/models/account';
+import type { Draft } from '@/app/cuentas/nueva/productos/page';
 
-type Draft = {
-  clientId: string;
-  biweeklyAmount: number;
-  nextPaymentDate: string;
-  items: AccountItem[];
-};
-
-const DRAFT_KEY = 'delci_account_draft';
+const DRAFT_KEY = 'delci_client_draft';
 
 const safeParse = <T,>(raw: string | null): T | null => {
   if (!raw) return null;
@@ -31,20 +27,18 @@ const safeParse = <T,>(raw: string | null): T | null => {
   }
 };
 
-export default function SeleccionarClientePage() {
+export default function ClientSelectionPage() {
   const router = useRouter();
   const [clients] = useState<Client[]>(mockClients);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
+  React.useEffect(() => {
     const stored = safeParse<Draft>(window.localStorage.getItem(DRAFT_KEY));
-    if (!stored) {
-      router.replace('/cuentas/nueva');
-      return;
+    if (stored) {
+      setDraft(stored);
     }
-    setDraft(stored);
-  }, [router]);
+  }, []);
 
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,7 +46,7 @@ export default function SeleccionarClientePage() {
     return clients.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
-        c.phone.toLowerCase().includes(q)
+        c.phone.replace(/[-\s]/g, '').includes(q.replace(/[-\s]/g, ''))
     );
   }, [clients, query]);
 
@@ -68,11 +62,6 @@ export default function SeleccionarClientePage() {
     setPageSize,
     resetPage,
   } = usePagination(filteredClients, { initialPageSize: 10 });
-
-  // Reset to page 1 when search query changes
-  useEffect(() => {
-    resetPage();
-  }, [query, resetPage]);
 
   const handleSelect = (clientId: string) => {
     if (!draft) return;
@@ -129,9 +118,8 @@ export default function SeleccionarClientePage() {
               <input
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); resetPage(); }}
                 placeholder="Buscar por nombre o teléfono..."
-                autoFocus
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 placeholder:text-gray-400 shadow-sm"
               />
             </div>
@@ -180,7 +168,9 @@ export default function SeleccionarClientePage() {
                             ? 'bg-pink-50 hover:bg-pink-100/70'
                             : 'hover:bg-gray-50'
                         }`}
+                        tabIndex={0}
                         onClick={() => handleSelect(client.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(client.id); } }}
                       >
                         <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                           <div>

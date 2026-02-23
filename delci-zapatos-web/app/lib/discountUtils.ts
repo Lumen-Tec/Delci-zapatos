@@ -123,14 +123,10 @@ export function getSizeRemainingDays(variant: ShoeSizeVariant): number | null {
   return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
-export function hasAnyActiveSizeDiscount(product: Extract<Product, { category: 'zapatos' }>): boolean {
-  return product.sizes.some((s) => isSizeOfferActive(s));
-}
-
 /** Check if a product (shoe or bag) has any active discount */
 export function productHasActiveDiscount(product: Product): boolean {
   if (product.category === 'zapatos') {
-    return hasAnyActiveSizeDiscount(product);
+    return product.sizes.some((s) => isSizeOfferActive(s));
   }
   return isOfferActive(product);
 }
