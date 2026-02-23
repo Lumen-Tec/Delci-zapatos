@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChevronLeft, Search, Check } from 'lucide-react';
@@ -16,7 +16,7 @@ import { mockClients } from '@/app/lib/mockData';
 import type { Client } from '@/app/models/client';
 import type { Draft } from '@/app/cuentas/nueva/productos/page';
 
-const DRAFT_KEY = 'delci_client_draft';
+const DRAFT_KEY = 'delci_account_draft';
 
 const safeParse = <T,>(raw: string | null): T | null => {
   if (!raw) return null;
@@ -33,10 +33,21 @@ export default function ClientSelectionPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [query, setQuery] = useState('');
 
+  // Check for existing draft on mount
   React.useEffect(() => {
     const stored = safeParse<Draft>(window.localStorage.getItem(DRAFT_KEY));
     if (stored) {
       setDraft(stored);
+    } else {
+      // Create a default draft if none exists
+      const defaultDraft: Draft = {
+        clientId: '',
+        biweeklyAmount: 0,
+        nextPaymentDate: new Date().toISOString().slice(0, 10),
+        items: []
+      };
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(defaultDraft));
+      setDraft(defaultDraft);
     }
   }, []);
 
@@ -63,14 +74,17 @@ export default function ClientSelectionPage() {
     resetPage,
   } = usePagination(filteredClients, { initialPageSize: 10 });
 
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    resetPage();
+  }, [query, resetPage]);
+
   const handleSelect = (clientId: string) => {
     if (!draft) return;
     const next = { ...draft, clientId };
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
     router.push('/cuentas/nueva');
   };
-
-  if (!draft) return null;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
@@ -159,7 +173,7 @@ export default function ClientSelectionPage() {
                   </tr>
                 ) : (
                   paginatedItems.map((client) => {
-                    const isSelected = draft.clientId === client.id;
+                    const isSelected = draft?.clientId === client.id;
                     return (
                       <tr
                         key={client.id}
