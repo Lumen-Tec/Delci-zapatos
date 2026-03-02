@@ -196,9 +196,9 @@ export const mockProducts: Product[] = [
     subcategory: 'Sandalia cuña',
     color: 'Negro',
     sizes: [
-      { size: '36', stock: 2, price: 22000, discountPercentage: 20, offerDurationDays: 10, offerStartDate: '2026-02-15' },
+      { size: '36', stock: 2, price: 22000, discountPercentage: 20, offerDurationDays: 20, offerStartDate: '2026-03-2' },
       { size: '37', stock: 5 },
-      { size: '38', stock: 1, price: 26000, discountPercentage: 15, offerDurationDays: 7, offerStartDate: '2026-02-15' },
+      { size: '38', stock: 1, price: 26000, discountPercentage: 15, offerDurationDays: 20, offerStartDate: '2026-03-2' },
     ],
     status: 'active',
   },
