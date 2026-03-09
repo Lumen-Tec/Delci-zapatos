@@ -1,4 +1,4 @@
-import type { BagClassification, ShoeClassification, ShoeSize } from '@/app/models/products';
+import type { ShoeSize } from '@/app/models/products';
 
 export type AccountItemBase = {
   id: string;
@@ -11,17 +11,21 @@ export type AccountItemBase = {
   discountPercentage?: number;
 };
 
-export type ShoeAccountItem = AccountItemBase &
-  ShoeClassification & {
-    category: 'zapatos';
-    color: string;
-    size: ShoeSize;
-  };
+export type ShoeAccountItem = AccountItemBase & {
+  category: 'zapatos';
+  color: string;
+  size: ShoeSize;
+  // Compatibilidad con datos legacy guardados previamente.
+  group?: string;
+  subcategory?: string;
+};
 
-export type BagAccountItem = AccountItemBase &
-  BagClassification & {
-    category: 'bolsos';
-  };
+export type BagAccountItem = AccountItemBase & {
+  category: 'bolsos';
+  // Compatibilidad con datos legacy guardados previamente.
+  group?: string;
+  subcategory?: string;
+};
 
 export type AccountItem = ShoeAccountItem | BagAccountItem;
 

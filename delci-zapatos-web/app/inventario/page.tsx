@@ -14,24 +14,22 @@ import type { Product } from '@/app/models/products';
 
 export default function InventarioPage() {
   const router = useRouter();
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products] = useState<Product[]>(() => {
+    if (typeof window === 'undefined') return mockProducts;
 
-  useEffect(() => {
     const raw = window.localStorage.getItem('delci_products');
     if (!raw) {
       window.localStorage.setItem('delci_products', JSON.stringify(mockProducts));
-      setProducts(mockProducts);
-      return;
+      return mockProducts;
     }
 
     try {
-      const parsed = JSON.parse(raw) as Product[];
-      setProducts(parsed);
+      return JSON.parse(raw) as Product[];
     } catch {
       window.localStorage.setItem('delci_products', JSON.stringify(mockProducts));
-      setProducts(mockProducts);
+      return mockProducts;
     }
-  }, []);
+  });
 
   useEffect(() => {
     window.localStorage.setItem('delci_products', JSON.stringify(products));

@@ -10,8 +10,7 @@ interface InfoFieldProps {
 export const InfoField = ({ 
   label, 
   value, 
-  icon, 
-  editable = true 
+  icon 
 }: InfoFieldProps) => (
   <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
     <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white flex items-center justify-center text-pink-600 border border-pink-200">

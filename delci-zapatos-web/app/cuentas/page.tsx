@@ -14,24 +14,22 @@ import type { Account } from '@/app/models/account';
 
 export default function AccountsPage() {
   const router = useRouter();
-  const [accounts, setAccounts] = useState<Account[]>(mockAccounts);
+  const [accounts] = useState<Account[]>(() => {
+    if (typeof window === 'undefined') return mockAccounts;
 
-  useEffect(() => {
     const raw = window.localStorage.getItem('delci_accounts');
     if (!raw) {
       window.localStorage.setItem('delci_accounts', JSON.stringify(mockAccounts));
-      setAccounts(mockAccounts);
-      return;
+      return mockAccounts;
     }
 
     try {
-      const parsed = JSON.parse(raw) as Account[];
-      setAccounts(parsed);
+      return JSON.parse(raw) as Account[];
     } catch {
       window.localStorage.setItem('delci_accounts', JSON.stringify(mockAccounts));
-      setAccounts(mockAccounts);
+      return mockAccounts;
     }
-  }, []);
+  });
 
   useEffect(() => {
     window.localStorage.setItem('delci_accounts', JSON.stringify(accounts));

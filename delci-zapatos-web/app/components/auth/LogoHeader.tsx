@@ -11,7 +11,7 @@ interface LogoHeaderProps {
 }
 
 export const LogoHeader = React.memo<LogoHeaderProps>(({
-  logoUrl = 'https://res.cloudinary.com/drec8g03e/image/upload/f_webp/delci_zapatos_er5sri',
+  logoUrl = 'https://res.cloudinary.com/drec8g03e/image/upload/v1772501928/delci-zapatos_jhguv9.png',
   title = 'Iniciar sesión',
   subtitle,
   className = '',

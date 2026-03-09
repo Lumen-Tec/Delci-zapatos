@@ -9,7 +9,7 @@ export const mockStats = {
   },
   pendingAccounts: {
     total: 23,
-    description: 'cuentas con pagos pendientes',
+    description: 'cuentas con saldos pendientes',
   },
   clients: {
     total: 89,
@@ -192,8 +192,6 @@ export const mockProducts: Product[] = [
     name: 'Sandalia cuña (Negro)',
     price: 24500,
     category: 'zapatos',
-    group: 'Sandalias',
-    subcategory: 'Sandalia cuña',
     color: 'Negro',
     sizes: [
       { size: '36', stock: 2, price: 22000, discountPercentage: 20, offerDurationDays: 20, offerStartDate: '2026-03-2' },
@@ -208,8 +206,6 @@ export const mockProducts: Product[] = [
     name: 'Tenis casual (Blanco)',
     price: 32000,
     category: 'zapatos',
-    group: 'Tenis',
-    subcategory: 'Tenis casuales',
     color: 'Blanco',
     sizes: [
       { size: '35', stock: 1, price: 30000 },
@@ -225,8 +221,6 @@ export const mockProducts: Product[] = [
     name: 'Bolso de hombro (Café)',
     price: 18500,
     category: 'bolsos',
-    group: 'Bolsos de mano y hombro',
-    subcategory: 'Bolso de hombro',
     stock: 7,
     status: 'active',
     discountPercentage: 15,
@@ -239,7 +233,6 @@ export const mockProducts: Product[] = [
     name: 'Bolso de fiesta (Dorado)',
     price: 22000,
     category: 'bolsos',
-    group: 'Bolsos para ocasiones especiales',
     stock: 4,
     status: 'active',
   },

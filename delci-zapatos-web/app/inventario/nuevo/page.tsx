@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChevronLeft, Plus, Trash2, Upload } from 'lucide-react';
@@ -10,19 +10,6 @@ import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
 import type { Product, ProductCategory, ProductImage } from '@/app/models/products';
-import {
-  BAG_GROUPS,
-  BOLSOS_MANO_HOMBRO_SUBCATEGORIES,
-  CARTERAS_MONEDEROS_SUBCATEGORIES,
-  MANOS_LIBRES_SUBCATEGORIES,
-  OTROS_ZAPATOS_SUBCATEGORIES,
-  RINONERAS_CANGUROS_SUBCATEGORIES,
-  SANDALIA_SUBCATEGORIES,
-  SHOE_GROUPS,
-  TACON_SUBCATEGORIES,
-  BOTA_SUBCATEGORIES,
-  TENIS_SUBCATEGORIES,
-} from '@/app/models/products';
 import { mockProducts } from '@/app/lib/mockData';
 
 type SizeRow = {
@@ -44,45 +31,6 @@ type ImageRow = {
 
 const newImageRow = (): ImageRow => ({ _key: String(Date.now() + Math.random()), url: '', alt: '' });
 
-const getGroupsForCategory = (category: ProductCategory): string[] => {
-  if (category === 'zapatos') return [...SHOE_GROUPS];
-  return [...BAG_GROUPS];
-};
-
-const getSubcategoriesFor = (category: ProductCategory, group: string): string[] => {
-  if (category === 'zapatos') {
-    switch (group) {
-      case 'Sandalias':
-        return [...SANDALIA_SUBCATEGORIES];
-      case 'Botas':
-        return [...BOTA_SUBCATEGORIES];
-      case 'Tenis':
-        return [...TENIS_SUBCATEGORIES];
-      case 'Zapatos de tacón':
-        return [...TACON_SUBCATEGORIES];
-      case 'Otros estilos':
-        return [...OTROS_ZAPATOS_SUBCATEGORIES];
-      default:
-        return [];
-    }
-  }
-
-  switch (group) {
-    case 'Bolsos de mano y hombro':
-      return [...BOLSOS_MANO_HOMBRO_SUBCATEGORIES];
-    case 'Manos libres':
-      return [...MANOS_LIBRES_SUBCATEGORIES];
-    case 'Carteras y monederos':
-      return [...CARTERAS_MONEDEROS_SUBCATEGORIES];
-    case 'Riñoneras y canguros':
-      return [...RINONERAS_CANGUROS_SUBCATEGORIES];
-    case 'Bolsos para ocasiones especiales':
-      return [];
-    default:
-      return [];
-  }
-};
-
 export default function NuevoProductoPage() {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -91,8 +39,6 @@ export default function NuevoProductoPage() {
     name: '',
     sku: '',
     category: 'zapatos' as ProductCategory,
-    group: SHOE_GROUPS[0] as string,
-    subcategory: SANDALIA_SUBCATEGORIES[0] as string,
     color: '',
     sizes: [newSizeRow()] as SizeRow[],
     bagStock: '0',
@@ -121,13 +67,7 @@ export default function NuevoProductoPage() {
     setFilePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const groups = useMemo(() => getGroupsForCategory(formData.category), [formData.category]);
-  const subcategories = useMemo(
-    () => getSubcategoriesFor(formData.category, formData.group),
-    [formData.category, formData.group]
-  );
-
-  const setField = (field: keyof typeof formData, value: any) => {
+  const setField = (field: keyof typeof formData, value: unknown) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -135,26 +75,10 @@ export default function NuevoProductoPage() {
   };
 
   const handleCategoryChange = (value: ProductCategory) => {
-    const nextGroups = getGroupsForCategory(value);
-    const nextGroup = nextGroups[0] ?? '';
-    const nextSubcategories = nextGroup ? getSubcategoriesFor(value, nextGroup) : [];
-
     setFormData((prev) => ({
       ...prev,
       category: value,
-      group: nextGroup,
-      subcategory: nextSubcategories[0] ?? '',
       sizes: value === 'zapatos' ? [newSizeRow()] : [],
-    }));
-  };
-
-  const handleGroupChange = (value: string) => {
-    const nextSubcategories = getSubcategoriesFor(formData.category, value);
-
-    setFormData((prev) => ({
-      ...prev,
-      group: value,
-      subcategory: nextSubcategories[0] ?? '',
     }));
   };
 
@@ -253,13 +177,10 @@ export default function NuevoProductoPage() {
       product = {
         ...base,
         category: 'zapatos',
-        group: formData.group as any,
-        subcategory: formData.subcategory as any,
         color: formData.color,
         sizes: sizes.length > 0 ? sizes : [{ size: 'N/A', stock: 0 }],
       };
     } else {
-      const hasSubcategory = subcategories.length > 0;
       const stock = Number(formData.bagStock) || 0;
 
       product = {
@@ -272,8 +193,6 @@ export default function NuevoProductoPage() {
             }
           : {}),
         category: 'bolsos',
-        group: formData.group as any,
-        ...(hasSubcategory ? { subcategory: formData.subcategory as any } : {}),
         stock,
       } as Product;
     }
@@ -355,7 +274,7 @@ export default function NuevoProductoPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="category" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Categoría</label>
                 <select
@@ -366,43 +285,6 @@ export default function NuevoProductoPage() {
                 >
                   <option value="zapatos">Zapatos</option>
                   <option value="bolsos">Bolsos</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="group" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
-                <select
-                  id="group"
-                  value={formData.group}
-                  onChange={(e) => handleGroupChange(e.target.value)}
-                  className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
-                >
-                  {groups.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="subcategory" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
-                <select
-                  id="subcategory"
-                  value={formData.subcategory}
-                  onChange={(e) => setField('subcategory', e.target.value)}
-                  disabled={subcategories.length === 0}
-                  className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm disabled:opacity-50"
-                >
-                  {subcategories.length === 0 ? (
-                    <option value="">-</option>
-                  ) : (
-                    subcategories.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))
-                  )}
                 </select>
               </div>
             </div>

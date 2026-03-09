@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useReducer } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, Trash2, CreditCard } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
@@ -12,14 +12,13 @@ import { InputField } from '@/app/components/shared/InputField';
 import { AccountSummary } from '@/app/components/accounts/AccountSummary';
 import { PaymentForm } from '@/app/components/accounts/PaymentForm';
 import { mockAccounts, mockClients } from '@/app/lib/mockData';
-import { formatCurrency, todayISO, addDaysISO, computeStatus } from '@/app/lib/accountUtils';
+import { formatCurrency, todayISO, computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom, isAllowedPaymentDay } from '@/app/lib/accountUtils';
 import type { Account, AccountPayment } from '@/app/models/account';
 import type { Client } from '@/app/models/client';
 
 interface AccountState {
   account: Account | null;
   client: Client | null;
-  paymentDate: string;
   paymentAmount: string;
   biweeklyAmount: string;
 }
@@ -27,11 +26,10 @@ interface AccountState {
 type AccountAction =
   | { type: 'SET_ACCOUNT'; payload: Account | null }
   | { type: 'SET_CLIENT'; payload: Client | null }
-  | { type: 'SET_PAYMENT_DATE'; payload: string }
   | { type: 'SET_PAYMENT_AMOUNT'; payload: string }
   | { type: 'SET_BIWEEKLY_AMOUNT'; payload: string }
-  | { type: 'RESET_PAYMENT_FORM'; payload: { date: string; amount: string } }
-  | { type: 'INIT_ACCOUNT'; payload: { account: Account | null; client: Client | null; paymentDate: string; biweeklyAmount: string; paymentAmount: string } };
+  | { type: 'RESET_PAYMENT_FORM'; payload: { amount: string } }
+  | { type: 'INIT_ACCOUNT'; payload: { account: Account | null; client: Client | null; biweeklyAmount: string; paymentAmount: string } };
 
 const accountReducer = (state: AccountState, action: AccountAction): AccountState => {
   switch (action.type) {
@@ -39,20 +37,17 @@ const accountReducer = (state: AccountState, action: AccountAction): AccountStat
       return { ...state, account: action.payload };
     case 'SET_CLIENT':
       return { ...state, client: action.payload };
-    case 'SET_PAYMENT_DATE':
-      return { ...state, paymentDate: action.payload };
     case 'SET_PAYMENT_AMOUNT':
       return { ...state, paymentAmount: action.payload };
     case 'SET_BIWEEKLY_AMOUNT':
       return { ...state, biweeklyAmount: action.payload };
     case 'RESET_PAYMENT_FORM':
-      return { ...state, paymentDate: action.payload.date, paymentAmount: action.payload.amount };
+      return { ...state, paymentAmount: action.payload.amount };
     case 'INIT_ACCOUNT':
       return {
         ...state,
         account: action.payload.account,
         client: action.payload.client,
-        paymentDate: action.payload.paymentDate,
         biweeklyAmount: action.payload.biweeklyAmount,
         paymentAmount: action.payload.paymentAmount,
       };
@@ -88,7 +83,6 @@ export default function AccountDetailPage() {
   const initialState: AccountState = {
     account: null,
     client: null,
-    paymentDate: todayISO(),
     paymentAmount: '',
     biweeklyAmount: '',
   };
@@ -103,10 +97,17 @@ export default function AccountDetailPage() {
 
     const foundClient = mockClients.find((c) => c.id === found?.clientId) ?? null;
 
-    const computedNext =
-      found && found.remainingAmount > 0
-        ? found.nextPaymentDate ?? (found.createdAt ? addDaysISO(found.createdAt, 15) : undefined)
-        : undefined;
+    const computedNext = (() => {
+      if (!found || found.remainingAmount <= 0) return undefined;
+
+      if (!found.nextPaymentDate) {
+        return getNearestUpcomingPaymentDate(found.createdAt ?? todayISO());
+      }
+
+      return isAllowedPaymentDay(found.nextPaymentDate)
+        ? found.nextPaymentDate
+        : getNearestUpcomingPaymentDate(found.nextPaymentDate);
+    })();
 
     let nextFound: Account | undefined;
     if (found && found.remainingAmount > 0 && !found.nextPaymentDate && computedNext) {
@@ -124,7 +125,6 @@ export default function AccountDetailPage() {
       payload: {
         account: nextFound ?? found,
         client: foundClient,
-        paymentDate: computedNext ?? todayISO(),
         biweeklyAmount: biweekly != null ? String(biweekly) : '',
         paymentAmount: defaultAmount > 0 ? String(defaultAmount) : '',
       },
@@ -144,9 +144,9 @@ export default function AccountDetailPage() {
   const handleRemoveItem = (itemId: string) => {
     if (!state.account) return;
 
-    const nextItems = (state.account.items ?? []).filter((i: any) => i.id !== itemId);
-    const totalAmount = nextItems.reduce((sum: number, item: any) => sum + item.quantity * item.unitPrice, 0);
-    const totalProducts = nextItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+    const nextItems = (state.account.items ?? []).filter((i) => i.id !== itemId);
+    const totalAmount = nextItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const totalProducts = nextItems.reduce((sum, item) => sum + item.quantity, 0);
 
     const totalPaid = state.account.totalPaid;
     const remainingAmount = Math.max(0, totalAmount - totalPaid);
@@ -185,25 +185,26 @@ export default function AccountDetailPage() {
 
     const amt = Number(state.paymentAmount);
     if (!Number.isFinite(amt) || amt <= 0) return;
-    if (!state.paymentDate) return;
+
+    const paymentDate = state.account.nextPaymentDate ?? getNearestUpcomingPaymentDate(todayISO());
 
     const nextTotalPaid = state.account.totalPaid + amt;
     const remainingAmount = Math.max(0, state.account.totalAmount - nextTotalPaid);
 
     const payment: AccountPayment = {
       id: `PAY-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      date: state.paymentDate,
+      date: paymentDate,
       amount: amt,
     };
 
-    const nextPaymentDate = remainingAmount > 0 ? addDaysISO(state.paymentDate, 15) : undefined;
+    const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : undefined;
     const status = computeStatus(remainingAmount, nextPaymentDate);
 
     const next: Account = {
       ...state.account,
       totalPaid: nextTotalPaid,
       remainingAmount,
-      lastPaymentDate: state.paymentDate,
+      lastPaymentDate: paymentDate,
       nextPaymentDate,
       payments: [...(state.account.payments ?? []), payment],
       status,
@@ -215,7 +216,6 @@ export default function AccountDetailPage() {
     dispatch({ 
       type: 'RESET_PAYMENT_FORM', 
       payload: {
-        date: next.nextPaymentDate ?? todayISO(),
         amount: nextSuggestedAmount > 0 ? String(nextSuggestedAmount) : ''
       }
     });
@@ -326,9 +326,7 @@ export default function AccountDetailPage() {
 
             <PaymentForm
               account={state.account}
-              paymentDate={state.paymentDate}
               paymentAmount={state.paymentAmount}
-              onPaymentDateChange={(value) => dispatch({ type: 'SET_PAYMENT_DATE', payload: value })}
               onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
               onRegisterPayment={handleRegisterPayment}
             />

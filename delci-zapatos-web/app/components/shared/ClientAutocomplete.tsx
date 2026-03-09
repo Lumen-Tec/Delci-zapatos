@@ -33,8 +33,11 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
   const lastViewportWidthRef = useRef<number>(typeof window !== 'undefined' ? window.innerWidth : 0);
   const openTimestampRef = useRef<number>(0);
   const isOpenRef = useRef(false);
-  isOpenRef.current = isOpen;
   const inputId = useId();
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   // Filtrar clientes por nombre, teléfono o dirección
   const filteredClients = useMemo(() => {
@@ -53,11 +56,6 @@ export const ClientAutocomplete = React.memo<ClientAutocompleteProps>(({
     clients.find(c => c.id === value) ?? null,
     [clients, value]
   );
-
-  // Resetear highlightedIndex cuando cambien los resultados filtrados
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [filteredClients.length]);
 
   // Calcular posición del dropdown cuando se abre
   useEffect(() => {

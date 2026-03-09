@@ -125,11 +125,11 @@ export default function Dashboard() {
           />
 
           <StatCard
-            title="Alertas de pago"
+            title="Notificar clientes"
             value={mockStats.paymentAlerts.total}
-            description={mockStats.paymentAlerts.description}
+            description="Saldo nuevo"
             icon={alertsIcon}
-            buttonText="Ver cuentas"
+            buttonText="Notificar clientes"
             color="pink"
             buttonVariant="outline"
             onButtonClick={() => handleCardAction('view-alerts')}

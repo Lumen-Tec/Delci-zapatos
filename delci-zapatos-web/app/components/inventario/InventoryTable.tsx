@@ -3,29 +3,14 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Eye, Filter, Search } from 'lucide-react';
 import type { Product, ProductCategory, ProductStatus } from '@/app/models/products';
-import {
-  BAG_GROUPS,
-  BOLSOS_MANO_HOMBRO_SUBCATEGORIES,
-  CARTERAS_MONEDEROS_SUBCATEGORIES,
-  MANOS_LIBRES_SUBCATEGORIES,
-  OTROS_ZAPATOS_SUBCATEGORIES,
-  RINONERAS_CANGUROS_SUBCATEGORIES,
-  SANDALIA_SUBCATEGORIES,
-  SHOE_GROUPS,
-  TACON_SUBCATEGORIES,
-  BOTA_SUBCATEGORIES,
-  TENIS_SUBCATEGORIES,
-} from '@/app/models/products';
 import { getProductTotalStock } from '@/app/models/inventory';
-import { isOfferActive, getEffectivePrice, getRemainingOfferDays, productHasActiveDiscount, isSizeOfferActive, getSizeEffectivePrice, getSizeRemainingDays } from '@/app/lib/discountUtils';
+import { getEffectivePrice, getRemainingOfferDays, productHasActiveDiscount, isSizeOfferActive, getSizeEffectivePrice, getSizeRemainingDays } from '@/app/lib/discountUtils';
 import { usePagination } from '@/app/hooks/usePagination';
 import { Pagination } from '@/app/components/shared/Pagination';
 
 export interface InventoryFilterState {
   query: string;
   category: ProductCategory | 'all';
-  group: string;
-  subcategory: string;
   status: ProductStatus | 'all';
   shoeSize: string;
 }
@@ -46,50 +31,6 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const getGroupsForCategory = (category: InventoryFilterState['category']): string[] => {
-  if (category === 'zapatos') return [...SHOE_GROUPS];
-  if (category === 'bolsos') return [...BAG_GROUPS];
-  return [];
-};
-
-const getSubcategoriesFor = (category: InventoryFilterState['category'], group: string): string[] => {
-  if (category === 'zapatos') {
-    switch (group) {
-      case 'Sandalias':
-        return [...SANDALIA_SUBCATEGORIES];
-      case 'Botas':
-        return [...BOTA_SUBCATEGORIES];
-      case 'Tenis':
-        return [...TENIS_SUBCATEGORIES];
-      case 'Zapatos de tacón':
-        return [...TACON_SUBCATEGORIES];
-      case 'Otros estilos':
-        return [...OTROS_ZAPATOS_SUBCATEGORIES];
-      default:
-        return [];
-    }
-  }
-
-  if (category === 'bolsos') {
-    switch (group) {
-      case 'Bolsos de mano y hombro':
-        return [...BOLSOS_MANO_HOMBRO_SUBCATEGORIES];
-      case 'Manos libres':
-        return [...MANOS_LIBRES_SUBCATEGORIES];
-      case 'Carteras y monederos':
-        return [...CARTERAS_MONEDEROS_SUBCATEGORIES];
-      case 'Riñoneras y canguros':
-        return [...RINONERAS_CANGUROS_SUBCATEGORIES];
-      case 'Bolsos para ocasiones especiales':
-        return [];
-      default:
-        return [];
-    }
-  }
-
-  return [];
-};
-
 const TABS: { key: InventoryTab; label: string }[] = [
   { key: 'todos', label: 'Todos' },
   { key: 'descuento', label: 'Con descuento' },
@@ -101,17 +42,9 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
   const [filters, setFilters] = useState<InventoryFilterState>({
     query: '',
     category: 'all',
-    group: 'all',
-    subcategory: 'all',
     status: 'all',
     shoeSize: 'all',
   });
-
-  const groups = useMemo(() => getGroupsForCategory(filters.category), [filters.category]);
-  const subcategories = useMemo(
-    () => (filters.group !== 'all' ? getSubcategoriesFor(filters.category, filters.group) : []),
-    [filters.category, filters.group]
-  );
 
   const tabCounts = useMemo(() => {
     const discountCount = products.filter((p) => productHasActiveDiscount(p)).length;
@@ -129,18 +62,9 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
       const matchesQuery =
         !q ||
         product.name.toLowerCase().includes(q) ||
-        product.id.toLowerCase().includes(q) ||
         (product.sku ? product.sku.toLowerCase().includes(q) : false);
 
       const matchesCategory = filters.category === 'all' || product.category === filters.category;
-
-      const matchesGroup =
-        filters.group === 'all' ||
-        (filters.category !== 'all' && product.category === filters.category && product.group === filters.group);
-
-      const matchesSubcategory =
-        filters.subcategory === 'all' ||
-        ('subcategory' in product && product.subcategory === filters.subcategory);
 
       const matchesStatus = filters.status === 'all' || (product.status ?? 'active') === filters.status;
 
@@ -148,7 +72,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
         filters.shoeSize === 'all' ||
         (product.category === 'zapatos' && product.sizes.some((s) => s.size === filters.shoeSize && s.stock > 0));
 
-      return matchesQuery && matchesCategory && matchesGroup && matchesSubcategory && matchesStatus && matchesShoeSize;
+      return matchesQuery && matchesCategory && matchesStatus && matchesShoeSize;
     });
   }, [products, filters, activeTab]);
 
@@ -178,17 +102,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
     setFilters((prev) => ({
       ...prev,
       category: value,
-      group: 'all',
-      subcategory: 'all',
       shoeSize: 'all',
-    }));
-  };
-
-  const handleGroupChange = (value: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      group: value,
-      subcategory: 'all',
     }));
   };
 
@@ -214,11 +128,8 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
     <>
       <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
         <tr>
-          <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
           <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
           <th className="hidden xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
-          <th className="hidden xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
-          <th className="hidden 2xl:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subcategoría</th>
           <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
           <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
           <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
@@ -227,7 +138,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
       <tbody className="bg-white divide-y divide-gray-50">
         {filteredProducts.length === 0 ? (
           <tr>
-            <td colSpan={8} className="px-4 sm:px-6 py-16 text-center">
+            <td colSpan={5} className="px-4 sm:px-6 py-16 text-center">
               <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center mb-4 shadow-sm">
                 <Search className="w-8 h-8 text-pink-400" />
               </div>
@@ -238,22 +149,17 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
         ) : (
           paginatedProducts.map((product, index) => {
             const totalStock = getProductTotalStock(product);
-            const subtitleParts: string[] = [];
-
-            if (product.category === 'zapatos') subtitleParts.push(product.color);
-            subtitleParts.push(product.group);
-            if ('subcategory' in product && product.subcategory) subtitleParts.push(product.subcategory);
+            const subtitleParts: string[] = [product.category];
+            if (product.category === 'zapatos') subtitleParts.unshift(product.color);
+            if (product.sku) subtitleParts.push(`SKU: ${product.sku}`);
 
             return (
               <tr key={product.id} className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-sm font-mono font-medium text-gray-700">#{product.id}</span>
-                </td>
                 <td className="px-4 sm:px-6 py-4">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
                     <span className="text-xs text-gray-500 mt-0.5 md:hidden">
-                      #{product.id} · {subtitleParts.join(' · ')}
+                      {subtitleParts.join(' · ')}
                     </span>
                     <span className="hidden md:inline text-xs text-gray-500 mt-0.5">{subtitleParts.join(' · ')}</span>
                     {/* Mobile: show price + sizes info inline */}
@@ -289,10 +195,6 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   </div>
                 </td>
                 <td className="hidden xl:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
-                <td className="hidden xl:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700">{product.group}</span></td>
-                <td className="hidden 2xl:table-cell px-3 sm:px-4 py-4">
-                  {'subcategory' in product && product.subcategory ? <span className="text-sm text-gray-700">{product.subcategory}</span> : <span className="text-sm text-gray-400">-</span>}
-                </td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4">
                   {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
                     <div className="space-y-0.5">
@@ -369,7 +271,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   <td className="px-4 sm:px-6 py-4">
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
-                      <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                      <span className="text-xs text-gray-500 mt-0.5">{product.sku ? `${product.sku}` : ''}</span>
                       <div className="md:hidden mt-1 space-y-0.5">
                         {discountedSizes.map((s) => {
                           const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
@@ -435,7 +337,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 <td className="px-4 sm:px-6 py-4">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
-                    <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                    <span className="text-xs text-gray-500 mt-0.5">{product.sku ? `${product.sku}` : ''}</span>
                     <div className="md:hidden mt-1 flex items-center gap-1.5 text-xs flex-wrap">
                       <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
                       <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{discountPercentage}%</span>
@@ -482,7 +384,6 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
         <tr>
           <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
           <th className="hidden md:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
-          <th className="hidden lg:table-cell px-3 sm:px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
           <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
           <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
           <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acción</th>
@@ -514,7 +415,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                         <span className="ml-2 inline-block px-1.5 py-0.5 bg-rose-100 text-rose-600 text-xs font-medium rounded-full">Oferta</span>
                       )}
                     </span>
-                    <span className="text-xs text-gray-500 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</span>
+                    <span className="text-xs text-gray-500 mt-0.5">{product.sku ? `${product.sku}` : ''}</span>
                     {/* Mobile: show price + sizes info inline */}
                     <div className="md:hidden mt-1.5 space-y-1">
                       {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
@@ -548,7 +449,6 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   </div>
                 </td>
                 <td className="hidden md:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
-                <td className="hidden lg:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700">{product.group}</span></td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4">
                   {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
                     <div className="space-y-0.5">
@@ -639,7 +539,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   type="text"
                   value={filters.query}
                   onChange={(e) => handleFilterChange('query', e.target.value)}
-                  placeholder="Nombre, ID, SKU..."
+                  placeholder="Nombre o SKU..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 placeholder:text-gray-400 shadow-sm"
                 />
               </div>
@@ -662,52 +562,6 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   <option value="all">Todas</option>
                   <option value="zapatos">Zapatos</option>
                   <option value="bolsos">Bolsos</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="inventory-group" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                Grupo
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="w-4 h-4 text-gray-400" />
-                </div>
-                <select
-                  id="inventory-group"
-                  value={filters.group}
-                  onChange={(e) => handleGroupChange(e.target.value)}
-                  disabled={filters.category === 'all'}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm disabled:opacity-50"
-                >
-                  <option value="all">Todos</option>
-                  {groups.map((g) => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="inventory-subcategory" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                Subcategoría
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="w-4 h-4 text-gray-400" />
-                </div>
-                <select
-                  id="inventory-subcategory"
-                  value={filters.subcategory}
-                  onChange={(e) => handleFilterChange('subcategory', e.target.value)}
-                  disabled={filters.category === 'all' || filters.group === 'all' || subcategories.length === 0}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm disabled:opacity-50"
-                >
-                  <option value="all">Todas</option>
-                  {subcategories.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
                 </select>
               </div>
             </div>

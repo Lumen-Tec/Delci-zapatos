@@ -4,23 +4,18 @@ import React from 'react';
 import { CreditCard } from 'lucide-react';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
-import { todayISO } from '@/app/lib/accountUtils';
 import type { Account } from '@/app/models/account';
 
 interface PaymentFormProps {
   account: Account;
-  paymentDate: string;
   paymentAmount: string;
-  onPaymentDateChange: (value: string) => void;
   onPaymentAmountChange: (value: string) => void;
   onRegisterPayment: () => void;
 }
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({
   account,
-  paymentDate,
   paymentAmount,
-  onPaymentDateChange,
   onPaymentAmountChange,
   onRegisterPayment,
 }) => {
@@ -31,14 +26,10 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       </div>
       <div className="p-6 space-y-4">
         <div>
-          <label htmlFor="payment-date" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Fecha</label>
-          <input
-            id="payment-date"
-            type="date"
-            value={paymentDate}
-            onChange={(e) => onPaymentDateChange(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 shadow-sm"
-          />
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Fecha programada</label>
+          <div className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm shadow-sm">
+            {account.nextPaymentDate ?? '-'}
+          </div>
         </div>
 
         <InputField

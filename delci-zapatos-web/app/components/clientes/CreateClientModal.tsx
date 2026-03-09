@@ -5,11 +5,12 @@ import { Modal } from '@/app/components/shared/Modal';
 import { InputField } from '@/app/components/shared/InputField';
 import { Button } from '@/app/components/shared/Button';
 import { User, Phone, MapPin } from 'lucide-react';
+import type { Client } from '@/app/models/client';
 
 interface CreateClientModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onClientCreated?: (client: any) => void;
+    onClientCreated?: (client: Client) => void;
 }
 
 export const CreateClientModal = ({ isOpen, onClose, onClientCreated }: CreateClientModalProps) => {
@@ -35,7 +36,14 @@ export const CreateClientModal = ({ isOpen, onClose, onClientCreated }: CreateCl
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         if (onClientCreated) {
-            onClientCreated(formData);
+            const client: Client = {
+                id: `CL${Date.now()}`,
+                name: formData.name,
+                phone: formData.phone,
+                address: formData.address,
+                totalProducts: 0,
+            };
+            onClientCreated(client);
         }
 
         setIsLoading(false);

@@ -7,7 +7,6 @@ import { usePagination } from '@/app/hooks/usePagination';
 import { Pagination } from '@/app/components/shared/Pagination';
 
 export interface AccountFilterState {
-  accountId: string;
   clientName: string;
   status: string;
 }
@@ -27,7 +26,6 @@ interface FullAccountsTableProps {
 
 export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: FullAccountsTableProps) => {
   const [filters, setFilters] = useState<AccountFilterState>({
-    accountId: '',
     clientName: '',
     status: 'all',
   });
@@ -67,12 +65,11 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
     }
 
     return accounts.filter((account) => {
-      const matchesId = !filters.accountId || account.id.includes(filters.accountId);
       const matchesClient =
         !filters.clientName ||
         account.clientName.toLowerCase().includes(filters.clientName.toLowerCase());
       const matchesStatus = filters.status === 'all' || account.status === filters.status;
-      return matchesId && matchesClient && matchesStatus;
+      return matchesClient && matchesStatus;
     });
   }, [accounts, filters, activeTab]);
 
@@ -146,9 +143,6 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
     <>
       <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
         <tr>
-          <th className="hidden sm:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-            Cuenta
-          </th>
           <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
             Cliente
           </th>
@@ -175,7 +169,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
       <tbody className="bg-white divide-y divide-gray-200">
         {filteredAccounts.length === 0 ? (
           <tr>
-            <td colSpan={8} className="px-6 py-12 text-center">
+            <td colSpan={7} className="px-6 py-12 text-center">
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                   <Search className="w-8 h-8 text-gray-400" />
@@ -188,19 +182,11 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
         ) : (
           paginatedAccounts.map((account) => (
             <tr key={account.id} className="hover:bg-gray-50 transition-colors duration-150">
-              <td className="hidden sm:table-cell px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <div className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 bg-pink-100 rounded-lg flex items-center justify-center mr-1 sm:mr-2 md:mr-3">
-                    <span className="text-pink-600 font-semibold text-xs">ACC</span>
-                  </div>
-                  <span className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900 truncate max-w-[60px] sm:max-w-[80px]">#{account.id}</span>
-                </div>
-              </td>
               <td className="px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                 <div>
                   <div className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]">{account.clientName}</div>
                   <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                    #{account.id} • {account.totalProducts} productos • {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Vencida'}
+                    {account.totalProducts} productos • {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Vencida'}
                   </div>
                 </div>
               </td>
@@ -363,26 +349,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
         {/* Filters */}
         <div className="mt-4 flex flex-col gap-4">
           {activeTab === 'todas' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* ID Cuenta */}
-              <div>
-                <label htmlFor="account-id" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                  ID Cuenta
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <input
-                    id="account-id"
-                    type="text"
-                    value={filters.accountId}
-                    onChange={(e) => handleFilterChange('accountId', e.target.value)}
-                    placeholder="Ej: ACC001"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 placeholder:text-gray-400 shadow-sm"
-                  />
-                </div>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
               {/* Nombre Cliente */}
               <div>

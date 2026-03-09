@@ -10,6 +10,7 @@ import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
 import { mockClients } from '@/app/lib/mockData';
+import { getNearestUpcomingPaymentDate, getNextPaymentDateFrom, todayISO } from '@/app/lib/accountUtils';
 import type { Client } from '@/app/models/client';
 import type { Account, AccountItem } from '@/app/models/account';
 
@@ -18,6 +19,7 @@ type AccountDraft = {
   clientId: string;
   biweeklyAmount: number;
   nextPaymentDate: string;
+  initialPendingAmount: number;
   items: AccountItem[];
 };
 
@@ -29,14 +31,6 @@ const formatCurrency = (amount: number) => {
     currency: 'CRC',
     minimumFractionDigits: 2,
   }).format(amount);
-};
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
-const addDaysISO = (dateISO: string, days: number) => {
-  const d = new Date(dateISO);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 };
 
 const computeTotalsFromItems = (items: AccountItem[]) => {
@@ -54,25 +48,33 @@ const safeParse = <T,>(raw: string | null): T | null => {
   }
 };
 
+const createDefaultDraft = (): AccountDraft => ({
+  clientId: '',
+  biweeklyAmount: 0,
+  nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
+  initialPendingAmount: 0,
+  items: [],
+});
+
 export default function NuevaCuentaPage() {
   const router = useRouter();
   const [clients] = useState<Client[]>(mockClients);
-  const [draft, setDraft] = useState<AccountDraft>({
-    clientId: '',
-    biweeklyAmount: 0,
-    nextPaymentDate: addDaysISO(todayISO(), 15),
-    items: [],
-  });
-
-  useEffect(() => {
-    const stored = safeParse<AccountDraft>(window.localStorage.getItem(DRAFT_KEY));
-    if (stored) {
-      setDraft(stored);
-      return;
+  const [draft, setDraft] = useState<AccountDraft>(() => {
+    if (typeof window === 'undefined') {
+      return createDefaultDraft();
     }
 
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, []);
+    const stored = safeParse<AccountDraft>(window.localStorage.getItem(DRAFT_KEY));
+    if (!stored) {
+      return createDefaultDraft();
+    }
+
+    return {
+      ...stored,
+      initialPendingAmount: stored.initialPendingAmount ?? 0,
+      nextPaymentDate: stored.nextPaymentDate || getNearestUpcomingPaymentDate(todayISO()),
+    };
+  });
 
   useEffect(() => {
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -80,7 +82,8 @@ export default function NuevaCuentaPage() {
 
   const selectedClient = useMemo(() => clients.find((c) => c.id === draft.clientId) ?? null, [clients, draft.clientId]);
 
-  const { totalAmount, totalProducts } = useMemo(() => computeTotalsFromItems(draft.items), [draft.items]);
+  const { totalAmount: itemsAmount, totalProducts } = useMemo(() => computeTotalsFromItems(draft.items), [draft.items]);
+  const totalAmount = itemsAmount + Math.max(0, draft.initialPendingAmount || 0);
 
   const handleRemoveItem = (id: string) => {
     setDraft((prev) => ({
@@ -144,7 +147,7 @@ export default function NuevaCuentaPage() {
     router.push(`/cuentas/${id}`);
   };
 
-  const canCreate = Boolean(draft.clientId) && draft.items.length > 0 && draft.biweeklyAmount > 0;
+  const canCreate = Boolean(draft.clientId) && draft.biweeklyAmount > 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
@@ -176,7 +179,7 @@ export default function NuevaCuentaPage() {
 
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Nueva cuenta</h1>
-                <p className="text-sm text-gray-600 mt-1">Selecciona cliente, productos y monto quincenal</p>
+                <p className="text-sm text-gray-600 mt-1">Selecciona cliente, monto quincenal y saldo inicial</p>
               </div>
             </div>
           </div>
@@ -243,19 +246,24 @@ export default function NuevaCuentaPage() {
                   required
                 />
 
+                <InputField
+                  label="Saldo pendiente inicial"
+                  type="number"
+                  value={String(draft.initialPendingAmount)}
+                  onChange={(value) => setDraft((prev) => ({ ...prev, initialPendingAmount: Number(value) || 0 }))}
+                  required
+                />
+
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Próximo pago</label>
-                  <input
-                    type="date"
-                    value={draft.nextPaymentDate}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, nextPaymentDate: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 shadow-sm"
-                  />
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Próximo pago automático</label>
+                  <div className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm shadow-sm">
+                    {draft.nextPaymentDate}
+                  </div>
                 </div>
 
                 <div className="rounded-xl bg-pink-50 border border-pink-100 p-4">
                   <div className="text-xs text-gray-600">Sugerencia</div>
-                  <div className="text-sm font-semibold text-gray-900 mt-1">Siguiente quincena: {addDaysISO(draft.nextPaymentDate, 15)}</div>
+                  <div className="text-sm font-semibold text-gray-900 mt-1">Siguiente corte: {getNextPaymentDateFrom(draft.nextPaymentDate)}</div>
                 </div>
               </div>
             </div>
@@ -280,7 +288,7 @@ export default function NuevaCuentaPage() {
                 {draft.items.length === 0 ? (
                   <div className="text-center py-10">
                     <div className="text-sm font-semibold text-gray-900">No hay productos agregados</div>
-                    <div className="text-sm text-gray-600 mt-1">Usa “Agregar productos” para seleccionar del inventario.</div>
+                    <div className="text-sm text-gray-600 mt-1">Puedes crear la cuenta sin productos o agregar desde inventario.</div>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -337,9 +345,19 @@ export default function NuevaCuentaPage() {
               </div>
 
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium text-gray-600">Total de productos</div>
-                  <div className="text-xl font-bold text-gray-900">{formatCurrency(totalAmount)}</div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-gray-600">Total de productos</div>
+                    <div className="text-sm font-semibold text-gray-900">{formatCurrency(itemsAmount)}</div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-gray-600">Saldo inicial manual</div>
+                    <div className="text-sm font-semibold text-gray-900">{formatCurrency(Math.max(0, draft.initialPendingAmount || 0))}</div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-gray-600">Saldo pendiente inicial total</div>
+                    <div className="text-xl font-bold text-gray-900">{formatCurrency(totalAmount)}</div>
+                  </div>
                 </div>
               </div>
             </div>

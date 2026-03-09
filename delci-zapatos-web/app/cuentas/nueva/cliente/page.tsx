@@ -7,12 +7,10 @@ import { ChevronLeft, Search, Check } from 'lucide-react';
 import { Navbar } from '@/app/components/shared/Navbar';
 import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
-import { Button } from '@/app/components/shared/Button';
-import { InputField } from '@/app/components/shared/InputField';
-import { ClientsTable } from '@/app/components/clientes/ClientsTable';
 import { Pagination } from '@/app/components/shared/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { mockClients } from '@/app/lib/mockData';
+import { getNearestUpcomingPaymentDate, todayISO } from '@/app/lib/accountUtils';
 import type { Client } from '@/app/models/client';
 import type { Draft } from '@/app/cuentas/nueva/productos/page';
 
@@ -43,7 +41,8 @@ export default function ClientSelectionPage() {
       const defaultDraft: Draft = {
         clientId: '',
         biweeklyAmount: 0,
-        nextPaymentDate: new Date().toISOString().slice(0, 10),
+        nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
+        initialPendingAmount: 0,
         items: []
       };
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify(defaultDraft));

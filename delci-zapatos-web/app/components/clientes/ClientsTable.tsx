@@ -12,7 +12,6 @@ interface ClientsTableProps {
 }
 
 interface ClientFilterState {
-  clientId: string;
   clientName: string;
   clientPhone: string;
 }
@@ -30,17 +29,15 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
   className = '',
 }) => {
   const [filters, setFilters] = useState<ClientFilterState>({
-    clientId: '',
     clientName: '',
     clientPhone: '',
   });
 
   const filteredClients = clients.filter(client => {
-    const matchesId = !filters.clientId || client.id.includes(filters.clientId);
     const matchesName = !filters.clientName || client.name.toLowerCase().includes(filters.clientName.toLowerCase());
     const matchesPhone = !filters.clientPhone || client.phone.replace(/[-\s]/g, '').includes(filters.clientPhone.replace(/[-\s]/g, ''));
 
-    return matchesId && matchesName && matchesPhone;
+    return matchesName && matchesPhone;
   });
 
   const {
@@ -81,26 +78,7 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 lg:max-w-2xl">
-            {/* ID Cliente */}
-            <div>
-              <label htmlFor="client-id" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                ID
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <SearchIcon />
-                </div>
-                <input
-                  id="client-id"
-                  type="text"
-                  value={filters.clientId}
-                  onChange={(e) => handleFilterChange('clientId', e.target.value)}
-                  placeholder="Ej: 001"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 placeholder:text-gray-400 shadow-sm"
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 lg:max-w-2xl">
 
             {/* Nombre Cliente */}
             <div>
@@ -150,10 +128,6 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
         <table className="w-full">
           <thead className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-100">
             <tr>
-              {/* ID - Hidden on mobile */}
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                ID
-              </th>
               {/* Cliente - Always visible */}
               <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Cliente
@@ -178,19 +152,13 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
                 key={client.id}
                 className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
               >
-                {/* ID - Hidden on mobile */}
-                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-sm font-mono font-medium text-gray-700">
-                    #{client.id}
-                  </span>
-                </td>
                 {/* Cliente - Always visible, shows more info on mobile */}
                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-gray-900">{client.name}</span>
-                    {/* Show ID and phone on mobile as subtitle */}
+                    {/* Show phone on mobile as subtitle */}
                     <span className="md:hidden text-xs text-gray-500 mt-0.5">
-                      #{client.id} · {client.phone}
+                      {client.phone}
                     </span>
                   </div>
                 </td>

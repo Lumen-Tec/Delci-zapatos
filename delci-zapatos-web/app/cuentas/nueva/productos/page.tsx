@@ -11,19 +11,6 @@ import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
 import type { AccountItem } from '@/app/models/account';
 import type { Product, ProductCategory, ProductStatus } from '@/app/models/products';
-import {
-  BAG_GROUPS,
-  BOLSOS_MANO_HOMBRO_SUBCATEGORIES,
-  CARTERAS_MONEDEROS_SUBCATEGORIES,
-  MANOS_LIBRES_SUBCATEGORIES,
-  OTROS_ZAPATOS_SUBCATEGORIES,
-  RINONERAS_CANGUROS_SUBCATEGORIES,
-  SANDALIA_SUBCATEGORIES,
-  SHOE_GROUPS,
-  TACON_SUBCATEGORIES,
-  BOTA_SUBCATEGORIES,
-  TENIS_SUBCATEGORIES,
-} from '@/app/models/products';
 import { mockProducts } from '@/app/lib/mockData';
 import { getEffectivePrice, getRemainingOfferDays, getSizeEffectivePrice, isSizeOfferActive, getSizeRemainingDays } from '@/app/lib/discountUtils';
 
@@ -39,6 +26,7 @@ type Draft = {
   clientId: string;
   biweeklyAmount: number;
   nextPaymentDate: string;
+  initialPendingAmount: number;
   items: AccountItem[];
 };
 
@@ -47,8 +35,6 @@ export type { Draft };
 type FilterState = {
   query: string;
   category: ProductCategory | 'all';
-  group: string;
-  subcategory: string;
   status: ProductStatus | 'all';
   shoeSize: string;
 };
@@ -62,50 +48,6 @@ const safeParse = <T,>(raw: string | null): T | null => {
   } catch {
     return null;
   }
-};
-
-const getGroupsForCategory = (category: FilterState['category']): string[] => {
-  if (category === 'zapatos') return [...SHOE_GROUPS];
-  if (category === 'bolsos') return [...BAG_GROUPS];
-  return [];
-};
-
-const getSubcategoriesFor = (category: FilterState['category'], group: string): string[] => {
-  if (category === 'zapatos') {
-    switch (group) {
-      case 'Sandalias':
-        return [...SANDALIA_SUBCATEGORIES];
-      case 'Botas':
-        return [...BOTA_SUBCATEGORIES];
-      case 'Tenis':
-        return [...TENIS_SUBCATEGORIES];
-      case 'Zapatos de tacón':
-        return [...TACON_SUBCATEGORIES];
-      case 'Otros estilos':
-        return [...OTROS_ZAPATOS_SUBCATEGORIES];
-      default:
-        return [];
-    }
-  }
-
-  if (category === 'bolsos') {
-    switch (group) {
-      case 'Bolsos de mano y hombro':
-        return [...BOLSOS_MANO_HOMBRO_SUBCATEGORIES];
-      case 'Manos libres':
-        return [...MANOS_LIBRES_SUBCATEGORIES];
-      case 'Carteras y monederos':
-        return [...CARTERAS_MONEDEROS_SUBCATEGORIES];
-      case 'Riñoneras y canguros':
-        return [...RINONERAS_CANGUROS_SUBCATEGORIES];
-      case 'Bolsos para ocasiones especiales':
-        return [];
-      default:
-        return [];
-    }
-  }
-
-  return [];
 };
 
 const getStoredProducts = (): Product[] => {
@@ -139,30 +81,23 @@ const createShoeAccountItem = (
     size: selectedSize,
   };
 
-  switch (product.group) {
-    case 'Sandalias':
-      return { ...base, group: 'Sandalias', subcategory: product.subcategory };
-    case 'Botas':
-      return { ...base, group: 'Botas', subcategory: product.subcategory };
-    case 'Tenis':
-      return { ...base, group: 'Tenis', subcategory: product.subcategory };
-    case 'Zapatos de tacón':
-      return { ...base, group: 'Zapatos de tacón', subcategory: product.subcategory };
-    case 'Otros estilos':
-      return { ...base, group: 'Otros estilos', subcategory: product.subcategory };
-  }
+  return base;
 };
 
 export default function SeleccionarProductosParaCuentaPage() {
   const router = useRouter();
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [products] = useState<Product[]>(() => {
+    if (typeof window === 'undefined') return mockProducts;
+    return getStoredProducts();
+  });
+  const [draft, setDraft] = useState<Draft | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return safeParse<Draft>(window.localStorage.getItem(DRAFT_KEY));
+  });
 
   const [filters, setFilters] = useState<FilterState>({
     query: '',
     category: 'all',
-    group: 'all',
-    subcategory: 'all',
     status: 'active',
     shoeSize: 'all',
   });
@@ -170,22 +105,10 @@ export default function SeleccionarProductosParaCuentaPage() {
   const [productSelections, setProductSelections] = useState<Record<string, { qty: string; size: string }>>({});
 
   useEffect(() => {
-    setProducts(getStoredProducts());
-
-    const storedDraft = safeParse<Draft>(window.localStorage.getItem(DRAFT_KEY));
-    if (!storedDraft) {
+    if (!draft) {
       router.replace('/cuentas/nueva');
-      return;
     }
-
-    setDraft(storedDraft);
-  }, [router]);
-
-  const groups = useMemo(() => getGroupsForCategory(filters.category), [filters.category]);
-  const subcategories = useMemo(
-    () => (filters.group !== 'all' ? getSubcategoriesFor(filters.category, filters.group) : []),
-    [filters.category, filters.group]
-  );
+  }, [draft, router]);
 
   const availableShoeSizes = useMemo(() => {
     const sizes = new Set<string>();
@@ -214,21 +137,13 @@ export default function SeleccionarProductosParaCuentaPage() {
 
       const matchesCategory = filters.category === 'all' || product.category === filters.category;
 
-      const matchesGroup =
-        filters.group === 'all' ||
-        (filters.category !== 'all' && product.category === filters.category && product.group === filters.group);
-
-      const matchesSubcategory =
-        filters.subcategory === 'all' ||
-        ('subcategory' in product && product.subcategory === filters.subcategory);
-
       const matchesStatus = filters.status === 'all' || (product.status ?? 'active') === filters.status;
 
       const matchesShoeSize =
         filters.shoeSize === 'all' ||
         (product.category === 'zapatos' && product.sizes.some((s) => String(s.size) === filters.shoeSize && s.stock > 0));
 
-      return matchesQuery && matchesCategory && matchesGroup && matchesSubcategory && matchesStatus && matchesShoeSize;
+      return matchesQuery && matchesCategory && matchesStatus && matchesShoeSize;
     });
   }, [products, filters]);
 
@@ -243,17 +158,7 @@ export default function SeleccionarProductosParaCuentaPage() {
     setFilters((prev) => ({
       ...prev,
       category: value,
-      group: 'all',
-      subcategory: 'all',
       shoeSize: 'all',
-    }));
-  };
-
-  const handleGroupChange = (value: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      group: value,
-      subcategory: 'all',
     }));
   };
 
@@ -326,8 +231,6 @@ export default function SeleccionarProductosParaCuentaPage() {
       unitPrice: bagPrice,
       ...(bagHasDiscount ? { originalPrice: product.price, discountPercentage: bagDiscount } : {}),
       category: 'bolsos',
-      group: product.group,
-      ...('subcategory' in product && product.subcategory ? { subcategory: product.subcategory } : {}),
     } as AccountItem;
 
     updateDraft({ ...draft, items: [...draft.items, bagItem] });
@@ -375,7 +278,7 @@ export default function SeleccionarProductosParaCuentaPage() {
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
           <div className="px-4 sm:px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-pink-50/50 via-white to-rose-50/50">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="lg:col-span-2">
                 <InputField
                   label="Buscar"
@@ -396,42 +299,6 @@ export default function SeleccionarProductosParaCuentaPage() {
                   <option value="all">Todas</option>
                   <option value="zapatos">Zapatos</option>
                   <option value="bolsos">Bolsos</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="filter-group" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Grupo</label>
-                <select
-                  id="filter-group"
-                  value={filters.group}
-                  onChange={(e) => handleGroupChange(e.target.value)}
-                  disabled={filters.category === 'all'}
-                  className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm disabled:opacity-50"
-                >
-                  <option value="all">Todos</option>
-                  {groups.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="filter-subcategory" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Subcategoría</label>
-                <select
-                  id="filter-subcategory"
-                  value={filters.subcategory}
-                  onChange={(e) => handleFilterChange('subcategory', e.target.value)}
-                  disabled={filters.category === 'all' || filters.group === 'all' || subcategories.length === 0}
-                  className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm disabled:opacity-50"
-                >
-                  <option value="all">Todas</option>
-                  {subcategories.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
                 </select>
               </div>
 
@@ -475,8 +342,6 @@ export default function SeleccionarProductosParaCuentaPage() {
                 <tr>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
                   <th className="hidden xl:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
-                  <th className="hidden xl:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Grupo</th>
-                  <th className="hidden 2xl:table-cell px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subcategoría</th>
                   <th className="hidden md:table-cell px-4 sm:px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
                   <th className="px-4 sm:px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Agregar</th>
                 </tr>
@@ -484,7 +349,7 @@ export default function SeleccionarProductosParaCuentaPage() {
               <tbody className="divide-y divide-gray-50">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
+                    <td colSpan={4} className="px-6 py-12 text-center">
                       <div className="text-sm font-semibold text-gray-900">No hay productos</div>
                       <div className="text-sm text-gray-600 mt-1">Ajusta los filtros o revisa inventario.</div>
                     </td>
@@ -545,8 +410,7 @@ export default function SeleccionarProductosParaCuentaPage() {
                               </div>
                               <div className="text-xs text-gray-600 mt-0.5">#{product.id}{product.sku ? ` · ${product.sku}` : ''}</div>
                               <div className="text-xs text-gray-600 mt-0.5 xl:hidden">
-                                {product.category} · {product.group}
-                                {'subcategory' in product && product.subcategory ? ` · ${product.subcategory}` : ''}
+                                {product.category}
                               </div>
                             </div>
 
@@ -584,10 +448,6 @@ export default function SeleccionarProductosParaCuentaPage() {
                           </div>
                         </td>
                         <td className="hidden xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700 capitalize">{product.category}</td>
-                        <td className="hidden xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700">{product.group}</td>
-                        <td className="hidden 2xl:table-cell px-4 sm:px-6 py-4 text-sm text-gray-700">
-                          {'subcategory' in product && product.subcategory ? product.subcategory : '-'}
-                        </td>
                         <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-right text-sm">
                           {hasDiscount ? (
                             <div>
@@ -649,7 +509,7 @@ export default function SeleccionarProductosParaCuentaPage() {
             {!draft || draft.items.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-sm font-semibold text-gray-900">No has agregado productos</div>
-                <div className="text-sm text-gray-600 mt-1">Selecciona talla/cantidad y presiona "Agregar".</div>
+                <div className="text-sm text-gray-600 mt-1">Selecciona talla/cantidad y presiona Agregar.</div>
               </div>
             ) : (
               <div className="overflow-x-auto">

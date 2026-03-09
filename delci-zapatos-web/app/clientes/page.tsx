@@ -27,9 +27,9 @@ export default function ClientsPage() {
     }
   };
 
-  const handleClientCreated = (newClient: any) => {
-    console.log('New client created:', newClient);
-    // TODO: Add client to state or refresh list
+  const handleClientCreated = (newClient: Client) => {
+    setClients((prevClients) => [...prevClients, newClient]);
+    setIsCreateModalOpen(false);
   };
 
   const handleViewAccount = (clientId: string) => {
