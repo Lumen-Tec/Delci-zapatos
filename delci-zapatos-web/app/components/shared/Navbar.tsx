@@ -57,7 +57,7 @@ export const Navbar = React.memo(() => {
         <Link href="/dashboard" className="flex items-center shrink-0">
           <div className="relative h-16 w-32">
             <Image
-              src="https://res.cloudinary.com/drec8g03e/image/upload/f_webp/delci_zapatos_er5sri"
+              src="https://res.cloudinary.com/drec8g03e/image/upload/v1772501928/delci-zapatos_jhguv9.png"
               alt="Delci Zapatos Logo"
               fill
               className="object-contain object-left"
