@@ -8,20 +8,30 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 const addDaysISO = (dateISO: string, days: number) => {
-  const d = new Date(dateISO);
+  const d = new Date(`${dateISO}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const dy = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${dy}`;
 };
 
 const toDateOnly = (value: string) => new Date(`${value}T00:00:00`);
 
 const toISODate = (value: Date) => {
-  const next = new Date(value);
-  next.setHours(0, 0, 0, 0);
-  return next.toISOString().slice(0, 10);
+  const y = value.getFullYear();
+  const m = String(value.getMonth() + 1).padStart(2, '0');
+  const d = String(value.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 const isAllowedPaymentDay = (dateISO: string) => {

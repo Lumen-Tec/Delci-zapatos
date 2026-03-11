@@ -10,7 +10,7 @@ import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
 import { mockClients } from '@/app/lib/mockData';
-import { getNearestUpcomingPaymentDate, getNextPaymentDateFrom, todayISO } from '@/app/lib/accountUtils';
+import { getNearestUpcomingPaymentDate, todayISO } from '@/app/lib/accountUtils';
 import type { Client } from '@/app/models/client';
 import type { Account, AccountItem } from '@/app/models/account';
 
@@ -72,7 +72,7 @@ export default function NuevaCuentaPage() {
     return {
       ...stored,
       initialPendingAmount: stored.initialPendingAmount ?? 0,
-      nextPaymentDate: stored.nextPaymentDate || getNearestUpcomingPaymentDate(todayISO()),
+      nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
     };
   });
 
@@ -254,16 +254,10 @@ export default function NuevaCuentaPage() {
                   required
                 />
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Próximo pago automático</label>
-                  <div className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm shadow-sm">
-                    {draft.nextPaymentDate}
-                  </div>
-                </div>
-
                 <div className="rounded-xl bg-pink-50 border border-pink-100 p-4">
-                  <div className="text-xs text-gray-600">Sugerencia</div>
-                  <div className="text-sm font-semibold text-gray-900 mt-1">Siguiente corte: {getNextPaymentDateFrom(draft.nextPaymentDate)}</div>
+                  <div className="text-xs font-semibold text-pink-600 uppercase tracking-wide mb-1">Fechas de pago</div>
+                  <div className="text-sm text-gray-700">Todos los clientes pagan el <span className="font-semibold text-gray-900">15</span> y el <span className="font-semibold text-gray-900">30</span> de cada mes.</div>
+                  <div className="text-xs text-gray-500 mt-1">Próximo cobro: <span className="font-medium text-gray-700">{draft.nextPaymentDate}</span></div>
                 </div>
               </div>
             </div>

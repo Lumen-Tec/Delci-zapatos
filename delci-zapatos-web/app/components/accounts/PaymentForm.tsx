@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CreditCard } from 'lucide-react';
+import { Bell, CreditCard } from 'lucide-react';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
 import type { Account } from '@/app/models/account';
@@ -11,6 +11,7 @@ interface PaymentFormProps {
   paymentAmount: string;
   onPaymentAmountChange: (value: string) => void;
   onRegisterPayment: () => void;
+  onNotifyClient?: () => void;
 }
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -18,6 +19,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   paymentAmount,
   onPaymentAmountChange,
   onRegisterPayment,
+  onNotifyClient,
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
@@ -40,10 +42,18 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           placeholder={account.biweeklyAmount ? String(account.biweeklyAmount) : 'Monto'}
         />
 
-        <Button onClick={onRegisterPayment} variant="primary">
-          <CreditCard className="w-5 h-5 mr-2" />
-          Marcar pagado
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button onClick={onRegisterPayment} variant="primary">
+            <CreditCard className="w-5 h-5 mr-2" />
+            Marcar pagado
+          </Button>
+          {onNotifyClient && (
+            <Button onClick={onNotifyClient} variant="secondary">
+              <Bell className="w-5 h-5 mr-2" />
+              Notificar cliente
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

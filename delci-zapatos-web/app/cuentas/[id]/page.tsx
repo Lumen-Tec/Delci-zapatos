@@ -12,7 +12,15 @@ import { InputField } from '@/app/components/shared/InputField';
 import { AccountSummary } from '@/app/components/accounts/AccountSummary';
 import { PaymentForm } from '@/app/components/accounts/PaymentForm';
 import { mockAccounts, mockClients } from '@/app/lib/mockData';
-import { formatCurrency, todayISO, computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom, isAllowedPaymentDay } from '@/app/lib/accountUtils';
+import {
+  formatCurrency,
+  todayISO,
+  computeStatus,
+  getNearestUpcomingPaymentDate,
+  getNextPaymentDateFrom,
+  isAllowedPaymentDay,
+  formatCurrencyValue,
+} from '@/app/lib/accountUtils';
 import type { Account, AccountPayment } from '@/app/models/account';
 import type { Client } from '@/app/models/client';
 
@@ -110,7 +118,8 @@ export default function AccountDetailPage() {
     })();
 
     let nextFound: Account | undefined;
-    if (found && found.remainingAmount > 0 && !found.nextPaymentDate && computedNext) {
+    if (found && found.remainingAmount > 0 && computedNext &&
+        (!found.nextPaymentDate || !isAllowedPaymentDay(found.nextPaymentDate))) {
       nextFound = { ...found, nextPaymentDate: computedNext };
       const updated = accounts.map((a) => (a.id === nextFound!.id ? nextFound! : a));
       saveAccounts(updated);
@@ -329,6 +338,23 @@ export default function AccountDetailPage() {
               paymentAmount={state.paymentAmount}
               onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
               onRegisterPayment={handleRegisterPayment}
+              onNotifyClient={() => {
+                const phone = state.client?.phone?.replace(/[^0-9+]/g, '') ?? '';
+                const name = state.account!.clientName;
+                const remaining = state.account!.remainingAmount;
+                const nextDate = state.account!.nextPaymentDate ?? '';
+                const biweekly = state.account!.biweeklyAmount;
+                const lines = [
+                  `Hola ${name} 👋`,
+                  `Le recordamos que tiene un pago programado para el *${nextDate}*.`,
+                  biweekly ? `Monto quincenal: *₡${biweekly.toLocaleString('es-CR')}*` : '',
+                  `Saldo pendiente: *₡${remaining.toLocaleString('es-CR')}*`,
+                  '',
+                  'Gracias por su preferencia 🙏',
+                ].filter(Boolean).join('\n');
+                const url = `https://wa.me/${phone}?text=${encodeURIComponent(lines)}`;
+                window.open(url, '_blank', 'noopener,noreferrer');
+              }}
             />
           </div>
 

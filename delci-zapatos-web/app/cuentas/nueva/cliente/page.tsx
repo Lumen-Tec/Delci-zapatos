@@ -10,6 +10,7 @@ import { Footer } from '@/app/components/shared/Footer';
 import { Pagination } from '@/app/components/shared/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { mockClients } from '@/app/lib/mockData';
+import { CreateClientModal } from '@/app/components/clientes/CreateClientModal';
 import { getNearestUpcomingPaymentDate, todayISO } from '@/app/lib/accountUtils';
 import type { Client } from '@/app/models/client';
 import type { Draft } from '@/app/cuentas/nueva/productos/page';
@@ -27,7 +28,8 @@ const safeParse = <T,>(raw: string | null): T | null => {
 
 export default function ClientSelectionPage() {
   const router = useRouter();
-  const [clients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [query, setQuery] = useState('');
 
@@ -85,38 +87,60 @@ export default function ClientSelectionPage() {
     router.push('/cuentas/nueva');
   };
 
+  const handleClientCreated = (client: Client) => {
+    setClients((prev) => [client, ...prev]);
+    // Selecciona automáticamente el nuevo cliente
+    setTimeout(() => handleSelect(client.id), 0);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
       <Navbar />
       <NavButton />
 
       <div className="flex-grow relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 md:pb-8 w-full">
+        <CreateClientModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onClientCreated={handleClientCreated}
+        />
+
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => router.push('/cuentas/nueva')}
+                className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/80 border border-rose-200 text-rose-700 shadow-sm hover:bg-white transition-all"
+                title="Volver"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg">
+                <Image
+                  src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg"
+                  alt="Cuentas"
+                  width={24}
+                  height={24}
+                  className="w-6 h-6 text-white"
+                />
+              </div>
+
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Seleccionar cliente</h1>
+                <p className="text-sm text-gray-600 mt-1">Busca y selecciona un cliente para la cuenta</p>
+              </div>
+            </div>
+
             <button
               type="button"
-              onClick={() => router.push('/cuentas/nueva')}
-              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/80 border border-rose-200 text-rose-700 shadow-sm hover:bg-white transition-all"
-              title="Volver"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-pink-500 text-white font-semibold shadow-lg hover:bg-pink-600 active:scale-95 transition-all text-base sm:text-sm w-full sm:w-auto justify-center"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <span>Crear cliente</span>
             </button>
-
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg">
-              <Image
-                src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg"
-                alt="Cuentas"
-                width={24}
-                height={24}
-                className="w-6 h-6 text-white"
-              />
-            </div>
-
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Seleccionar cliente</h1>
-              <p className="text-sm text-gray-600 mt-1">Busca y selecciona un cliente para la cuenta</p>
-            </div>
           </div>
         </div>
 

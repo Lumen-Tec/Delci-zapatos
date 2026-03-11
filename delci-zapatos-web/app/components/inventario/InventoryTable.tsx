@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Eye, Filter, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, Filter, Search } from 'lucide-react';
 import type { Product, ProductCategory, ProductStatus } from '@/app/models/products';
 import { getProductTotalStock } from '@/app/models/inventory';
 import { getEffectivePrice, getRemainingOfferDays, productHasActiveDiscount, isSizeOfferActive, getSizeEffectivePrice, getSizeRemainingDays } from '@/app/lib/discountUtils';
@@ -39,6 +39,7 @@ const TABS: { key: InventoryTab; label: string }[] = [
 
 export const InventoryTable = React.memo<InventoryTableProps>(({ products, onViewProduct, className = '' }) => {
   const [activeTab, setActiveTab] = useState<InventoryTab>('todos');
+  const [isCategoryFiltersOpen, setIsCategoryFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<InventoryFilterState>({
     query: '',
     category: 'all',
@@ -545,6 +546,24 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
               </div>
             </div>
 
+            <div className="sm:hidden">
+              <p className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+                Filtros
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsCategoryFiltersOpen((prev) => !prev)}
+                className="w-full inline-flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm font-medium hover:border-gray-300 transition-all duration-200 shadow-sm"
+                aria-expanded={isCategoryFiltersOpen}
+                aria-controls="inventory-category-filters"
+              >
+                <span>Filtros por categoria</span>
+                {isCategoryFiltersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div id="inventory-category-filters" className={`${isCategoryFiltersOpen ? 'grid' : 'hidden'} sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`}>
             <div>
               <label htmlFor="inventory-category" className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
                 Categoría

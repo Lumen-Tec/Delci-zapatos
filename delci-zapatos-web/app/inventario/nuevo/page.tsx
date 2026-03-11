@@ -9,7 +9,7 @@ import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
 import { Button } from '@/app/components/shared/Button';
 import { InputField } from '@/app/components/shared/InputField';
-import type { Product, ProductCategory, ProductImage } from '@/app/models/products';
+import type { Product, ProductCategory } from '@/app/models/products';
 import { mockProducts } from '@/app/lib/mockData';
 
 type SizeRow = {
@@ -23,13 +23,13 @@ type SizeRow = {
 
 const newSizeRow = (): SizeRow => ({ _key: String(Date.now() + Math.random()), size: '', stock: '0', price: '', discountPercentage: '', offerDurationDays: '' });
 
-type ImageRow = {
-  _key: string;
-  url: string;
-  alt: string;
-};
-
-const newImageRow = (): ImageRow => ({ _key: String(Date.now() + Math.random()), url: '', alt: '' });
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error(`No se pudo leer el archivo: ${file.name}`));
+    reader.readAsDataURL(file);
+  });
 
 export default function NuevoProductoPage() {
   const router = useRouter();
@@ -45,7 +45,6 @@ export default function NuevoProductoPage() {
     price: '0',
     discountPercentage: '',
     offerDurationDays: '',
-    images: [newImageRow()] as ImageRow[],
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,31 +106,6 @@ export default function NuevoProductoPage() {
     });
   };
 
-  const handleAddImage = () => {
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, newImageRow()],
-    }));
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleImageChange = (index: number, field: keyof ImageRow, value: string) => {
-    setFormData((prev) => {
-      const next = [...prev.images];
-      next[index] = {
-        ...next[index],
-        [field]: value,
-      };
-      return { ...prev, images: next };
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -141,9 +115,11 @@ export default function NuevoProductoPage() {
     const discountPct = Number(formData.discountPercentage) || 0;
     const offerDays = Number(formData.offerDurationDays) || 0;
 
-    const images: ProductImage[] = formData.images
-      .map((img) => ({ url: img.url.trim(), alt: img.alt.trim() || undefined }))
-      .filter((img) => img.url.length > 0);
+    const images = await Promise.all(
+      selectedFiles.map(async (file) => ({
+        url: await fileToDataUrl(file),
+      }))
+    );
 
     const base = {
       id,
@@ -289,6 +265,32 @@ export default function NuevoProductoPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+              <InputField
+                label="Precio"
+                type="number"
+                value={formData.price}
+                onChange={(value) => setField('price', value)}
+                required
+              />
+              {formData.category === 'zapatos' && formData.sizes.length > 0 && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      sizes: prev.sizes.map((row) => ({ ...row, price: prev.price })),
+                    }));
+                  }}
+                >
+                  Aplicar precio a todas las tallas
+                </Button>
+              )}
+            </div>
+
             {formData.category === 'zapatos' ? (
               <div className="space-y-4">
                 <InputField
@@ -300,9 +302,9 @@ export default function NuevoProductoPage() {
                 />
 
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                     <span className="block text-xs sm:text-sm font-medium text-gray-700">Tallas</span>
-                    <Button type="button" variant="secondary" size="sm" onClick={handleAddSize}>
+                    <Button type="button" variant="secondary" size="md" onClick={handleAddSize} className="w-full sm:w-auto">
                       <Plus className="w-4 h-4 mr-1" />
                       Agregar talla
                     </Button>
@@ -384,31 +386,6 @@ export default function NuevoProductoPage() {
               />
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-              <InputField
-                label="Precio"
-                type="number"
-                value={formData.price}
-                onChange={(value) => setField('price', value)}
-                required
-              />
-              {formData.category === 'zapatos' && formData.sizes.length > 0 && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      sizes: prev.sizes.map((row) => ({ ...row, price: prev.price })),
-                    }));
-                  }}
-                >
-                  Aplicar precio a todas las tallas
-                </Button>
-              )}
-            </div>
-
             {formData.category === 'bolsos' && (
               <div className="border-t border-gray-100 pt-4 mt-2">
                 <div className="text-sm font-medium text-gray-700 mb-3">Descuento / Oferta (opcional)</div>
@@ -435,7 +412,7 @@ export default function NuevoProductoPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">Fotos</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Agrega URLs o sube desde tu dispositivo</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Sube fotos desde tu dispositivo</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -450,10 +427,6 @@ export default function NuevoProductoPage() {
                     <Upload className="w-4 h-4 mr-1" />
                     Subir desde dispositivo
                   </Button>
-                  <Button type="button" variant="secondary" size="sm" onClick={handleAddImage}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Agregar URL
-                  </Button>
                 </div>
               </div>
 
@@ -461,50 +434,7 @@ export default function NuevoProductoPage() {
                 <div className="text-xs text-gray-500">{selectedFiles.length} archivo(s) seleccionado(s)</div>
               )}
 
-              <div className="space-y-2">
-                {formData.images.map((img, index) => (
-                  <div key={img._key} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-end">
-                    <div className="lg:col-span-7">
-                      <InputField
-                        label={index === 0 ? 'URL' : undefined}
-                        value={img.url}
-                        onChange={(value) => handleImageChange(index, 'url', value)}
-                        placeholder="https://..."
-                      />
-                    </div>
-                    <div className="lg:col-span-4">
-                      <InputField
-                        label={index === 0 ? 'Alt (opcional)' : undefined}
-                        value={img.alt}
-                        onChange={(value) => handleImageChange(index, 'alt', value)}
-                        placeholder="Descripción"
-                      />
-                    </div>
-                    <div className="lg:col-span-1 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        disabled={formData.images.length <= 1}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-gray-600 hover:text-white bg-gray-100 hover:bg-gray-600 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Quitar foto"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {formData.images
-                  .map((img) => img.url.trim())
-                  .filter((url) => url.length > 0)
-                  .slice(0, 8)
-                  .map((url) => (
-                    <div key={url} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                      <Image src={url} alt="" width={112} height={112} className="w-full h-28 object-cover" />
-                    </div>
-                  ))}
                 {filePreviews.map((preview, index) => (
                   <div key={preview} className="relative rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
                     <Image src={preview} alt="" width={112} height={112} className="w-full h-28 object-cover" />
@@ -520,11 +450,11 @@ export default function NuevoProductoPage() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
-              <Button type="button" variant="secondary" onClick={() => router.push('/inventario')} disabled={isSaving}>
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+              <Button type="button" variant="secondary" size="lg" onClick={() => router.push('/inventario')} disabled={isSaving}>
                 Cancelar
               </Button>
-              <Button type="submit" variant="primary" loading={isSaving}>
+              <Button type="submit" variant="primary" size="lg" loading={isSaving}>
                 Guardar producto
               </Button>
             </div>

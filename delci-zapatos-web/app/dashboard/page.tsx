@@ -126,7 +126,7 @@ export default function Dashboard() {
 
           <StatCard
             title="Notificar clientes"
-            value={mockStats.paymentAlerts.total}
+            value={mockStats.clients.total}
             description="Saldo nuevo"
             icon={alertsIcon}
             buttonText="Notificar clientes"
