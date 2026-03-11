@@ -19,7 +19,6 @@ import {
   getNearestUpcomingPaymentDate,
   getNextPaymentDateFrom,
   isAllowedPaymentDay,
-  formatCurrencyValue,
 } from '@/app/lib/accountUtils';
 import type { Account, AccountPayment } from '@/app/models/account';
 import type { Client } from '@/app/models/client';
