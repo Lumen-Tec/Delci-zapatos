@@ -1,5 +1,5 @@
-import { getAccounts, createAccount } from '@/app/repositories/accountsRepository'
-import { getNearestUpcomingPaymentDate, todayISO } from '@/app/lib/accountUtils'
+import { getAccounts, createAccount } from '@/repositories/accountsRepository'
+import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils'
 
 // GET para obtener cuentas (con info de cliente, items y pagos)
 // No posee filstrados, es para usar en el dashboard admin, donde se muestran todas las cuentas.

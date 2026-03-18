@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Calendar } from 'lucide-react';
-import type { Account } from '@/app/models/account';
-import { usePagination } from '@/app/hooks/usePagination';
+import type { Account } from '@/models/account';
+import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/app/components/shared/Pagination';
 
 interface DashboardAccountsTableProps {
@@ -95,7 +95,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
     const labels = {
       active: 'Activa',
       paid: 'Pagada',
-      overdue: 'Vencida',
+      overdue: 'Atrasada',
     };
 
     return (
