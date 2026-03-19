@@ -4,32 +4,41 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 
 interface NavItem {
   label: string;
   href: string;
   icon: string;
+  dashboardView?: 'home' | 'clients' | 'products_list' | 'accounts';
+  dashboardAliases?: Array<'home' | 'clients' | 'products_list' | 'accounts'>;
 }
 
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
+    dashboardView: 'home',
     icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/dashboard_dut33u.svg'
   },
   {
     label: 'Inventario',
-    href: '/inventario',
+    href: '/dashboard',
+    dashboardView: 'products_list',
+    dashboardAliases: ['products_list'],
     icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/inventario_sdhozi.svg'
   },
   {
     label: 'Cuentas',
-    href: '/cuentas',
+    href: '/dashboard',
+    dashboardView: 'accounts',
+    dashboardAliases: ['accounts'],
     icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg'
   },
   {
     label: 'Clientes',
-    href: '/clientes',
+    href: '/dashboard',
+    dashboardView: 'clients',
     icon: 'https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/clientes_t9s3kf.svg'
   },
 ];
@@ -46,9 +55,70 @@ const NavIcon = ({ src, alt, className }: { src: string; alt: string; className?
 
 export const NavButton = () => {
   const pathname = usePathname();
+  const dashboard = useDashboardOptional();
+  const [activeDashboardView, setActiveDashboardView] = React.useState<'home' | 'clients' | 'products_list' | 'accounts'>('home');
 
-  const isActive = (href: string) =>
-    pathname === href || (href === '/dashboard' && pathname === '/');
+  const normalizedDashboardView = React.useMemo<'home' | 'clients' | 'products_list' | 'accounts'>(() => {
+    const currentKey = dashboard?.view.key;
+
+    if (currentKey === 'clients') return 'clients';
+    if (currentKey === 'products_list' || currentKey === 'products_new') return 'products_list';
+    if (currentKey === 'accounts' || currentKey === 'accounts_new' || currentKey === 'accounts_detail') return 'accounts';
+    if (currentKey === 'home') return 'home';
+
+    return activeDashboardView;
+  }, [dashboard?.view.key, activeDashboardView]);
+
+  React.useEffect(() => {
+    if (pathname !== '/dashboard') return;
+
+    try {
+      const stored = localStorage.getItem('delci_dashboard_view');
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      if (parsed?.key === 'clients') {
+        setActiveDashboardView('clients');
+      } else if (parsed?.key === 'products_list') {
+        setActiveDashboardView('products_list');
+      } else if (parsed?.key === 'accounts') {
+        setActiveDashboardView('accounts');
+      } else {
+        setActiveDashboardView('home');
+      }
+    } catch {
+      setActiveDashboardView('home');
+    }
+  }, [pathname]);
+
+  const handleDashboardNavigation = (view: 'home' | 'clients' | 'products_list' | 'accounts') => {
+    localStorage.setItem('delci_dashboard_view', JSON.stringify({ key: view }));
+    setActiveDashboardView(view);
+
+    if (!dashboard) return;
+
+    if (view === 'home') {
+      dashboard.setView({ key: 'home' });
+    } else if (view === 'products_list') {
+      dashboard.setView({ key: 'products_list' });
+    } else if (view === 'accounts') {
+      dashboard.setView({ key: 'accounts' });
+    } else {
+      dashboard.setView({ key: 'clients' });
+    }
+  };
+
+  const isActive = (item: NavItem) => {
+    if (item.dashboardView) {
+      if (pathname !== '/dashboard') return false;
+
+      if (normalizedDashboardView === item.dashboardView) return true;
+
+      return item.dashboardAliases?.includes(normalizedDashboardView) ?? false;
+    }
+
+    return pathname === item.href;
+  };
 
   return (
     <div
@@ -59,11 +129,19 @@ export const NavButton = () => {
     >
       {navItems.map((item) => (
         <Link
-          key={item.href}
+          key={`${item.href}-${item.label}`}
           href={item.href}
+          onClick={(event) => {
+            if (item.dashboardView) {
+              if (pathname === '/dashboard') {
+                event.preventDefault();
+              }
+              handleDashboardNavigation(item.dashboardView);
+            }
+          }}
           className={`
             flex flex-col items-center justify-center transition-all duration-200 rounded-xl px-3 py-2 min-w-[60px] h-14
-            ${isActive(item.href)
+            ${isActive(item)
               ? 'bg-white/90 text-rose-700 shadow-lg backdrop-blur-sm border border-rose-200'
               : 'text-gray-700 hover:text-rose-700 hover:bg-white/60 hover:shadow-md'
             }

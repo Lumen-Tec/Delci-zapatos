@@ -1,5 +1,5 @@
-import { getAccounts, createAccount } from '@/app/repositories/accountsRepository'
-import { getNearestUpcomingPaymentDate, todayISO } from '@/app/lib/accountUtils'
+import { getAccounts, createAccount } from '@/repositories/accountsRepository'
+import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils'
 
 type CreateAccountRequestBody = {
     clientId: string

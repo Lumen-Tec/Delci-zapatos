@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Button } from '../shared/Button';
+import { Button } from '@/app/components/commons/Button';
 
 interface StatCardProps {
   title: string;

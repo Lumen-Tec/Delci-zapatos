@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, FormEvent, useCallback } from 'react';
-import { InputField } from '../shared/InputField';
-import { PasswordInput } from './PasswordInput';
-import { Button } from '../shared/Button';
+import { InputField } from '@/app/components/commons/InputField'
+import { PasswordInput } from '@/app/components/auth/PasswordInput'
+import { Button } from '@/app/components/commons/Button'
 
 interface LoginFormProps {
   onSubmit?: (username: string, password: string) => void | Promise<void>;

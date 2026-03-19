@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { useRouter } from 'next/navigation';
 import { LogoHeader } from '@/app/components/auth/LogoHeader';
 import { LoginForm } from '@/app/components/auth/LoginForm';
@@ -17,6 +16,7 @@ export default function AuthPage() {
     
     // Simulación de validación
     if (username === 'admin' && password === 'admin') {
+      localStorage.setItem('delci_dashboard_view', JSON.stringify({ key: 'home' }));
       // Redirección al dashboard
       router.push('/dashboard');
     } else {
@@ -65,12 +65,6 @@ export default function AuthPage() {
           <div className="mt-4 sm:mt-6">
             <LoginForm onSubmit={handleLogin} />
           </div>
-        </div>
-        
-        <div className="mt-4 sm:mt-6 text-center">
-          <p className="text-xs sm:text-sm text-white/80">
-            ¿Necesitas ayuda? Contacta al administrador
-          </p>
         </div>
       </div>
     </div>
