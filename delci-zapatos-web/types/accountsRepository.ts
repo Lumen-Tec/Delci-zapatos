@@ -4,7 +4,7 @@ import type {
     DbAccountRow,
     DbClientRow,
     FrontendAccountStatus,
-} from '@/app/types/database'
+} from '@/types/database'
 
 export type CreateAccountInput = {
     clientId: string

@@ -1,4 +1,4 @@
-import { getAccountById } from '@/app/repositories/accountsRepository'
+import { getAccountById } from '@/repositories/accountsRepository'
 
 type RouteContext = {
     params: Promise<{ id: string }>

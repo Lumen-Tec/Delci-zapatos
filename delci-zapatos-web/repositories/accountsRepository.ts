@@ -1,7 +1,7 @@
-import { createClient } from '@/app/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import type {
     DbAccountInsert,
-} from '@/app/types/database'
+} from '@/types/database'
 import type {
     AccountDetailsItemResult,
     AccountDetailsResult,
@@ -11,8 +11,8 @@ import type {
     AccountsListRow,
     ClientRelation,
     CreateAccountInput,
-} from '@/app/types/accountsRepository'
-import { STATUS_DB_TO_FRONTEND } from '@/app/types/database'
+} from '@/types/accountsRepository'
+import { STATUS_DB_TO_FRONTEND } from '@/types/database'
 
 type AccountTotals = {
     totalAmount: number
