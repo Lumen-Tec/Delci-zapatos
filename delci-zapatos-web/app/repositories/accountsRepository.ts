@@ -1,14 +1,60 @@
 import { createClient } from '@/app/lib/supabase/server'
-import type { DbAccountInsert, DbAccountStatus } from '@/app/types/database'
+import type {
+    DbAccountInsert,
+} from '@/app/types/database'
+import type {
+    AccountDetailsItemResult,
+    AccountDetailsResult,
+    AccountDetailsRow,
+    AccountListResult,
+    AccountPaymentResult,
+    AccountsListRow,
+    ClientRelation,
+    CreateAccountInput,
+} from '@/app/types/accountsRepository'
 import { STATUS_DB_TO_FRONTEND } from '@/app/types/database'
 
-export async function createAccount(data: {
-    clientId: string
-    initialBalance: number
-    quincenalAmount: number
-    detail?: string
-    nextPaymentDate: string
-}) {
+type AccountTotals = {
+    totalAmount: number
+    totalPaid: number
+    remainingAmount: number
+    totalProducts: number
+}
+
+/**
+ * Normaliza el nombre de cliente para relaciones de Supabase.
+ * Dependiendo del join inferido puede venir como objeto, arreglo o null.
+ */
+function getClientName(clients: ClientRelation): string {
+    if (Array.isArray(clients)) return clients[0]?.full_name ?? 'Cliente'
+    return clients?.full_name ?? 'Cliente'
+}
+
+/**
+ * Centraliza el cálculo de totales para evitar duplicación entre listados y detalle.
+ */
+function calculateAccountTotals(
+    initialBalance: number,
+    accountItems: Array<{ quantity: number; unit_price: number }>,
+    accountPayments: Array<{ amount: number }>,
+): AccountTotals {
+    const itemsTotal = accountItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)
+    const totalPaid = accountPayments.reduce((sum, payment) => sum + payment.amount, 0)
+    const totalAmount = initialBalance + itemsTotal
+    const totalProducts = accountItems.reduce((sum, item) => sum + item.quantity, 0)
+
+    return {
+        totalAmount,
+        totalPaid,
+        remainingAmount: totalAmount - totalPaid,
+        totalProducts,
+    }
+}
+
+/**
+ * Crea una cuenta nueva con status inicial activa.
+ */
+export async function createAccount(data: CreateAccountInput) {
     const supabase = await createClient()
 
     const insert: DbAccountInsert = {
@@ -30,7 +76,10 @@ export async function createAccount(data: {
     return account
 }
 
-export async function getAccounts() {
+/**
+ * Obtiene el listado de cuentas para dashboard, incluyendo totales agregados.
+ */
+export async function getAccounts(): Promise<AccountListResult[]> {
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -52,35 +101,35 @@ export async function getAccounts() {
 
     if (error) throw error
 
-    return (data ?? []).map((row: any) => {
-        const itemsTotal = (row.account_items ?? []).reduce(
-            (sum: number, i: any) => sum + i.quantity * i.unit_price, 0
-        )
-        const totalAmount = row.initial_balance + itemsTotal
-        const totalPaid = (row.account_payments ?? []).reduce(
-            (sum: number, p: any) => sum + p.amount, 0
-        )
-        const totalProducts = (row.account_items ?? []).reduce(
-            (sum: number, i: any) => sum + i.quantity, 0
+    const rows = (data ?? []) as AccountsListRow[]
+
+    return rows.map((row) => {
+        const totals = calculateAccountTotals(
+            row.initial_balance,
+            row.account_items ?? [],
+            row.account_payments ?? [],
         )
 
         return {
             id: row.id,
             clientId: row.client_id,
-            clientName: row.clients?.full_name ?? 'Cliente',
+            clientName: getClientName(row.clients),
             createdAt: row.created_at,
-            totalAmount,
-            totalPaid,
-            remainingAmount: totalAmount - totalPaid,
-            totalProducts,
-            status: STATUS_DB_TO_FRONTEND[row.status as DbAccountStatus] ?? 'active',
+            totalAmount: totals.totalAmount,
+            totalPaid: totals.totalPaid,
+            remainingAmount: totals.remainingAmount,
+            totalProducts: totals.totalProducts,
+            status: STATUS_DB_TO_FRONTEND[row.status],
             nextPaymentDate: row.next_payment_date,
             biweeklyAmount: row.quincenal_amount,
         }
     })
 }
 
-export async function getAccountById(id: string) {
+/**
+ * Obtiene una cuenta por id con sus items y pagos para la vista de detalle.
+ */
+export async function getAccountById(id: string): Promise<AccountDetailsResult> {
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -107,28 +156,25 @@ export async function getAccountById(id: string) {
 
     if (error) throw error
 
-    const itemsTotal = (data.account_items ?? []).reduce(
-        (sum: number, i: any) => sum + i.quantity * i.unit_price, 0
-    )
-    const totalAmount = data.initial_balance + itemsTotal
-    const totalPaid = (data.account_payments ?? []).reduce(
-        (sum: number, p: any) => sum + p.amount, 0
-    )
-    const totalProducts = (data.account_items ?? []).reduce(
-        (sum: number, i: any) => sum + i.quantity, 0
+    const details: AccountDetailsRow = data as AccountDetailsRow
+
+    const totals = calculateAccountTotals(
+        details.initial_balance,
+        details.account_items ?? [],
+        details.account_payments ?? [],
     )
 
-    const payments = (data.account_payments ?? []).map((p: any) => ({
+    const payments: AccountPaymentResult[] = (details.account_payments ?? []).map((p) => ({
         id: p.id,
         date: p.payment_date,
         amount: p.amount,
     }))
 
     const lastPayment = payments.length > 0
-        ? payments.sort((a: any, b: any) => b.date.localeCompare(a.date))[0].date
+        ? payments.slice().sort((a, b) => b.date.localeCompare(a.date))[0].date
         : undefined
 
-    const items = (data.account_items ?? []).map((i: any) => ({
+    const items: AccountDetailsItemResult[] = (details.account_items ?? []).map((i) => ({
         id: i.id,
         productId: i.product_id,
         name: i.product_name,
@@ -141,18 +187,18 @@ export async function getAccountById(id: string) {
     }))
 
     return {
-        id: data.id,
-        clientId: data.client_id,
-        clientName: data.clients?.full_name ?? 'Cliente',
-        createdAt: data.created_at,
-        totalAmount,
-        totalPaid,
-        remainingAmount: totalAmount - totalPaid,
-        totalProducts,
-        status: STATUS_MAP[data.status as keyof typeof STATUS_MAP] ?? 'active',
-        nextPaymentDate: data.next_payment_date,
-        biweeklyAmount: data.quincenal_amount,
-        detail: data.detail,
+        id: details.id,
+        clientId: details.client_id,
+        clientName: getClientName(details.clients),
+        createdAt: details.created_at,
+        totalAmount: totals.totalAmount,
+        totalPaid: totals.totalPaid,
+        remainingAmount: totals.remainingAmount,
+        totalProducts: totals.totalProducts,
+        status: STATUS_DB_TO_FRONTEND[details.status],
+        nextPaymentDate: details.next_payment_date,
+        biweeklyAmount: details.quincenal_amount,
+        detail: details.detail,
         lastPaymentDate: lastPayment,
         items,
         payments,
