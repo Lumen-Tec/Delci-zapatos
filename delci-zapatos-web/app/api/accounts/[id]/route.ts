@@ -3,7 +3,7 @@ import { getAccountById } from '@/repositories/accountsRepository'
 type RouteContext = {
     params: Promise<{ id: string }>
 }
-
+// TODO: Refactorizar en /utils para evitar duplicación con test-db y más
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'Error interno del servidor'
 }

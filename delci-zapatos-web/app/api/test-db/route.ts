@@ -1,12 +1,17 @@
 import { getAccounts, createAccount } from '@/repositories/accountsRepository'
 import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils'
 
+// TODO: Refactorizar a utils/
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Error interno del servidor'
+}
+
 export async function GET() {
     try {
         const accounts = await getAccounts()
         return Response.json({ ok: true, count: accounts.length, accounts })
-    } catch (error: any) {
-        return Response.json({ ok: false, error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -23,7 +28,7 @@ export async function POST(request: Request) {
             nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
         })
         return Response.json({ ok: true, created: account })
-    } catch (error: any) {
-        return Response.json({ ok: false, error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
 }
