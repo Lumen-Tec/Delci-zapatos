@@ -1,15 +1,12 @@
 import { getAccounts, createAccount } from '@/repositories/accountsRepository'
 import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils'
+import { getErrorMessage } from '@/utils/parsers/errors'
 
 type CreateAccountRequestBody = {
     clientId: string
     initialBalance?: number
     quincenalAmount: number
     detail?: string
-}
-
-function getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : 'Error interno del servidor'
 }
 
 /**

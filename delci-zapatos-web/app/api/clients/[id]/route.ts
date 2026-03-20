@@ -1,4 +1,4 @@
-import { getAccountById } from '@/repositories/accountsRepository'
+import { getClientById } from '@/repositories/clientsRepository'
 import { getErrorMessage } from '@/utils/parsers/errors'
 
 type RouteContext = {
@@ -6,8 +6,8 @@ type RouteContext = {
 }
 
 /**
- * GET /api/accounts/[id]
- * Devuelve el detalle completo de una cuenta específica.
+ * GET /api/clients/[id]
+ * Devuelve el detalle de un cliente específico.
  */
 export async function GET(_request: Request, context: RouteContext) {
     try {
@@ -17,8 +17,8 @@ export async function GET(_request: Request, context: RouteContext) {
             return Response.json({ ok: false, error: 'id es requerido' }, { status: 400 })
         }
 
-        const account = await getAccountById(id)
-        return Response.json({ ok: true, account })
+        const client = await getClientById(id)
+        return Response.json({ ok: true, client })
     } catch (error: unknown) {
         return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
