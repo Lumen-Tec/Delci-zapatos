@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
 import { Pagination } from '@/app/components/shared/Pagination';
+import { CreateClientModal } from '@/app/components/clients/CreateClientModal';
 import { usePagination } from '@/hooks/usePagination';
 import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils';
 import type { Client } from '@/models/client';
@@ -64,6 +65,7 @@ export default function AccountsCreateView() {
   const [isClientsLoading, setIsClientsLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
 
   const [draft, setDraft] = useState<AccountDraft>(() => {
     if (typeof window === 'undefined') return createDefaultDraft();
@@ -233,17 +235,28 @@ export default function AccountsCreateView() {
         <div className="p-6 space-y-6">
           {step === 1 && (
             <div className="space-y-4">
-              <div className="relative max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="w-4 h-4 text-gray-400" />
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                <div className="relative max-w-md w-full">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Buscar por nombre o telefono..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar por nombre o telefono..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm"
-                />
+
+                <Button
+                  type="button"
+                  onClick={() => setIsCreateClientModalOpen(true)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Crear cliente
+                </Button>
               </div>
 
               {isClientsLoading ? (
@@ -430,6 +443,17 @@ export default function AccountsCreateView() {
           </div>
         </div>
       </div>
+
+      <CreateClientModal
+        isOpen={isCreateClientModalOpen}
+        onClose={() => setIsCreateClientModalOpen(false)}
+        onClientCreated={(newClient) => {
+          setClients((prev) => [newClient, ...prev]);
+          setDraft((prev) => ({ ...prev, clientId: newClient.id }));
+          setQuery(newClient.fullName);
+          setIsCreateClientModalOpen(false);
+        }}
+      />
     </div>
   );
 }
