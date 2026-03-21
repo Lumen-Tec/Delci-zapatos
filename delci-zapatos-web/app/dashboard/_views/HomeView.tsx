@@ -123,12 +123,16 @@ export default function Dashboard() {
 
         {/* Stats Cards */}
         {isLoading ? (
-          <div className="flex justify-center items-center py-12 mb-6 sm:mb-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-            <span className="ml-2 text-gray-600">Cargando dashboard...</span>
+          <div className="mb-6 sm:mb-8 animate-pulse">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-32 rounded-2xl border border-gray-100 bg-gray-50" />
+              ))}
+            </div>
+            <div className="h-72 rounded-2xl border border-gray-100 bg-gray-50" />
           </div>
         ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 sm:mb-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 sm:mb-8 animate-content-fade-in">
             <p className="text-red-600">{error}</p>
             <Button
               onClick={loadDashboardData}
@@ -140,7 +144,7 @@ export default function Dashboard() {
             </Button>
           </div>
         ) : (
-          <>
+          <div className="animate-content-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
               <StatCard
                 title="Mi inventario"
@@ -178,7 +182,7 @@ export default function Dashboard() {
               onViewAccount={handleViewDetail}
               className="mb-6 sm:mb-8"
             />
-          </>
+          </div>
         )}
 
         {/* Support Panel */}

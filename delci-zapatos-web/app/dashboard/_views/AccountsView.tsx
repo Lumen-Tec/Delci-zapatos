@@ -73,12 +73,18 @@ export default function AccountsView() {
         </div>
       </div>
       {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-          <span className="ml-2 text-gray-600">Cargando cuentas...</span>
+        <div className="animate-pulse">
+          <div className="h-16 rounded-t-2xl border border-gray-100 bg-gray-50"></div>
+          <div className="h-96 rounded-b-2xl border-x border-b border-gray-100 bg-white">
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-10 rounded-lg bg-gray-100" />
+              ))}
+            </div>
+          </div>
         </div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-content-fade-in">
           <p className="text-red-600">{error}</p>
           <Button
             onClick={loadAccounts}
@@ -90,11 +96,13 @@ export default function AccountsView() {
           </Button>
         </div>
       ) : (
-        <FullAccountsTable
-          accounts={accounts}
-          onViewAccount={(accountId) => setView({ key: 'accounts_detail', accountId })}
-          className="mb-6 sm:mb-8"
-        />
+        <div className="animate-content-fade-in">
+          <FullAccountsTable
+            accounts={accounts}
+            onViewAccount={(accountId) => setView({ key: 'accounts_detail', accountId })}
+            className="mb-6 sm:mb-8"
+          />
+        </div>
       )}
     </div>
   );
