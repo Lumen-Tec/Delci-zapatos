@@ -34,11 +34,24 @@ export default function AccountsAddClientView() {
   const [query, setQuery] = useState('');
 
   React.useEffect(() => {
-    // TODO: Cargar clientes desde API.
-    // const response = await fetch('/api/clients', { cache: 'no-store' });
-    // const data = (await response.json()) as Client[];
-    // setClients(data);
-    setClients([]);
+    const fetchClients = async () => {
+      try {
+        const response = await fetch('/api/clients', { cache: 'no-store' });
+        const data = await response.json();
+
+        if (!response.ok || !data?.ok) {
+          setClients([]);
+          return;
+        }
+
+        setClients((data.clients ?? []) as Client[]);
+      } catch (error) {
+        console.error('Error loading clients:', error);
+        setClients([]);
+      }
+    };
+
+    fetchClients();
   }, []);
 
   const filteredClients = useMemo(() => {
@@ -46,7 +59,7 @@ export default function AccountsAddClientView() {
     if (!q) return clients;
 
     return clients.filter(
-      (client) => client.name.toLowerCase().includes(q) || client.phone.replace(/[-\s]/g, '').includes(q.replace(/[-\s]/g, ''))
+      (client) => client.fullName.toLowerCase().includes(q) || client.phone.replace(/[-\s]/g, '').includes(q.replace(/[-\s]/g, ''))
     );
   }, [clients, query]);
 
@@ -125,7 +138,7 @@ export default function AccountsAddClientView() {
             filteredClients.map((client) => (
               <div key={client.id} className="border border-gray-100 rounded-xl p-3 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">{client.name}</div>
+                  <div className="text-sm font-semibold text-gray-900">{client.fullName}</div>
                   <div className="text-xs text-gray-600 mt-0.5">{client.phone}</div>
                 </div>
                 <Button type="button" size="sm" onClick={() => handleSelect(client.id)}>

@@ -1,25 +1,25 @@
 'use client';
 
-import React, { useMemo, useReducer, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Trash2 } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
-import { formatCurrency, todayISO, computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom } from '@/lib/accountUtils';
-import type { Account, AccountPayment } from '@/models/account';
+import { formatCurrency, computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom } from '@/lib/accountUtils';
+import type { AccountDetailsResult, AccountPaymentResult } from '@/types/accountsRepository';
 
 type DetailStep = 1 | 2 | 3;
 
 interface AccountState {
-  account: Account | null;
+  account: AccountDetailsResult | null;
   paymentAmount: string;
   biweeklyAmount: string;
 }
 
 type AccountAction =
-  | { type: 'SET_ACCOUNT'; payload: Account | null }
+  | { type: 'SET_ACCOUNT'; payload: AccountDetailsResult | null }
   | { type: 'SET_PAYMENT_AMOUNT'; payload: string }
   | { type: 'SET_BIWEEKLY_AMOUNT'; payload: string }
   | { type: 'RESET_PAYMENT_FORM'; payload: { amount: string } };
@@ -48,33 +48,64 @@ export default function AccountsDetailView() {
   const accountId = dashboardAccountId ?? routeAccountId;
 
   const [step, setStep] = useState<DetailStep>(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [state, dispatch] = useReducer(accountReducer, {
-    account: accountId
-      ? {
-          id: accountId,
-          clientId: '',
-          clientName: 'Cliente',
-          createdAt: todayISO(),
-          totalAmount: 0,
-          totalPaid: 0,
-          remainingAmount: 0,
-          totalProducts: 0,
-          status: 'active',
-          nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
-          items: [],
-          payments: [],
-        }
-      : null,
+    account: null,
     paymentAmount: '',
     biweeklyAmount: '',
   });
+
+  useEffect(() => {
+    const fetchAccount = async () => {
+      if (!accountId) {
+        dispatch({ type: 'SET_ACCOUNT', payload: null });
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await fetch(`/api/accounts/${accountId}`, { cache: 'no-store' });
+        const data = await response.json();
+
+        if (!response.ok || !data?.ok || !data?.account) {
+          dispatch({ type: 'SET_ACCOUNT', payload: null });
+          setLoadError(data?.error || 'No se pudo cargar el detalle de la cuenta');
+          return;
+        }
+
+        dispatch({ type: 'SET_ACCOUNT', payload: data.account as AccountDetailsResult });
+      } catch (error) {
+        console.error('Error loading account details:', error);
+        dispatch({ type: 'SET_ACCOUNT', payload: null });
+        setLoadError('Error de conexion al cargar la cuenta');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAccount();
+  }, [accountId]);
 
   const account = state.account;
   const items = useMemo(() => account?.items ?? [], [account]);
   const payments = useMemo(() => account?.payments ?? [], [account]);
 
-  const persistAccount = (next: Account) => {
+  const getStatusLabel = (status: AccountDetailsResult['status']) => {
+    if (status === 'active') return 'Activa';
+    if (status === 'paid') return 'Pagada';
+    return 'Atrasada';
+  };
+
+  useEffect(() => {
+    if (!account) return;
+    dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: account.biweeklyAmount ? String(account.biweeklyAmount) : '' });
+  }, [account?.id, account?.biweeklyAmount]);
+
+  const persistAccount = (next: AccountDetailsResult) => {
     dispatch({ type: 'SET_ACCOUNT', payload: next });
 
     // TODO: Integrar lectura/actualizacion real de cuenta por API.
@@ -91,7 +122,7 @@ export default function AccountsDetailView() {
     const totalProducts = nextItems.reduce((sum, item) => sum + item.quantity, 0);
 
     const remainingAmount = Math.max(0, totalAmount - account.totalPaid);
-    const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate : undefined;
+    const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate : getNearestUpcomingPaymentDate();
     const status = computeStatus(remainingAmount, nextPaymentDate);
 
     persistAccount({
@@ -119,17 +150,17 @@ export default function AccountsDetailView() {
     const amount = Number(state.paymentAmount);
     if (!Number.isFinite(amount) || amount <= 0) return;
 
-    const paymentDate = account.nextPaymentDate ?? getNearestUpcomingPaymentDate(todayISO());
+    const paymentDate = account.nextPaymentDate ?? getNearestUpcomingPaymentDate();
     const nextTotalPaid = account.totalPaid + amount;
     const remainingAmount = Math.max(0, account.totalAmount - nextTotalPaid);
 
-    const payment: AccountPayment = {
+    const payment: AccountPaymentResult = {
       id: `PAY-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       date: paymentDate,
       amount,
     };
 
-    const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : undefined;
+    const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : paymentDate;
     const status = computeStatus(remainingAmount, nextPaymentDate);
 
     const next = {
@@ -148,13 +179,22 @@ export default function AccountsDetailView() {
     dispatch({ type: 'RESET_PAYMENT_FORM', payload: { amount: nextSuggested > 0 ? String(nextSuggested) : '' } });
   };
 
+  if (isLoading) {
+    return (
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 md:pb-8 w-full">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-8 text-center">
+          <div className="text-sm text-gray-600">Cargando detalle de cuenta...</div>
+        </div>
+      </div>
+    );
+  }
+
   if (!account) {
     return (
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 md:pb-8 w-full">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-8 text-center">
           <div className="text-lg font-bold text-gray-900">Cuenta no encontrada</div>
-          <div className="text-sm text-gray-600 mt-2">No se recibio id de cuenta.</div>
-          <div className="mt-3 text-xs text-rose-700">TODO: Cargar detalle de cuenta desde API.</div>
+          {loadError && <div className="text-sm text-gray-600 mt-2">{loadError}</div>}
           <div className="mt-6 flex justify-center">
             <Button onClick={() => dashboard?.setView({ key: 'accounts' })} variant="primary">
               Volver a cuentas
@@ -190,20 +230,12 @@ export default function AccountsDetailView() {
             </div>
 
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cuenta #{account.id}</h1>
-              <p className="text-sm text-gray-600 mt-1">{account.clientName}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{account.clientName}</h1>
+              <p className="text-sm text-gray-600 mt-1">Detalle de cuenta</p>
             </div>
           </div>
 
-          <Button onClick={() => dashboard?.setView({ key: 'accounts_detail', accountId: account.id })} variant="primary">
-            <Plus className="w-5 h-5 mr-2" />
-            Agregar productos
-          </Button>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3 text-xs text-rose-700 mb-4">
-        TODO: Reemplazar estado local por consulta/actualizacion real de cuenta y pagos desde API.
       </div>
 
       <div className="mb-4 rounded-xl border border-rose-100 bg-white/90 p-4">
@@ -239,7 +271,19 @@ export default function AccountsDetailView() {
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
             <div className="text-xs uppercase tracking-wide text-gray-500">Estado</div>
-            <div className="text-lg font-semibold text-gray-900 mt-2 uppercase">{account.status}</div>
+            <div className="text-lg font-semibold text-gray-900 mt-2">{getStatusLabel(account.status)}</div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Monto quincenal</div>
+            <div className="text-lg font-semibold text-gray-900 mt-2">{formatCurrency(account.biweeklyAmount)}</div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Proximo pago</div>
+            <div className="text-lg font-semibold text-gray-900 mt-2">{account.nextPaymentDate || 'Sin fecha'}</div>
+          </div>
+          <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Detalle de la cuenta</div>
+            <div className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">{account.detail?.trim() ? account.detail : 'Sin detalle'}</div>
           </div>
         </div>
       )}
@@ -247,7 +291,12 @@ export default function AccountsDetailView() {
       {step === 2 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900">Productos</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-gray-900">Productos</h2>
+              <Button onClick={() => dashboard?.setView({ key: 'accounts_detail', accountId: account.id })} variant="primary" size="sm">
+                Agregar productos
+              </Button>
+            </div>
           </div>
           <div className="p-6">
             {items.length === 0 ? (

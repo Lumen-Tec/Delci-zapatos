@@ -6,18 +6,40 @@ import { Plus } from 'lucide-react';
 import { useDashboard } from '@/app/dashboard/DashboardContext';
 import { FullAccountsTable } from '@/app/components/accounts/FullAccountsTable';
 import { Button } from '@/app/components/commons/Button';
-import type { Account } from '@/models/account';
+import type { AccountListResult } from '@/types/accountsRepository';
 
 export default function AccountsView() {
   const { setView } = useDashboard();
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<AccountListResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAccounts = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/accounts', { cache: 'no-store' });
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setError(data?.error || 'Error al cargar cuentas');
+        setAccounts([]);
+        return;
+      }
+
+      setAccounts((data.accounts ?? []) as AccountListResult[]);
+    } catch (loadError) {
+      console.error('Error loading accounts:', loadError);
+      setError('Error de conexión al servidor');
+      setAccounts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // TODO: Cargar cuentas desde API.
-    // const response = await fetch('/api/accounts', { cache: 'no-store' });
-    // const data = (await response.json()) as Account[];
-    // setAccounts(data);
-    setAccounts([]);
+    loadAccounts();
   }, []);
 
   return (
@@ -50,11 +72,30 @@ export default function AccountsView() {
           </Button>
         </div>
       </div>
-      <FullAccountsTable
-        accounts={accounts}
-        onViewAccount={(accountId) => setView({ key: 'accounts_detail', accountId })}
-        className="mb-6 sm:mb-8"
-      />
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+          <span className="ml-2 text-gray-600">Cargando cuentas...</span>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-600">{error}</p>
+          <Button
+            onClick={loadAccounts}
+            variant="outline"
+            size="sm"
+            className="mt-2"
+          >
+            Reintentar
+          </Button>
+        </div>
+      ) : (
+        <FullAccountsTable
+          accounts={accounts}
+          onViewAccount={(accountId) => setView({ key: 'accounts_detail', accountId })}
+          className="mb-6 sm:mb-8"
+        />
+      )}
     </div>
   );
 }

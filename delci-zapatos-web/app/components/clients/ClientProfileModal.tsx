@@ -6,7 +6,7 @@ import { Modal } from '@/app/components/shared/Modal';
 import { InputField } from '@/app/components/commons/InputField';
 import { Button } from '@/app/components/commons/Button';
 import { InfoField } from '@/app/components/commons/InfoField';
-import { UserIcon, PhoneIcon, AddressIcon, ProductsIcon, AccountIcon, EditIcon, SaveIcon } from '@/app/components/shared/IconComponents';
+import { UserIcon, PhoneIcon, AddressIcon, ProductsIcon, EditIcon, SaveIcon } from '@/app/components/shared/IconComponents';
 import { X } from 'lucide-react';
 import type { Client } from '@/models/client';
 
@@ -15,13 +15,23 @@ interface ClientProfileModalProps {
   onClose: () => void;
   client: Client | null;
   onClientUpdated?: (updatedClient: Client) => void;
-  onViewAccount?: (clientId: string) => void;
 }
 
-export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, onViewAccount }: ClientProfileModalProps) => {
+export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated }: ClientProfileModalProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedClient, setEditedClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const toLocalPhoneDigits = (phone: string): string => {
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.startsWith('506')) {
+      return digitsOnly.slice(3, 11);
+    }
+    return digitsOnly.slice(0, 8);
+  };
+
+  const toCostaRicaPhone = (phoneDigits: string): string => `+506${phoneDigits}`;
 
   React.useEffect(() => {
     setIsEditing(false);
@@ -30,7 +40,10 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
   if (!client) return null;
 
   const handleEdit = () => {
-    setEditedClient({ ...client });
+    setEditedClient({
+      ...client,
+      phone: toLocalPhoneDigits(client.phone || ''),
+    });
     setIsEditing(true);
   };
 
@@ -40,31 +53,61 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
   };
 
   const handleChange = (field: keyof Client, value: string | number) => {
-    setEditedClient((prev) => (prev ? { ...prev, [field]: value } : null));
+    if (field === 'phone') {
+      const digitsOnly = String(value).replace(/\D/g, '').slice(0, 8);
+      setEditedClient((prev) => (prev ? { ...prev, phone: digitsOnly } : null));
+    } else {
+      setEditedClient((prev) => (prev ? { ...prev, [field]: value } : null));
+    }
+
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
   };
 
   const handleSave = async () => {
     if (!editedClient) return;
+
+    const normalizedPhone = toCostaRicaPhone((editedClient.phone || '').replace(/\D/g, '').slice(0, 8));
+    const payload: Client = {
+      ...editedClient,
+      phone: normalizedPhone,
+    };
     
     setIsLoading(true);
+    setErrors({});
+    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch(`/api/clients/${editedClient.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       
-      setEditedClient({ ...editedClient });
+      const result = await response.json();
+      
+      if (!response.ok) {
+        if (result.errors && Array.isArray(result.errors)) {
+          const errorMap: Record<string, string> = {};
+          result.errors.forEach((error: any) => {
+            errorMap[error.field] = error.message;
+          });
+          setErrors(errorMap);
+        } else {
+          setErrors({ general: result.error || 'Error al actualizar cliente' });
+        }
+        return;
+      }
+      
+      setEditedClient(result.updated || payload);
       setIsEditing(false);
-      onClientUpdated?.(editedClient);
+      onClientUpdated?.(result.updated || payload);
     } catch (error) {
       console.error('Error saving client:', error);
+      setErrors({ general: 'Error de conexión al servidor' });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleViewAccount = () => {
-    if (client && onViewAccount) {
-      onViewAccount(client.id);
-      onClose(); // Cerrar el modal después de navegar
     }
   };
 
@@ -89,8 +132,7 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
               />
             </div>
             <div>
-              <p className="text-sm font-mono text-pink-600 font-medium">#{client.id}</p>
-              <h3 className="text-lg font-bold text-gray-900">{client.name}</h3>
+              <h3 className="text-lg font-bold text-gray-900">{client.fullName}</h3>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -147,50 +189,45 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
             <>
               <InputField
                 label="Nombre Completo"
-                value={(editedClient ?? client).name}
-                onChange={(value) => handleChange('name', value)}
+                value={(editedClient ?? client).fullName || ''}
+                onChange={(value) => handleChange('fullName', value)}
                 placeholder="Ej: Juan Pérez"
                 required
                 icon={<UserIcon />}
+                error={errors.fullName}
               />
 
               <InputField
-                label="Teléfono"
-                value={(editedClient ?? client).phone}
+                label="Teléfono (+506)"
+                value={(editedClient ?? client).phone || ''}
                 onChange={(value) => handleChange('phone', value)}
-                placeholder="Ej: +506 8888-8888"
+                placeholder="Ej: 88888888"
                 required
                 type="tel"
                 icon={<PhoneIcon />}
+                error={errors.phone}
               />
 
               <InputField
-                label="Dirección"
-                value={(editedClient ?? client).address}
+                label="Dirección (opcional)"
+                value={(editedClient ?? client).address || ''}
                 onChange={(value) => handleChange('address', value)}
                 placeholder="Ej: San José, Costa Rica"
-                required
                 icon={<AddressIcon />}
+                error={errors.address}
               />
 
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ProductsIcon />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900">Total de Productos</p>
-                      <p className="text-lg font-bold text-blue-600">{(editedClient ?? client).totalProducts}</p>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <ProductsIcon />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Información del Cliente</p>
+                    {client.createdAt && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Creado: {new Date(client.createdAt).toLocaleDateString('es-CR')}
+                      </p>
+                    )}
                   </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleViewAccount}
-                    className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white"
-                  >
-                    <AccountIcon />
-                    Ver Cuenta
-                  </Button>
                 </div>
               </div>
             </>
@@ -198,58 +235,55 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated, o
             <>
               <InfoField
                 label="Nombre Completo"
-                value={client.name}
+                value={client.fullName || ''}
                 icon={<UserIcon />}
               />
 
               <InfoField
                 label="Teléfono"
-                value={client.phone}
+                value={client.phone || ''}
                 icon={<PhoneIcon />}
               />
 
               <InfoField
                 label="Dirección"
-                value={client.address}
+                value={client.address || 'No proporcionada'}
                 icon={<AddressIcon />}
               />
 
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ProductsIcon />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900">Total de Productos</p>
-                      <p className="text-lg font-bold text-blue-600">{client.totalProducts}</p>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <ProductsIcon />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Información del Cliente</p>
+                    {client.createdAt && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Creado: {new Date(client.createdAt).toLocaleDateString('es-CR')}
+                      </p>
+                    )}
                   </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleViewAccount}
-                    className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white"
-                  >
-                    <AccountIcon />
-                    Ver Cuenta
-                  </Button>
                 </div>
               </div>
             </>
           )}
         </div>
 
-        {/* Footer Actions */}
-        {!isEditing && (
-          <div className="flex justify-end pt-4 border-t border-gray-100">
-            <Button
-              variant="secondary"
-              onClick={onClose}
-              className="w-full sm:w-auto"
-            >
-              Cerrar
-            </Button>
-          </div>
-        )}
+          {isEditing && errors.general && (
+            <div className="w-full mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{errors.general}</p>
+            </div>
+          )}
+          {!isEditing && (
+            <div className="flex justify-end pt-4 border-t border-gray-100">
+              <Button
+                variant="secondary"
+                onClick={onClose}
+                className="w-full sm:w-auto"
+              >
+                Cerrar
+              </Button>
+            </div>
+          )}
       </div>
     </Modal>
   );

@@ -152,10 +152,10 @@ export const Navbar = React.memo(() => {
                 }
               }}
               className={`
-                px-3 md:px-4 py-2 rounded-lg font-medium text-base transition-all duration-200 flex items-center gap-2 tracking-tight
+                px-3 md:px-4 py-2 rounded-lg font-medium text-base transition-all duration-200 flex items-center gap-2 tracking-tight border
                 ${isActive(item)
-                  ? 'bg-white/90 text-rose-700 shadow-lg backdrop-blur-sm border border-rose-200'
-                  : 'text-gray-700 hover:text-rose-700 hover:bg-white/60 hover:shadow-md'
+                  ? 'bg-white/90 text-rose-700 shadow-lg backdrop-blur-sm border-rose-200'
+                  : 'text-gray-700 hover:text-rose-700 hover:bg-white/60 hover:shadow-md border-transparent'
                 }
               `}
             >

@@ -34,8 +34,8 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
   });
 
   const filteredClients = clients.filter(client => {
-    const matchesName = !filters.clientName || client.name.toLowerCase().includes(filters.clientName.toLowerCase());
-    const matchesPhone = !filters.clientPhone || client.phone.replace(/[-\s]/g, '').includes(filters.clientPhone.replace(/[-\s]/g, ''));
+    const matchesName = !filters.clientName || (client.fullName || '').toLowerCase().includes(filters.clientName.toLowerCase());
+    const matchesPhone = !filters.clientPhone || (client.phone || '').replace(/[-\s]/g, '').includes(filters.clientPhone.replace(/[-\s]/g, ''));
 
     return matchesName && matchesPhone;
   });
@@ -136,10 +136,6 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
               <th className="hidden lg:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Teléfono
               </th>
-              {/* Total Productos - Hidden on mobile */}
-              <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Productos
-              </th>
               {/* Acción - Always visible */}
               <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Acción
@@ -155,23 +151,17 @@ export const ClientsTable = React.memo<ClientsTableProps>(({
                 {/* Cliente - Always visible, shows more info on mobile */}
                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900">{client.name}</span>
+                    <span className="text-sm font-semibold text-gray-900">{client.fullName || 'Sin nombre'}</span>
                     {/* Show phone on mobile as subtitle */}
                     <span className="md:hidden text-xs text-gray-500 mt-0.5">
-                      {client.phone}
+                      {client.phone || 'Sin teléfono'}
                     </span>
                   </div>
                 </td>
                 {/* Teléfono - Hidden on mobile */}
                 <td className="hidden lg:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-700">
-                    {client.phone}
-                  </span>
-                </td>
-                {/* Total Productos - Hidden on mobile */}
-                <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-pink-50 text-sm font-semibold text-pink-700">
-                    {client.totalProducts}
+                    {client.phone || 'Sin teléfono'}
                   </span>
                 </td>
                 {/* Acción - Always visible */}

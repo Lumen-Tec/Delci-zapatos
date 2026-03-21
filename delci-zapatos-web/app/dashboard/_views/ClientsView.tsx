@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useDashboard } from '@/app/dashboard/DashboardContext';
 import { ClientsTable } from '@/app/components/clients/ClientsTable';
 import { ClientProfileModal } from '@/app/components/clients/ClientProfileModal';
 import { Button } from '@/app/components/commons/Button';
@@ -11,24 +11,37 @@ import { CreateClientModal } from '@/app/components/clients/CreateClientModal';
 import type { Client } from '@/models/client';
 
 export function ClientsView() {
-  const router = useRouter();
+  const { setView } = useDashboard();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Load clients from API
-  // React.useEffect(() => {
-  //   const fetchClients = async () => {
-  //     try {
-  //       const response = await fetch('/api/clients');
-  //       const data = await response.json();
-  //       setClients(data);
-  //     } catch (error) {
-  //       console.error('Error fetching clients:', error);
-  //     }
-  //   };
-  //   fetchClients();
-  // }, []);
+  // Load clients from API
+  React.useEffect(() => {
+    const fetchClients = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/clients');
+        const data = await response.json();
+        
+        if (!response.ok) {
+          setError(data.error || 'Error al cargar clientes');
+          return;
+        }
+        
+        setClients(data.clients || []);
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        setError('Error de conexión al servidor');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchClients();
+  }, []);
 
   const handleViewProfile = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
@@ -38,72 +51,11 @@ export function ClientsView() {
   };
 
   const handleClientCreated = (newClient: Client) => {
-    // TODO: Save client to API
-    // const saveClient = async () => {
-    //   try {
-    //     const response = await fetch('/api/clients', {
-    //       method: 'POST',
-    //       headers: { 'Content-Type': 'application/json' },
-    //       body: JSON.stringify(newClient)
-    //     });
-    //     const savedClient = await response.json();
-    //     setClients((prevClients) => [...prevClients, savedClient]);
-    //   } catch (error) {
-    //     console.error('Error saving client:', error);
-    //   }
-    // };
-    // saveClient();
-    
     setClients((prevClients) => [...prevClients, newClient]);
     setIsCreateModalOpen(false);
   };
 
-  const handleViewAccount = (clientId: string) => {
-    // TODO: Fetch accounts from API
-    // const fetchAccounts = async () => {
-    //   try {
-    //     const response = await fetch('/api/accounts');
-    //     const accounts = await response.json();
-    //     const account = accounts.find(a => a.clientId === clientId);
-    //     if (account) {
-    //       setSelectedClient(null);
-    //       router.push(`/cuentas/${account.id}`);
-    //     } else {
-    //       setSelectedClient(null);
-    //       router.push('/cuentas/nueva');
-    //     }
-    //   } catch (error) {
-    //     console.error('Error fetching accounts:', error);
-    //   }
-    // };
-    // fetchAccounts();
-    
-    // For now, redirect to create new account
-    setSelectedClient(null);
-    router.push('/cuentas/nueva');
-  };
-
   const handleClientUpdated = (updatedClient: Client) => {
-    // TODO: Update client in API
-    // const updateClient = async () => {
-    //   try {
-    //     const response = await fetch(`/api/clients/${updatedClient.id}`, {
-    //       method: 'PUT',
-    //       headers: { 'Content-Type': 'application/json' },
-    //       body: JSON.stringify(updatedClient)
-    //     });
-    //     const savedClient = await response.json();
-    //     setClients(prevClients =>
-    //       prevClients.map(client =>
-    //         client.id === savedClient.id ? savedClient : client
-    //       )
-    //     );
-    //   } catch (error) {
-    //     console.error('Error updating client:', error);
-    //   }
-    // };
-    // updateClient();
-    
     setClients(prevClients =>
       prevClients.map(client =>
         client.id === updatedClient.id ? updatedClient : client
@@ -144,11 +96,30 @@ export function ClientsView() {
         </div>
 
         {/* Clients Table */}
-        <ClientsTable
-          clients={clients}
-          onViewProfile={handleViewProfile}
-          className="mb-6 sm:mb-8"
-        />
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+            <span className="ml-2 text-gray-600">Cargando clientes...</span>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-600">{error}</p>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              Reintentar
+            </Button>
+          </div>
+        ) : (
+          <ClientsTable
+            clients={clients}
+            onViewProfile={handleViewProfile}
+            className="mb-6 sm:mb-8"
+          />
+        )}
       </div>
 
       {/* Create Client Modal */}
@@ -164,7 +135,6 @@ export function ClientsView() {
         onClose={() => setSelectedClient(null)}
         client={selectedClient}
         onClientUpdated={handleClientUpdated}
-        onViewAccount={handleViewAccount}
       />
     </div>
   );

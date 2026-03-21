@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, Calendar } from 'lucide-react';
-import type { Account } from '@/models/account';
+import type { AccountListResult } from '@/types/accountsRepository';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/app/components/shared/Pagination';
 
@@ -19,7 +19,7 @@ const TABS: { key: AccountTab; label: string }[] = [
 ];
 
 interface FullAccountsTableProps {
-  accounts: Account[];
+  accounts: AccountListResult[];
   onViewAccount?: (accountId: string) => void;
   className?: string;
 }
@@ -91,7 +91,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
     resetPage();
   }, [filters, activeTab, resetPage]);
 
-  const getStatusBadge = (status: Account['status']) => {
+  const getStatusBadge = (status: AccountListResult['status']) => {
     const styles = {
       active: 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 shadow-sm',
       paid: 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-200 shadow-sm',
@@ -186,7 +186,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                 <div>
                   <div className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]">{account.clientName}</div>
                   <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                    {account.totalProducts} productos • {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Vencida'}
+                    {account.totalProducts} productos • {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Atrasada'}
                   </div>
                 </div>
               </td>
@@ -274,7 +274,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                     {account.clientName}
                   </div>
                   <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                    {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'active' ? 'Activa' : 'Vencida'}
+                    {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Atrasada'}
                   </div>
                 </div>
               </td>
@@ -389,7 +389,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                     <option value="all">Todos</option>
                     <option value="active">Activa</option>
                     <option value="paid">Pagada</option>
-                    <option value="overdue">Vencida</option>
+                    <option value="overdue">Atrasada</option>
                   </select>
                 </div>
               </div>
@@ -468,7 +468,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-gray-600">Vencidas: {accounts.filter(a => a.status === 'overdue').length}</span>
+                <span className="text-gray-600">Atrasadas: {accounts.filter(a => a.status === 'overdue').length}</span>
               </div>
             </div>
           )}

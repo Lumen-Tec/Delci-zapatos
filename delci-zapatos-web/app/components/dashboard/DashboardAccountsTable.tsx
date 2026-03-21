@@ -2,12 +2,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Calendar } from 'lucide-react';
-import type { Account } from '@/models/account';
+import type { AccountListResult } from '@/types/accountsRepository';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/app/components/shared/Pagination';
 
 interface DashboardAccountsTableProps {
-  accounts: Account[];
+  accounts: AccountListResult[];
   onViewAccount?: (accountId: string) => void;
   className?: string;
 }
@@ -85,7 +85,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
     return 'text-gray-700 bg-gray-50';
   };
 
-  const getStatusBadge = (status: Account['status']) => {
+  const getStatusBadge = (status: AccountListResult['status']) => {
     const styles = {
       active: 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 shadow-sm',
       paid: 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-200 shadow-sm',
@@ -151,10 +151,10 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
                 Próximo pago
               </th>
               <th className="hidden sm:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                Monto
+                Monto pago
               </th>
               <th className="hidden sm:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                Restante
+                Saldo
               </th>
               <th className="hidden md:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Estado
@@ -186,7 +186,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
                         {account.clientName}
                       </div>
                       <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                        {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'active' ? 'Activa' : 'Vencida'}
+                        {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Atrasada'}
                       </div>
                     </div>
                   </td>

@@ -1,11 +1,12 @@
 
 import { createClient, getClients } from '@/repositories/clientsRepository'
 import { getErrorMessage } from '@/utils/parsers/errors'
+import { validateClient } from '@/lib/clientUtils'
 
 type CreateClientRequestBody = {
 	fullName: string
 	phone: string
-	address: string
+	address?: string
 }
 
 /**
@@ -29,9 +30,15 @@ export async function POST(request: Request) {
 	try {
 		const body = await request.json() as CreateClientRequestBody
 
-		if (!body.fullName || !body.phone || !body.address) {
+		// Validar datos del cliente usando las utilidades de validación
+		const validation = validateClient(body)
+		if (!validation.isValid) {
 			return Response.json(
-				{ ok: false, error: 'fullName, phone y address son requeridos' },
+				{ 
+					ok: false, 
+					error: 'Datos de cliente inválidos', 
+					errors: validation.errors 
+				},
 				{ status: 400 },
 			)
 		}
@@ -39,7 +46,7 @@ export async function POST(request: Request) {
 		const created = await createClient({
 			fullName: body.fullName,
 			phone: body.phone,
-			address: body.address,
+			address: body.address || '', // Address is optional
 		})
 
 		return Response.json({ ok: true, created }, { status: 201 })

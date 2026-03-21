@@ -12,16 +12,14 @@ export interface BaseProduct {
   id: string;
   sku?: string;
   name: string;
-  description?: string;
-  price: number;
-  cost?: number;
-  images?: ProductImage[];
-  status?: ProductStatus;
+  basePrice: number;
+  color?: string;
+  discountPct?: number;
+  discountDays?: number;
+  discountStartDate?: string;
+  stock?: number;
+  isActive: boolean;
   createdAt?: string;
-  updatedAt?: string;
-  discountPercentage?: number;
-  offerDurationDays?: number;
-  offerStartDate?: string;
 }
 
 // =========================
@@ -30,6 +28,17 @@ export interface BaseProduct {
 // Nota de negocio:
 // - Si un zapato tiene varios colores, cada color se registra como un PRODUCTO aparte.
 // - Las tallas sí se manejan como variantes dentro del producto.
+
+export interface ProductSize {
+  id: string;
+  productId: string;
+  size: string;
+  price?: number;
+  stock: number;
+  discountPct?: number;
+  discountDays?: number;
+  discountStartDate?: string;
+}
 
 export type ShoeSize = string;
 
@@ -45,7 +54,7 @@ export interface ShoeSizeVariant {
 export type ShoeProduct = BaseProduct & {
   category: 'zapatos';
   color: string;
-  sizes: ShoeSizeVariant[];
+  sizes?: ProductSize[];
   modelGroupId?: string;
 };
 

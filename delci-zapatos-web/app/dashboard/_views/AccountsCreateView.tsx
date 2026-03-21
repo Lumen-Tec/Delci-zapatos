@@ -2,13 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
+import { Pagination } from '@/app/components/shared/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils';
 import type { Client } from '@/models/client';
-import type { Account, AccountItem } from '@/models/account';
+import type { AccountItem } from '@/models/account';
 
 type CreateStep = 1 | 2 | 3;
 
@@ -17,6 +19,7 @@ type AccountDraft = {
   biweeklyAmount: number;
   nextPaymentDate: string;
   initialPendingAmount: number;
+  detail: string;
   items: AccountItem[];
 };
 
@@ -36,6 +39,7 @@ const createDefaultDraft = (): AccountDraft => ({
   biweeklyAmount: 0,
   nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
   initialPendingAmount: 0,
+  detail: '',
   items: [],
 });
 
@@ -56,10 +60,21 @@ export default function AccountsCreateView() {
   const dashboard = useDashboardOptional();
   const [step, setStep] = useState<CreateStep>(1);
   const [clients, setClients] = useState<Client[]>([]);
+  const [query, setQuery] = useState('');
+  const [isClientsLoading, setIsClientsLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const [draft, setDraft] = useState<AccountDraft>(() => {
     if (typeof window === 'undefined') return createDefaultDraft();
-    return safeParse<AccountDraft>(window.localStorage.getItem(DRAFT_KEY)) ?? createDefaultDraft();
+    const storedDraft = safeParse<Partial<AccountDraft>>(window.localStorage.getItem(DRAFT_KEY));
+    if (!storedDraft) return createDefaultDraft();
+    return {
+      ...createDefaultDraft(),
+      ...storedDraft,
+      detail: storedDraft.detail ?? '',
+      items: storedDraft.items ?? [],
+    };
   });
 
   useEffect(() => {
@@ -67,46 +82,98 @@ export default function AccountsCreateView() {
   }, [draft]);
 
   useEffect(() => {
-    // TODO: Cargar clientes desde API.
-    // const response = await fetch('/api/clients', { cache: 'no-store' });
-    // const data = (await response.json()) as Client[];
-    // setClients(data);
-    setClients([]);
+    const fetchClients = async () => {
+      setIsClientsLoading(true);
+      try {
+        const response = await fetch('/api/clients', { cache: 'no-store' });
+        const data = await response.json();
+
+        if (!response.ok || !data?.ok) {
+          setClients([]);
+          return;
+        }
+
+        setClients((data.clients ?? []) as Client[]);
+      } catch (error) {
+        console.error('Error loading clients:', error);
+        setClients([]);
+      } finally {
+        setIsClientsLoading(false);
+      }
+    };
+
+    fetchClients();
   }, []);
 
   const selectedClient = useMemo(() => clients.find((client) => client.id === draft.clientId) ?? null, [clients, draft.clientId]);
   const { totalAmount: itemsAmount } = useMemo(() => computeTotalsFromItems(draft.items), [draft.items]);
   const totalAmount = itemsAmount + Math.max(0, draft.initialPendingAmount || 0);
 
+  const filteredClients = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return clients;
+
+    const normalizedQuery = q.replace(/\D/g, '');
+    return clients.filter((client) => {
+      const matchesName = client.fullName.toLowerCase().includes(q);
+      const matchesPhone = client.phone.replace(/\D/g, '').includes(normalizedQuery);
+      return matchesName || matchesPhone;
+    });
+  }, [clients, query]);
+
+  const {
+    currentPage,
+    pageSize,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedClients,
+    startIndex,
+    endIndex,
+    setPage,
+    setPageSize,
+    resetPage,
+  } = usePagination(filteredClients, { initialPageSize: 10 });
+
+  useEffect(() => {
+    resetPage();
+  }, [query, clients, resetPage]);
+
   const canContinueStepOne = Boolean(draft.clientId);
   const canContinueStepTwo = draft.biweeklyAmount > 0;
 
   const handleCreate = async () => {
-    const payload: Omit<Account, 'id'> = {
-      clientId: draft.clientId,
-      clientName: selectedClient?.name ?? 'Cliente',
-      createdAt: todayISO(),
-      totalAmount,
-      totalPaid: 0,
-      remainingAmount: totalAmount,
-      totalProducts: draft.items.reduce((sum, item) => sum + item.quantity, 0),
-      status: totalAmount > 0 ? 'active' : 'paid',
-      nextPaymentDate: draft.nextPaymentDate || undefined,
-      biweeklyAmount: draft.biweeklyAmount || undefined,
-      items: draft.items.length > 0 ? draft.items : undefined,
-      payments: [],
-    };
+    if (!draft.clientId || draft.biweeklyAmount <= 0) return;
 
-    // TODO: Integrar POST /api/accounts.
-    // await fetch('/api/accounts', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(payload),
-    // });
-    console.log('Pending API integration - create account payload:', payload);
+    setIsCreating(true);
+    setCreateError(null);
 
-    window.localStorage.removeItem(DRAFT_KEY);
-    dashboard?.setView({ key: 'accounts' });
+    try {
+      const response = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: draft.clientId,
+          initialBalance: Math.max(0, draft.initialPendingAmount || 0),
+          quincenalAmount: draft.biweeklyAmount,
+          detail: draft.detail.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setCreateError(data?.error || 'No se pudo crear la cuenta');
+        return;
+      }
+
+      window.localStorage.removeItem(DRAFT_KEY);
+      dashboard?.setView({ key: 'accounts' });
+    } catch (error) {
+      console.error('Error creating account:', error);
+      setCreateError('Error de conexion al crear la cuenta');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -166,44 +233,82 @@ export default function AccountsCreateView() {
         <div className="p-6 space-y-6">
           {step === 1 && (
             <div className="space-y-4">
-              <div>
-                <label htmlFor="client-select" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Cliente</label>
-                <select
-                  id="client-select"
-                  value={draft.clientId}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, clientId: e.target.value }))}
-                  className="w-full pl-4 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm"
-                >
-                  <option value="">Seleccionar cliente</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name} · {client.phone}
-                    </option>
-                  ))}
-                </select>
+              <div className="relative max-w-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="w-4 h-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por nombre o telefono..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm"
+                />
               </div>
 
-              {selectedClient ? (
-                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">{selectedClient.name}</div>
-                      <div className="text-xs text-gray-600 mt-1">{selectedClient.phone}</div>
-                      <div className="text-xs text-gray-600 mt-1">{selectedClient.address}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDraft((prev) => ({ ...prev, clientId: '' }))}
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50"
-                      title="Quitar cliente"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+              {isClientsLoading ? (
+                <div className="text-sm text-gray-600">Cargando clientes...</div>
+              ) : filteredClients.length === 0 ? (
+                <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4 text-sm text-rose-700">
+                  No se encontraron clientes.
                 </div>
               ) : (
-                <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4 text-sm text-rose-700">
-                  TODO: Integrar selector/listado real de clientes desde API.
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
+                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {paginatedClients.map((client) => {
+                          const isSelected = draft.clientId === client.id;
+
+                          return (
+                            <tr key={client.id} className={isSelected ? 'bg-pink-50/60' : 'hover:bg-gray-50'}>
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{client.fullName}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700">{client.phone}</td>
+                              <td className="px-4 py-3 text-right">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={isSelected ? 'secondary' : 'primary'}
+                                  onClick={() => setDraft((prev) => ({ ...prev, clientId: client.id }))}
+                                >
+                                  {isSelected ? 'Seleccionado' : 'Seleccionar'}
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="border-t border-gray-100">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={totalItems}
+                      startIndex={startIndex}
+                      endIndex={endIndex}
+                      pageSize={pageSize}
+                      onPageChange={setPage}
+                      onPageSizeChange={setPageSize}
+                      itemLabel="clientes"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {selectedClient && (
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <div className="text-xs uppercase tracking-wide text-gray-500">Cliente seleccionado</div>
+                  <div className="text-sm font-semibold text-gray-900 mt-1">{selectedClient.fullName}</div>
+                  <div className="text-xs text-gray-600 mt-1">{selectedClient.phone}</div>
                 </div>
               )}
             </div>
@@ -228,60 +333,33 @@ export default function AccountsCreateView() {
                 />
               </div>
 
+              <div>
+                <label htmlFor="account-detail" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  Detalle de la cuenta (opcional)
+                </label>
+                <textarea
+                  id="account-detail"
+                  value={draft.detail}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, detail: e.target.value }))}
+                  placeholder="Ej: Cuenta creada por compra de zapatos escolares"
+                  rows={3}
+                  className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500"
+                />
+              </div>
+
               <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-base font-bold text-gray-900">Productos</h2>
-                    <p className="text-sm text-gray-600 mt-1">{draft.items.length} agregados</p>
+                    <p className="text-sm text-gray-600 mt-1">Opcional por ahora</p>
                   </div>
-                  <Button type="button" onClick={() => dashboard?.setView({ key: 'accounts_detail' })} variant="secondary">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Ver/Editar items
-                  </Button>
                 </div>
 
                 <div className="p-4">
-                  {draft.items.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="text-sm font-semibold text-gray-900">No hay productos agregados</div>
-                      <div className="text-sm text-gray-600 mt-1">Puedes crear la cuenta sin productos.</div>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-100">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Cant.</th>
-                            <th className="hidden sm:table-cell px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Subtotal</th>
-                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {draft.items.map((item) => (
-                            <tr key={item.id} className="hover:bg-pink-50/30 transition-all">
-                              <td className="px-4 py-3">
-                                <div className="text-sm font-semibold text-gray-900">{item.name}</div>
-                              </td>
-                              <td className="px-4 py-3 text-right text-sm text-gray-900">{item.quantity}</td>
-                              <td className="hidden sm:table-cell px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                                {formatCurrency(item.unitPrice * item.quantity)}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setDraft((prev) => ({ ...prev, items: prev.items.filter((i) => i.id !== item.id) }))}
-                                  className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-gray-600 hover:text-white bg-gray-100 hover:bg-gray-600"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  <div className="text-center py-8">
+                    <div className="text-sm font-semibold text-gray-900">No hay productos agregados</div>
+                    <div className="text-sm text-gray-600 mt-1">Puedes crear la cuenta sin productos por ahora.</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -291,7 +369,12 @@ export default function AccountsCreateView() {
             <div className="space-y-4">
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                 <div className="text-xs uppercase tracking-wide text-gray-500">Cliente</div>
-                <div className="mt-1 text-sm font-semibold text-gray-900">{selectedClient?.name || 'Sin seleccionar'}</div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">{selectedClient?.fullName || 'Sin seleccionar'}</div>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="text-xs uppercase tracking-wide text-gray-500">Detalle</div>
+                <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{(draft.detail ?? '').trim() || 'Sin detalle'}</div>
               </div>
 
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-2">
@@ -310,8 +393,14 @@ export default function AccountsCreateView() {
               </div>
 
               <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3 text-xs text-rose-700">
-                TODO: Integrar APIs de clientes, productos de cuenta y creacion de cuentas.
+                Puedes crear la cuenta sin productos. Los productos se podran agregar despues.
               </div>
+            </div>
+          )}
+
+          {createError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {createError}
             </div>
           )}
 
@@ -334,7 +423,7 @@ export default function AccountsCreateView() {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button type="button" variant="primary" onClick={handleCreate} disabled={!canContinueStepOne || !canContinueStepTwo}>
+              <Button type="button" variant="primary" onClick={handleCreate} disabled={!canContinueStepOne || !canContinueStepTwo} loading={isCreating}>
                 Crear cuenta
               </Button>
             )}

@@ -1,52 +1,65 @@
 'use client';
 
+import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useDashboard } from '@/app/dashboard/DashboardContext';
 import { WelcomeSection } from '@/app/components/dashboard/WelcomeSection';
 import { StatCard } from '@/app/components/dashboard/StatCard';
 import { DashboardAccountsTable } from '@/app/components/dashboard/DashboardAccountsTable';
 import { SupportPanel } from '@/app/components/dashboard/SupportPanel';
-
-// TODO: Replace with API calls
-// TODO: Add state for stats and accounts data
-// const [stats, setStats] = useState({
-//   inventory: { total: 0, description: 'productos en inventario/bodega' },
-//   pendingAccounts: { total: 0, description: 'cuentas con saldos pendientes' },
-//   clients: { total: 0, description: 'Total de clientes' },
-//   paymentAlerts: { total: 0, description: 'cuentas con pagos proximos a vencer' }
-// });
-// const [accounts, setAccounts] = useState([]);
+import { Button } from '@/app/components/commons/Button';
+import type { AccountListResult } from '@/types/accountsRepository';
+import type { Client } from '@/models/client';
 
 export default function Dashboard() {
   const { setView } = useDashboard();
+  const [accounts, setAccounts] = useState<AccountListResult[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Fetch dashboard stats from API
-  // React.useEffect(() => {
-  //   const fetchStats = async () => {
-  //     try {
-  //       const response = await fetch('/api/dashboard/stats');
-  //       const data = await response.json();
-  //       setStats(data);
-  //     } catch (error) {
-  //       console.error('Error fetching stats:', error);
-  //     }
-  //   };
-  //   fetchStats();
-  // }, []);
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    setError(null);
 
-  // TODO: Fetch accounts from API
-  // React.useEffect(() => {
-  //   const fetchAccounts = async () => {
-  //     try {
-  //       const response = await fetch('/api/accounts');
-  //       const data = await response.json();
-  //       setAccounts(data);
-  //     } catch (error) {
-  //       console.error('Error fetching accounts:', error);
-  //     }
-  //   };
-  //   fetchAccounts();
-  // }, []);
+    try {
+      const [accountsResponse, clientsResponse] = await Promise.all([
+        fetch('/api/accounts', { cache: 'no-store' }),
+        fetch('/api/clients', { cache: 'no-store' }),
+      ]);
+
+      const [accountsData, clientsData] = await Promise.all([
+        accountsResponse.json(),
+        clientsResponse.json(),
+      ]);
+
+      if (!accountsResponse.ok || !accountsData?.ok) {
+        throw new Error(accountsData?.error || 'Error al cargar cuentas');
+      }
+
+      if (!clientsResponse.ok || !clientsData?.ok) {
+        throw new Error(clientsData?.error || 'Error al cargar clientes');
+      }
+
+      setAccounts((accountsData.accounts ?? []) as AccountListResult[]);
+      setClients((clientsData.clients ?? []) as Client[]);
+    } catch (loadError) {
+      console.error('Error loading dashboard data:', loadError);
+      setAccounts([]);
+      setClients([]);
+      setError('Error al cargar datos del dashboard');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const pendingAccountsCount = useMemo(() => {
+    return accounts.filter((account) => account.remainingAmount > 0).length;
+  }, [accounts]);
 
   const handleCardAction = (action: string) => {
     console.log(`Action: ${action}`);
@@ -109,51 +122,64 @@ export default function Dashboard() {
         <WelcomeSection />
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <StatCard
-            title="Mi inventario"
-            // TODO: Use API data: value={stats.inventory.total}
-            value={0}
-            // TODO: Use API data: description={stats.inventory.description}
-            description="productos en inventario/bodega"
-            icon={inventoryIcon}
-            buttonText="Ver inventario"
-            color="blue"
-            onButtonClick={() => handleCardAction('add-product')}
-          />
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12 mb-6 sm:mb-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+            <span className="ml-2 text-gray-600">Cargando dashboard...</span>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 sm:mb-8">
+            <p className="text-red-600">{error}</p>
+            <Button
+              onClick={loadDashboardData}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              Reintentar
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <StatCard
+                title="Mi inventario"
+                value={0}
+                description="productos en inventario/bodega"
+                icon={inventoryIcon}
+                buttonText="Ver inventario"
+                color="blue"
+                onButtonClick={() => handleCardAction('add-product')}
+              />
 
-          <StatCard
-            title="Saldos pendientes"
-            // TODO: Use API data: value={stats.pendingAccounts.total}
-            value={0}
-            // TODO: Use API data: description={stats.pendingAccounts.description}
-            description="cuentas con saldos pendientes"
-            icon={accountsIcon}
-            buttonText="Ver cuentas"
-            color="orange"
-            onButtonClick={() => handleCardAction('view-accounts')}
-          />
+              <StatCard
+                title="Cuentas de clientes"
+                value={pendingAccountsCount}
+                description="Total de cuentas"
+                icon={accountsIcon}
+                buttonText="Ver cuentas"
+                color="orange"
+                onButtonClick={() => handleCardAction('view-accounts')}
+              />
 
-          <StatCard
-            title="Mis clientes"
-            // TODO: Use API data: value={stats.clients.total}
-            value={0}
-            // TODO: Use API data: description={stats.clients.description}
-            description="Total de clientes"
-            icon={clientsIcon}
-            buttonText="Ver clientes"
-            color="green"
-            onButtonClick={() => handleCardAction('view-clients')}
-          />
-        </div>
+              <StatCard
+                title="Mis clientes"
+                value={clients.length}
+                description="Total de clientes"
+                icon={clientsIcon}
+                buttonText="Ver clientes"
+                color="green"
+                onButtonClick={() => handleCardAction('view-clients')}
+              />
+            </div>
 
-        {/* Accounts Table with Filters */}
-        {/* TODO: Replace with API data: accounts={accounts} */}
-        <DashboardAccountsTable
-          accounts={[]}
-          onViewAccount={handleViewDetail}
-          className="mb-6 sm:mb-8"
-        />
+            <DashboardAccountsTable
+              accounts={accounts}
+              onViewAccount={handleViewDetail}
+              className="mb-6 sm:mb-8"
+            />
+          </>
+        )}
 
         {/* Support Panel */}
         <SupportPanel />
