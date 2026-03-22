@@ -62,6 +62,12 @@ export type DbAccountPaymentRow = {
     created_at: string
 }
 
+export type DbAccountPaymentInsert = {
+    account_id: string
+    amount: number
+    payment_date: string
+}
+
 // ── Clients ─────────────────────────────────────────────
 export type DbClientRow = {
     id: string
