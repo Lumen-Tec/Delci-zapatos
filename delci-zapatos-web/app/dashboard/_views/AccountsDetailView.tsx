@@ -3,11 +3,13 @@
 import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
+import Swal from 'sweetalert2';
 import { ChevronLeft, Trash2 } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
 import { formatCurrency, computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom } from '@/lib/accountUtils';
+import { getSuggestedPaymentAmount, validatePaymentAmount } from '@/lib/paymentUtil';
 import type { AccountDetailsResult, AccountPaymentResult } from '@/types/accountsRepository';
 
 type DetailStep = 1 | 2 | 3;
@@ -46,9 +48,11 @@ export default function AccountsDetailView() {
   const routeAccountId = Array.isArray(routeId) ? routeId[0] : routeId;
   const dashboardAccountId = dashboard?.view.key === 'accounts_detail' ? dashboard.view.accountId : undefined;
   const accountId = dashboardAccountId ?? routeAccountId;
+  const stepStorageKey = accountId ? `accounts-detail-step:${accountId}` : null;
 
   const [step, setStep] = useState<DetailStep>(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [state, dispatch] = useReducer(accountReducer, {
@@ -101,8 +105,28 @@ export default function AccountsDetailView() {
   };
 
   useEffect(() => {
+    if (!stepStorageKey) return;
+
+    const raw = window.localStorage.getItem(stepStorageKey);
+    const parsed = Number(raw);
+    if (parsed === 1 || parsed === 2 || parsed === 3) {
+      setStep(parsed as DetailStep);
+      return;
+    }
+
+    setStep(1);
+  }, [stepStorageKey]);
+
+  useEffect(() => {
+    if (!stepStorageKey) return;
+    window.localStorage.setItem(stepStorageKey, String(step));
+  }, [step, stepStorageKey]);
+
+  useEffect(() => {
     if (!account) return;
+    const suggested = getSuggestedPaymentAmount(account.biweeklyAmount, account.remainingAmount);
     dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: account.biweeklyAmount ? String(account.biweeklyAmount) : '' });
+    dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: suggested > 0 ? String(suggested) : '' });
   }, [account?.id, account?.biweeklyAmount]);
 
   const persistAccount = (next: AccountDetailsResult) => {
@@ -144,39 +168,105 @@ export default function AccountsDetailView() {
     persistAccount({ ...account, biweeklyAmount: amt });
   };
 
-  const handleRegisterPayment = () => {
+  const handleRegisterPayment = async () => {
     if (!account) return;
+    if (isSavingPayment) return;
 
     const amount = Number(state.paymentAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    const amountError = validatePaymentAmount(amount, account.remainingAmount);
+    if (amountError) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Monto invalido',
+        text: amountError,
+        confirmButtonColor: '#ec4899',
+      });
+      return;
+    }
 
     const paymentDate = account.nextPaymentDate ?? getNearestUpcomingPaymentDate();
-    const nextTotalPaid = account.totalPaid + amount;
-    const remainingAmount = Math.max(0, account.totalAmount - nextTotalPaid);
 
-    const payment: AccountPaymentResult = {
-      id: `PAY-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      date: paymentDate,
-      amount,
-    };
+    const confirmation = await Swal.fire({
+      icon: 'question',
+      title: 'Confirmar pago',
+      text: `Cliente: ${account.clientName}\nMonto: ${formatCurrency(amount)}\nFecha de pago: ${paymentDate}`,
+      showCancelButton: true,
+      confirmButtonText: 'Si, registrar pago',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ec4899',
+      cancelButtonColor: '#6b7280',
+    });
 
-    const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : paymentDate;
-    const status = computeStatus(remainingAmount, nextPaymentDate);
+    if (!confirmation.isConfirmed) return;
 
-    const next = {
-      ...account,
-      totalPaid: nextTotalPaid,
-      remainingAmount,
-      lastPaymentDate: paymentDate,
-      nextPaymentDate,
-      payments: [...(account.payments ?? []), payment],
-      status,
-    };
+    setIsSavingPayment(true);
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: account.id,
+          amount,
+          paymentDate,
+        }),
+      });
 
-    persistAccount(next);
+      const result = await response.json();
+      if (!response.ok || !result?.ok) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'No se pudo registrar el pago',
+          text: result?.error || 'Ocurrio un error al registrar el pago',
+          confirmButtonColor: '#ec4899',
+        });
+        return;
+      }
 
-    const nextSuggested = next.biweeklyAmount != null ? Math.min(next.biweeklyAmount, next.remainingAmount) : next.remainingAmount;
-    dispatch({ type: 'RESET_PAYMENT_FORM', payload: { amount: nextSuggested > 0 ? String(nextSuggested) : '' } });
+      const nextTotalPaid = account.totalPaid + amount;
+      const remainingAmount = Math.max(0, account.totalAmount - nextTotalPaid);
+      const payment: AccountPaymentResult = {
+        id: result?.created?.payment?.id ?? `PAY-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        date: paymentDate,
+        amount,
+      };
+      const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : paymentDate;
+      const status = computeStatus(remainingAmount, nextPaymentDate);
+
+      const next = {
+        ...account,
+        totalPaid: nextTotalPaid,
+        remainingAmount,
+        lastPaymentDate: paymentDate,
+        nextPaymentDate,
+        payments: [...(account.payments ?? []), payment],
+        status,
+      };
+
+      persistAccount(next);
+
+      const nextSuggested = getSuggestedPaymentAmount(next.biweeklyAmount, next.remainingAmount);
+      dispatch({ type: 'RESET_PAYMENT_FORM', payload: { amount: nextSuggested > 0 ? String(nextSuggested) : '' } });
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Pago registrado',
+        text: 'El pago se registro correctamente',
+        timer: 1800,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      });
+    } catch (error) {
+      console.error('Error registering payment:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error de conexion',
+        text: 'No se pudo conectar al servidor para registrar el pago',
+        confirmButtonColor: '#ec4899',
+      });
+    } finally {
+      setIsSavingPayment(false);
+    }
   };
 
   if (isLoading) {
@@ -266,8 +356,12 @@ export default function AccountsDetailView() {
             <div className="text-lg font-semibold text-gray-900 mt-2">{account.clientName}</div>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Saldo</div>
+            <div className="text-xs uppercase tracking-wide text-gray-500">Saldo Pendiente</div>
             <div className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(account.remainingAmount)}</div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Saldo pagado</div>
+            <div className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(account.totalPaid)}</div>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
             <div className="text-xs uppercase tracking-wide text-gray-500">Estado</div>
@@ -367,7 +461,7 @@ export default function AccountsDetailView() {
                 value={state.paymentAmount}
                 onChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
               />
-              <Button onClick={handleRegisterPayment} variant="primary">
+              <Button onClick={handleRegisterPayment} variant="primary" loading={isSavingPayment}>
                 Registrar pago
               </Button>
             </div>
