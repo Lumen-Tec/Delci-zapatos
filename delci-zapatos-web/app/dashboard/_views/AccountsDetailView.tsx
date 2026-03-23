@@ -445,6 +445,11 @@ export default function AccountsDetailView() {
               <h2 className="text-lg font-bold text-gray-900">Pagos</h2>
             </div>
             <div className="p-6 space-y-3">
+              <div className="rounded-xl border border-pink-100 bg-pink-50 p-4">
+                <div className="text-xs uppercase tracking-wide text-gray-500">Saldo pendiente</div>
+                <div className="mt-1 text-2xl font-bold text-gray-900">{formatCurrency(account.remainingAmount)}</div>
+              </div>
+
               <InputField
                 label="Monto quincenal"
                 type="number"
