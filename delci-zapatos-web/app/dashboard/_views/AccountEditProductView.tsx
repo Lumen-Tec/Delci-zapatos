@@ -58,7 +58,7 @@ export default function AccountEditProductView() {
   React.useEffect(() => {
     // TODO: Cargar productos e informacion de cuenta desde API.
     // GET /api/products
-    // GET /api/accounts/:id
+    // GET /api/accounts/getById?id=<id>
     setProducts([]);
   }, []);
 
@@ -130,7 +130,7 @@ export default function AccountEditProductView() {
     setAccount(nextAccount);
 
     // TODO: Persistir cambios via API.
-    // PATCH /api/accounts/:id
+    // PATCH /api/accounts { id, ...fields }
     console.log('Pending API integration - update account items payload:', nextAccount);
   };
 

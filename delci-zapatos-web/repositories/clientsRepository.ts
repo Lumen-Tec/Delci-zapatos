@@ -1,5 +1,15 @@
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
-import type { ClientDetailsResult, ClientListResult, ClientRow, CreateClientDbInput, CreateClientInput, CreateClientResult } from '@/types/clientsRepository'
+import type {
+	ClientDetailsResult,
+	ClientListResult,
+	ClientRow,
+	CreateClientDbInput,
+	CreateClientInput,
+	CreateClientResult,
+	UpdateClientDbInput,
+	UpdateClientInput,
+	UpdateClientResult,
+} from '@/types/clientsRepository'
 
 function mapClientRowToResult(row: ClientRow): ClientListResult {
 	return {
@@ -66,4 +76,28 @@ export async function createClient(data: CreateClientInput): Promise<CreateClien
 	if (error) throw error
 
 	return { id: client.id }
+}
+
+/**
+ * Actualiza un cliente por id usando solo los campos enviados.
+ */
+export async function updateClientById(data: UpdateClientInput): Promise<UpdateClientResult> {
+	const supabase = await createSupabaseClient()
+
+	const update: UpdateClientDbInput = {}
+	if (data.fullName !== undefined) update.full_name = data.fullName
+	if (data.phone !== undefined) update.phone = data.phone
+	if (data.address !== undefined) update.address = data.address
+
+	const { data: updatedClient, error } = await supabase
+		.from('clients')
+		.update(update)
+		.eq('id', data.id)
+		.select('id, full_name, phone, address, created_at')
+		.maybeSingle()
+
+	if (error) throw error
+	if (!updatedClient) return { ok: false, reason: 'not_found' }
+
+	return { ok: true, client: mapClientRowToResult(updatedClient as ClientRow) }
 }

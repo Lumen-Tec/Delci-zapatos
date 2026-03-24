@@ -95,6 +95,12 @@ export type DbClientInsert = {
     address: string
 }
 
+export type DbClientUpdate = Partial<{
+    full_name: string
+    phone: string
+    address: string
+}>
+
 // ── Products ────────────────────────────────────────────
 export type DbProductRow = {
     id: string

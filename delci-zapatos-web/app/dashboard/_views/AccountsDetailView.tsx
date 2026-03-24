@@ -72,7 +72,9 @@ export default function AccountsDetailView() {
       setLoadError(null);
 
       try {
-        const response = await fetch(`/api/accounts/${accountId}`, { cache: 'no-store' });
+        const response = await fetch(`/api/accounts/getById?id=${encodeURIComponent(accountId)}`, {
+          cache: 'no-store',
+        });
         const data = await response.json();
 
         if (!response.ok || !data?.ok || !data?.account) {
@@ -98,9 +100,15 @@ export default function AccountsDetailView() {
   const items = useMemo(() => account?.items ?? [], [account]);
   const payments = useMemo(() => account?.payments ?? [], [account]);
 
+  const toFrontendStatus = (status: 'active' | 'paid' | 'overdue'): AccountDetailsResult['status'] => {
+    if (status === 'active') return 'activa';
+    if (status === 'paid') return 'pagada';
+    return 'atrasada';
+  };
+
   const getStatusLabel = (status: AccountDetailsResult['status']) => {
-    if (status === 'active') return 'Activa';
-    if (status === 'paid') return 'Pagada';
+    if (status === 'activa') return 'Activa';
+    if (status === 'pagada') return 'Pagada';
     return 'Atrasada';
   };
 
@@ -133,8 +141,8 @@ export default function AccountsDetailView() {
     dispatch({ type: 'SET_ACCOUNT', payload: next });
 
     // TODO: Integrar lectura/actualizacion real de cuenta por API.
-    // GET /api/accounts/:id
-    // PATCH /api/accounts/:id
+    // GET /api/accounts/getById?id=<id>
+    // PATCH /api/accounts { id, ...fields }
     console.log('Pending API integration - account payload:', next);
   };
 
@@ -147,7 +155,7 @@ export default function AccountsDetailView() {
 
     const remainingAmount = Math.max(0, totalAmount - account.totalPaid);
     const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate : getNearestUpcomingPaymentDate();
-    const status = computeStatus(remainingAmount, nextPaymentDate);
+    const status = toFrontendStatus(computeStatus(remainingAmount, nextPaymentDate));
 
     persistAccount({
       ...account,
@@ -230,7 +238,7 @@ export default function AccountsDetailView() {
         amount,
       };
       const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : paymentDate;
-      const status = computeStatus(remainingAmount, nextPaymentDate);
+      const status = toFrontendStatus(computeStatus(remainingAmount, nextPaymentDate));
 
       const next = {
         ...account,

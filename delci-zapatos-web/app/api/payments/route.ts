@@ -14,10 +14,6 @@ type PatchPaymentRequestBody = {
     paymentDate?: string
 }
 
-type DeletePaymentRequestBody = {
-    paymentId: string
-}
-
 function isValidISODate(value: string): boolean {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
     const date = new Date(`${value}T00:00:00`)
@@ -150,21 +146,22 @@ export async function PATCH(request: Request) {
 }
 
 /**
- * DELETE /api/payments
+ * DELETE /api/payments?paymentId=...
  * Elimina un pago registrado.
  */
 export async function DELETE(request: Request) {
     try {
-        const body = await request.json() as DeletePaymentRequestBody
+        const { searchParams } = new URL(request.url)
+        const paymentId = searchParams.get('paymentId')
 
-        if (!body.paymentId) {
+        if (!paymentId) {
             return Response.json(
                 { ok: false, error: 'paymentId es requerido' },
                 { status: 400 },
             )
         }
 
-        const deleted = await deletePayment({ paymentId: body.paymentId })
+        const deleted = await deletePayment({ paymentId })
 
         if (!deleted.ok && deleted.reason === 'not_found') {
             return Response.json({ ok: false, error: 'Pago no encontrado' }, { status: 404 })

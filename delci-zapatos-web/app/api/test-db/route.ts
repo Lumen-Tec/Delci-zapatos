@@ -27,7 +27,7 @@ export async function POST(request: Request) {
             detail: body.detail,
             nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
         })
-        return Response.json({ ok: true, created: account })
+        return Response.json({ ok: true, created: account }, { status: 201 })
     } catch (error: unknown) {
         return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }

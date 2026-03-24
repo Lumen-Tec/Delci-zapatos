@@ -79,10 +79,15 @@ export const ClientProfileModal = ({ isOpen, onClose, client, onClientUpdated }:
     setErrors({});
     
     try {
-      const response = await fetch(`/api/clients/${editedClient.id}`, {
-        method: 'PUT',
+      const response = await fetch('/api/clients', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          id: editedClient.id,
+          fullName: payload.fullName,
+          phone: payload.phone,
+          address: payload.address,
+        })
       });
       
       const result = await response.json();
