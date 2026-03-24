@@ -1,4 +1,5 @@
 import { createPayment } from '@/repositories/paymentsRepository'
+import { getAccountById } from '@/repositories/accountsRepository'
 import { getErrorMessage } from '@/utils/parsers/errors'
 
 type CreatePaymentRequestBody = {
@@ -38,6 +39,15 @@ export async function POST(request: Request) {
         if (!isValidISODate(body.paymentDate)) {
             return Response.json(
                 { ok: false, error: 'paymentDate debe tener formato YYYY-MM-DD' },
+                { status: 400 },
+            )
+        }
+
+        const account = await getAccountById(body.accountId)
+
+        if (body.amount > account.remainingAmount) {
+            return Response.json(
+                { ok: false, error: 'El monto del pago no puede ser mayor al saldo pendiente' },
                 { status: 400 },
             )
         }
