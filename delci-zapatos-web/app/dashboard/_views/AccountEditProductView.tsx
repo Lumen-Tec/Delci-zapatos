@@ -7,7 +7,7 @@ import { ChevronLeft, Plus } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
-import type { Account, AccountItem } from '@/models/account';
+import type { AccountDetailsItemResult, AccountDetailsResult } from '@/types/accountsRepository';
 import type { Product, ProductCategory, ProductStatus } from '@/models/product';
 import { getEffectivePrice, getSizeEffectivePrice } from '@/lib/discountUtils';
 import { computeStatus, todayISO } from '@/lib/accountUtils';
@@ -26,7 +26,7 @@ export default function AccountEditProductView() {
   const routeId = params?.id;
   const accountId = Array.isArray(routeId) ? routeId[0] : routeId;
 
-  const [account, setAccount] = useState<Account | null>(
+  const [account, setAccount] = useState<AccountDetailsResult | null>(
     accountId
       ? {
           id: accountId,
@@ -37,7 +37,9 @@ export default function AccountEditProductView() {
           totalPaid: 0,
           remainingAmount: 0,
           totalProducts: 0,
-          status: 'active',
+          biweeklyAmount: 0,
+          detail: null,
+          status: 'activa',
           nextPaymentDate: todayISO(),
           items: [],
           payments: [],
@@ -77,47 +79,47 @@ export default function AccountEditProductView() {
     if (!account) return;
 
     const quantity = Math.max(1, Number(quantityByProductId[product.id] ?? '1') || 1);
-    let newItem: AccountItem | null = null;
+    let newItem: AccountDetailsItemResult | null = null;
 
     if (product.category === 'zapatos') {
       const selectedSize = shoeSizeByProductId[product.id] ?? '';
-      const sizeVariant = product.sizes.find((variant) => String(variant.size) === selectedSize);
+      const sizeVariant = (product.sizes ?? []).find((variant) => String(variant.size) === selectedSize);
       if (!sizeVariant || sizeVariant.stock <= 0) return;
 
-      const sizePrice = getSizeEffectivePrice(product.price, sizeVariant);
+      const sizePrice = getSizeEffectivePrice(product.basePrice, sizeVariant);
       newItem = {
         id: makeItemId(),
         productId: product.id,
-        sku: product.sku,
         name: product.name,
-        quantity,
-        unitPrice: sizePrice.effectivePrice,
-        ...(sizePrice.hasDiscount ? { originalPrice: sizeVariant.price ?? product.price, discountPercentage: sizePrice.discountPercentage } : {}),
         category: 'zapatos',
         color: product.color,
         size: String(sizeVariant.size),
+        quantity,
+        unitPrice: sizePrice.effectivePrice,
+        originalPrice: sizePrice.hasDiscount ? (sizeVariant.price ?? product.basePrice) : null,
+        discountPercentage: sizePrice.hasDiscount ? sizePrice.discountPercentage : null,
       };
     } else {
       const bagPrice = getEffectivePrice(product);
       newItem = {
         id: makeItemId(),
         productId: product.id,
-        sku: product.sku,
         name: product.name,
+        category: 'bolsos',
         quantity,
         unitPrice: bagPrice.effectivePrice,
-        ...(bagPrice.hasDiscount ? { originalPrice: product.price, discountPercentage: bagPrice.discountPercentage } : {}),
-        category: 'bolsos',
+        originalPrice: bagPrice.hasDiscount ? product.basePrice : null,
+        discountPercentage: bagPrice.hasDiscount ? bagPrice.discountPercentage : null,
       };
     }
 
-    const nextItems = [...(account.items ?? []), newItem];
+    const nextItems = [...account.items, newItem];
     const totalAmount = nextItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
     const totalProducts = nextItems.reduce((sum, item) => sum + item.quantity, 0);
     const remainingAmount = Math.max(0, totalAmount - account.totalPaid);
-    const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate ?? todayISO() : undefined;
+    const nextPaymentDate = remainingAmount > 0 ? (account.nextPaymentDate || todayISO()) : todayISO();
 
-    const nextAccount: Account = {
+    const nextAccount: AccountDetailsResult = {
       ...account,
       items: nextItems,
       totalAmount,
@@ -242,7 +244,7 @@ export default function AccountEditProductView() {
                       className="w-full pl-3 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm"
                     >
                       <option value="">Seleccionar</option>
-                      {product.sizes
+                      {(product.sizes ?? [])
                         .filter((variant) => variant.stock > 0)
                         .map((variant) => (
                           <option key={String(variant.size)} value={String(variant.size)}>

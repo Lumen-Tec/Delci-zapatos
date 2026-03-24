@@ -100,12 +100,6 @@ export default function AccountsDetailView() {
   const items = useMemo(() => account?.items ?? [], [account]);
   const payments = useMemo(() => account?.payments ?? [], [account]);
 
-  const toFrontendStatus = (status: 'active' | 'paid' | 'overdue'): AccountDetailsResult['status'] => {
-    if (status === 'active') return 'activa';
-    if (status === 'paid') return 'pagada';
-    return 'atrasada';
-  };
-
   const getStatusLabel = (status: AccountDetailsResult['status']) => {
     if (status === 'activa') return 'Activa';
     if (status === 'pagada') return 'Pagada';
@@ -155,7 +149,7 @@ export default function AccountsDetailView() {
 
     const remainingAmount = Math.max(0, totalAmount - account.totalPaid);
     const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate : getNearestUpcomingPaymentDate();
-    const status = toFrontendStatus(computeStatus(remainingAmount, nextPaymentDate));
+    const status = computeStatus(remainingAmount, nextPaymentDate);
 
     persistAccount({
       ...account,
@@ -238,7 +232,7 @@ export default function AccountsDetailView() {
         amount,
       };
       const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : paymentDate;
-      const status = toFrontendStatus(computeStatus(remainingAmount, nextPaymentDate));
+      const status = computeStatus(remainingAmount, nextPaymentDate);
 
       const next = {
         ...account,

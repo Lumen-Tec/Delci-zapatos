@@ -71,7 +71,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
 
       const matchesShoeSize =
         filters.shoeSize === 'all' ||
-        (product.category === 'zapatos' && product.sizes.some((s) => s.size === filters.shoeSize && s.stock > 0));
+        (product.category === 'zapatos' && (product.sizes ?? []).some((s) => s.size === filters.shoeSize && s.stock > 0));
 
       return matchesQuery && matchesCategory && matchesStatus && matchesShoeSize;
     });
@@ -84,7 +84,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
       if (filters.category !== 'all' && product.category !== filters.category) continue;
 
       if (product.category !== 'zapatos') continue;
-      for (const variant of product.sizes) {
+      for (const variant of (product.sizes ?? [])) {
         if (variant.stock > 0) sizes.add(String(variant.size));
       }
     }
@@ -165,14 +165,14 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                     <span className="hidden md:inline text-xs text-gray-500 mt-0.5">{subtitleParts.join(' · ')}</span>
                     {/* Mobile: show price + sizes info inline */}
                     <div className="md:hidden mt-1.5 space-y-1">
-                      {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                      {product.category === 'zapatos' && (product.sizes ?? []).filter((s) => s.stock > 0).length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {product.sizes
+                          {(product.sizes ?? [])
                             .filter((s) => s.stock > 0)
                             .sort((a, b) => String(a.size).localeCompare(String(b.size)))
                             .map((s) => {
-                              const sizePrice = s.price ?? product.price;
-                              const { effectivePrice, hasDiscount } = getSizeEffectivePrice(product.price, s);
+                              const sizePrice = s.price ?? product.basePrice;
+                              const { effectivePrice, hasDiscount } = getSizeEffectivePrice(product.basePrice, s);
                               return (
                                 <span key={String(s.size)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs">
                                   <span className="font-medium text-gray-700">T.{s.size}</span>
@@ -190,21 +190,21 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                             })}
                         </div>
                       ) : product.category === 'bolsos' ? (
-                        <span className="text-xs text-gray-600">{formatCurrency(product.price)} · Stock: {product.stock}</span>
+                        <span className="text-xs text-gray-600">{formatCurrency(product.basePrice)} · Stock: {product.stock}</span>
                       ) : null}
                     </div>
                   </div>
                 </td>
                 <td className="hidden xl:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4">
-                  {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                  {product.category === 'zapatos' && (product.sizes ?? []).filter((s) => s.stock > 0).length > 0 ? (
                     <div className="space-y-0.5">
-                      {product.sizes
+                      {(product.sizes ?? [])
                         .filter((s) => s.stock > 0)
                         .sort((a, b) => String(a.size).localeCompare(String(b.size)))
                         .map((s) => {
-                          const sizePrice = s.price ?? product.price;
-                          const { effectivePrice, hasDiscount } = getSizeEffectivePrice(product.price, s);
+                          const sizePrice = s.price ?? product.basePrice;
+                          const { effectivePrice, hasDiscount } = getSizeEffectivePrice(product.basePrice, s);
                           return (
                             <div key={String(s.size)} className="flex items-center gap-1.5 text-xs">
                               <span className="text-gray-500 font-medium">T.{s.size}:</span>
@@ -221,7 +221,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                         })}
                     </div>
                   ) : (
-                    <span className="text-sm text-gray-700">{formatCurrency(product.price)}</span>
+                    <span className="text-sm text-gray-700">{formatCurrency(product.basePrice)}</span>
                   )}
                 </td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-right">
@@ -266,7 +266,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
             const totalStock = getProductTotalStock(product);
 
             if (product.category === 'zapatos') {
-              const discountedSizes = product.sizes.filter((s) => isSizeOfferActive(s));
+              const discountedSizes = (product.sizes ?? []).filter((s) => isSizeOfferActive(s));
               return (
                 <tr key={product.id} className={`hover:bg-pink-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                   <td className="px-4 sm:px-6 py-4">
@@ -275,9 +275,9 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                       <span className="text-xs text-gray-500 mt-0.5">{product.sku ? `${product.sku}` : ''}</span>
                       <div className="md:hidden mt-1 space-y-0.5">
                         {discountedSizes.map((s) => {
-                          const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
+                          const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.basePrice, s);
                           const remaining = getSizeRemainingDays(s);
-                          const sizeBasePrice = s.price ?? product.price;
+                          const sizeBasePrice = s.price ?? product.basePrice;
                           return (
                             <div key={String(s.size)} className="flex items-center gap-1.5 text-xs flex-wrap">
                               <span className="font-medium text-gray-700">T.{s.size}</span>
@@ -298,9 +298,9 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                   <td className="hidden md:table-cell px-4 sm:px-6 py-4">
                     <div className="space-y-1">
                       {discountedSizes.map((s) => {
-                        const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.price, s);
+                        const { effectivePrice, discountPercentage: dp } = getSizeEffectivePrice(product.basePrice, s);
                         const remaining = getSizeRemainingDays(s);
-                        const sizeBasePrice = s.price ?? product.price;
+                        const sizeBasePrice = s.price ?? product.basePrice;
                         return (
                           <div key={String(s.size)} className="flex items-center gap-2 text-xs">
                             <span className="font-medium text-gray-700">T.{s.size}</span>
@@ -340,7 +340,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                     <span className="text-sm font-semibold text-gray-900 break-words">{product.name}</span>
                     <span className="text-xs text-gray-500 mt-0.5">{product.sku ? `${product.sku}` : ''}</span>
                     <div className="md:hidden mt-1 flex items-center gap-1.5 text-xs flex-wrap">
-                      <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                      <span className="line-through text-gray-400">{formatCurrency(product.basePrice)}</span>
                       <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{discountPercentage}%</span>
                       <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
                       {remaining !== null && (
@@ -353,7 +353,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                 </td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="line-through text-gray-400">{formatCurrency(product.price)}</span>
+                    <span className="line-through text-gray-400">{formatCurrency(product.basePrice)}</span>
                     <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded-full">-{discountPercentage}%</span>
                     <span className="font-semibold text-rose-600">{formatCurrency(effectivePrice)}</span>
                     {remaining !== null && (
@@ -419,14 +419,14 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                     <span className="text-xs text-gray-500 mt-0.5">{product.sku ? `${product.sku}` : ''}</span>
                     {/* Mobile: show price + sizes info inline */}
                     <div className="md:hidden mt-1.5 space-y-1">
-                      {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                      {product.category === 'zapatos' && (product.sizes ?? []).filter((s) => s.stock > 0).length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {product.sizes
+                          {(product.sizes ?? [])
                             .filter((s) => s.stock > 0)
                             .sort((a, b) => String(a.size).localeCompare(String(b.size)))
                             .map((s) => {
-                              const sizePrice = s.price ?? product.price;
-                              const { effectivePrice, hasDiscount: sizeHasDiscount } = getSizeEffectivePrice(product.price, s);
+                              const sizePrice = s.price ?? product.basePrice;
+                              const { effectivePrice, hasDiscount: sizeHasDiscount } = getSizeEffectivePrice(product.basePrice, s);
                               return (
                                 <span key={String(s.size)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs">
                                   <span className="font-medium text-gray-700">T.{s.size}</span>
@@ -444,21 +444,21 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                             })}
                         </div>
                       ) : product.category === 'bolsos' ? (
-                        <span className="text-xs text-gray-600">{formatCurrency(product.price)} · Stock: {product.stock}</span>
+                        <span className="text-xs text-gray-600">{formatCurrency(product.basePrice)} · Stock: {product.stock}</span>
                       ) : null}
                     </div>
                   </div>
                 </td>
                 <td className="hidden md:table-cell px-3 sm:px-4 py-4"><span className="text-sm text-gray-700 capitalize">{product.category}</span></td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4">
-                  {product.category === 'zapatos' && product.sizes.filter((s) => s.stock > 0).length > 0 ? (
+                  {product.category === 'zapatos' && (product.sizes ?? []).filter((s) => s.stock > 0).length > 0 ? (
                     <div className="space-y-0.5">
-                      {product.sizes
+                      {(product.sizes ?? [])
                         .filter((s) => s.stock > 0)
                         .sort((a, b) => String(a.size).localeCompare(String(b.size)))
                         .map((s) => {
-                          const sizePrice = s.price ?? product.price;
-                          const { effectivePrice, hasDiscount: sizeHasDiscount } = getSizeEffectivePrice(product.price, s);
+                          const sizePrice = s.price ?? product.basePrice;
+                          const { effectivePrice, hasDiscount: sizeHasDiscount } = getSizeEffectivePrice(product.basePrice, s);
                           return (
                             <div key={String(s.size)} className="flex items-center gap-1.5 text-xs">
                               <span className="text-gray-500 font-medium">T.{s.size}:</span>
@@ -475,7 +475,7 @@ export const InventoryTable = React.memo<InventoryTableProps>(({ products, onVie
                         })}
                     </div>
                   ) : (
-                    <span className="text-sm text-gray-700">{formatCurrency(product.price)}</span>
+                    <span className="text-sm text-gray-700">{formatCurrency(product.basePrice)}</span>
                   )}
                 </td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-right">

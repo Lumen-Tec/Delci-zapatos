@@ -6,7 +6,7 @@ import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
-import type { AccountItem } from '@/models/account';
+import type { AccountDetailsItemResult } from '@/types/accountsRepository';
 import type { Product, ProductCategory, ProductStatus } from '@/models/product';
 import { getEffectivePrice, getSizeEffectivePrice } from '@/lib/discountUtils';
 
@@ -15,7 +15,7 @@ type Draft = {
   biweeklyAmount: number;
   nextPaymentDate: string;
   initialPendingAmount: number;
-  items: AccountItem[];
+  items: AccountDetailsItemResult[];
 };
 
 const DRAFT_KEY = 'delci_account_draft';
@@ -82,21 +82,21 @@ export default function AccountsAddProductView() {
 
     if (product.category === 'zapatos') {
       const selectedSize = sizeByProductId[product.id] ?? '';
-      const sizeVariant = product.sizes.find((variant) => String(variant.size) === selectedSize);
+      const sizeVariant = (product.sizes ?? []).find((variant) => String(variant.size) === selectedSize);
       if (!sizeVariant || sizeVariant.stock <= 0) return;
 
-      const price = getSizeEffectivePrice(product.price, sizeVariant);
-      const newItem: AccountItem = {
+      const price = getSizeEffectivePrice(product.basePrice, sizeVariant);
+      const newItem: AccountDetailsItemResult = {
         id: makeItemId(),
         productId: product.id,
-        sku: product.sku,
         name: product.name,
-        quantity: qty,
-        unitPrice: price.effectivePrice,
-        ...(price.hasDiscount ? { originalPrice: sizeVariant.price ?? product.price, discountPercentage: price.discountPercentage } : {}),
         category: 'zapatos',
         color: product.color,
         size: String(sizeVariant.size),
+        quantity: qty,
+        unitPrice: price.effectivePrice,
+        originalPrice: price.hasDiscount ? (sizeVariant.price ?? product.basePrice) : null,
+        discountPercentage: price.hasDiscount ? price.discountPercentage : null,
       };
 
       updateDraft({ ...draft, items: [...draft.items, newItem] });
@@ -104,15 +104,15 @@ export default function AccountsAddProductView() {
     }
 
     const bagPrice = getEffectivePrice(product);
-    const bagItem: AccountItem = {
+    const bagItem: AccountDetailsItemResult = {
       id: makeItemId(),
       productId: product.id,
-      sku: product.sku,
       name: product.name,
+      category: 'bolsos',
       quantity: qty,
       unitPrice: bagPrice.effectivePrice,
-      ...(bagPrice.hasDiscount ? { originalPrice: product.price, discountPercentage: bagPrice.discountPercentage } : {}),
-      category: 'bolsos',
+      originalPrice: bagPrice.hasDiscount ? product.basePrice : null,
+      discountPercentage: bagPrice.hasDiscount ? bagPrice.discountPercentage : null,
     };
 
     updateDraft({ ...draft, items: [...draft.items, bagItem] });
@@ -212,7 +212,7 @@ export default function AccountsAddProductView() {
                       className="w-full pl-3 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm"
                     >
                       <option value="">Seleccionar</option>
-                      {product.sizes
+                      {(product.sizes ?? [])
                         .filter((variant) => variant.stock > 0)
                         .map((variant) => (
                           <option key={String(variant.size)} value={String(variant.size)}>

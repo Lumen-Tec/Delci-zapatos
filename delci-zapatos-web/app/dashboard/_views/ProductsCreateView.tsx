@@ -99,7 +99,7 @@ export function ProductsCreateView() {
 
   const buildProductPayload = (): Product => {
     const id = `TEMP-${Date.now()}`;
-    const price = Number(formData.price) || 0;
+    const basePrice = Number(formData.price) || 0;
     const discountPct = Number(formData.discountPercentage) || 0;
     const offerDays = Number(formData.offerDurationDays) || 0;
 
@@ -107,7 +107,8 @@ export function ProductsCreateView() {
       id,
       sku: formData.sku || undefined,
       name: formData.name,
-      price,
+      basePrice,
+      isActive: true,
       status: 'active' as const,
     };
 
@@ -124,7 +125,7 @@ export function ProductsCreateView() {
             stock: Number(row.stock) || 0,
             ...(sizePrice > 0 ? { price: sizePrice } : {}),
             ...(dpct > 0 && ddays > 0
-              ? { discountPercentage: dpct, offerDurationDays: ddays, offerStartDate: todayISO }
+              ? { discountPct: dpct, discountDays: ddays, discountStartDate: todayISO }
               : {}),
           };
         })
@@ -142,9 +143,9 @@ export function ProductsCreateView() {
       ...base,
       ...(discountPct > 0 && offerDays > 0
         ? {
-            discountPercentage: discountPct,
-            offerDurationDays: offerDays,
-            offerStartDate: new Date().toISOString().slice(0, 10),
+            discountPct,
+            discountDays: offerDays,
+            discountStartDate: new Date().toISOString().slice(0, 10),
           }
         : {}),
       category: 'bolsos',

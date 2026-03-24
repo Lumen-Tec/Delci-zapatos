@@ -8,7 +8,7 @@ import { Pagination } from '@/app/components/shared/Pagination';
 
 export interface AccountFilterState {
   clientName: string;
-  status: string;
+  status: AccountListResult['status'] | 'all';
 }
 
 type AccountTab = 'todas' | 'proximos_pagos';
@@ -387,9 +387,9 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 hover:border-gray-300 appearance-none shadow-sm"
                   >
                     <option value="all">Todos</option>
-                    <option value="active">Activa</option>
-                    <option value="paid">Pagada</option>
-                    <option value="overdue">Atrasada</option>
+                    <option value="activa">Activa</option>
+                    <option value="pagada">Pagada</option>
+                    <option value="atrasada">Atrasada</option>
                   </select>
                 </div>
               </div>

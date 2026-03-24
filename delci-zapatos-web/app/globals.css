@@ -67,8 +67,6 @@
 /* Fix para el overflow bouncing en iOS */
 html {
   overflow-x: hidden;
-  overflow-y: scroll;
-  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -80,7 +78,6 @@ body {
   background-repeat: no-repeat !important;
   background-position: center !important;
   background-size: cover !important;
-  overflow-y: scroll;
   /* Prevenir el efecto de rebote en iOS */
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;

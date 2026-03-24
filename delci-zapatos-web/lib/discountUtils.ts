@@ -1,21 +1,31 @@
 import type { Product, ShoeSizeVariant } from '@/models/product';
 
+type CompatShoeSizeVariant = ShoeSizeVariant & {
+  discountPct?: number;
+  discountDays?: number;
+  discountStartDate?: string;
+};
+
 // ── Product-level discount (used by bags) ──
 
 export function isOfferActive(product: Product): boolean {
+  const discountPercentage = product.discountPct;
+  const offerStartDate = product.discountStartDate;
+  const offerDurationDays = product.discountDays;
+
   if (
-    product.discountPercentage == null ||
-    product.discountPercentage <= 0 ||
-    !product.offerStartDate ||
-    product.offerDurationDays == null ||
-    product.offerDurationDays <= 0
+    discountPercentage == null ||
+    discountPercentage <= 0 ||
+    !offerStartDate ||
+    offerDurationDays == null ||
+    offerDurationDays <= 0
   ) {
     return false;
   }
 
-  const start = new Date(product.offerStartDate);
+  const start = new Date(offerStartDate);
   const end = new Date(start);
-  end.setDate(end.getDate() + product.offerDurationDays);
+  end.setDate(end.getDate() + offerDurationDays);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -29,27 +39,27 @@ export function getEffectivePrice(product: Product): {
   hasDiscount: boolean;
   discountPercentage: number;
 } {
-  if (!isOfferActive(product) || !product.discountPercentage) {
-    return { effectivePrice: product.price, hasDiscount: false, discountPercentage: 0 };
+  if (!isOfferActive(product) || !product.discountPct) {
+    return { effectivePrice: product.basePrice, hasDiscount: false, discountPercentage: 0 };
   }
 
-  const discounted = Math.round(product.price * (1 - product.discountPercentage / 100));
+  const discounted = Math.round(product.basePrice * (1 - product.discountPct / 100));
 
   return {
     effectivePrice: discounted,
     hasDiscount: true,
-    discountPercentage: product.discountPercentage,
+    discountPercentage: product.discountPct,
   };
 }
 
 export function getRemainingOfferDays(product: Product): number | null {
-  if (!isOfferActive(product) || !product.offerStartDate || !product.offerDurationDays) {
+  if (!isOfferActive(product) || !product.discountStartDate || !product.discountDays) {
     return null;
   }
 
-  const start = new Date(product.offerStartDate);
+  const start = new Date(product.discountStartDate);
   const end = new Date(start);
-  end.setDate(end.getDate() + product.offerDurationDays);
+  end.setDate(end.getDate() + product.discountDays);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -62,19 +72,24 @@ export function getRemainingOfferDays(product: Product): number | null {
 // ── Size-level discount (used by shoes) ──
 
 export function isSizeOfferActive(variant: ShoeSizeVariant): boolean {
+  const compatVariant = variant as CompatShoeSizeVariant;
+  const discountPercentage = compatVariant.discountPct ?? compatVariant.discountPercentage;
+  const offerStartDate = compatVariant.discountStartDate ?? compatVariant.offerStartDate;
+  const offerDurationDays = compatVariant.discountDays ?? compatVariant.offerDurationDays;
+
   if (
-    variant.discountPercentage == null ||
-    variant.discountPercentage <= 0 ||
-    !variant.offerStartDate ||
-    variant.offerDurationDays == null ||
-    variant.offerDurationDays <= 0
+    discountPercentage == null ||
+    discountPercentage <= 0 ||
+    !offerStartDate ||
+    offerDurationDays == null ||
+    offerDurationDays <= 0
   ) {
     return false;
   }
 
-  const start = new Date(variant.offerStartDate);
+  const start = new Date(offerStartDate);
   const end = new Date(start);
-  end.setDate(end.getDate() + variant.offerDurationDays);
+  end.setDate(end.getDate() + offerDurationDays);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -92,28 +107,34 @@ export function getSizeEffectivePrice(
   discountPercentage: number;
 } {
   const actualBase = variant.price ?? basePrice;
+  const compatVariant = variant as CompatShoeSizeVariant;
+  const discountPercentage = compatVariant.discountPct ?? compatVariant.discountPercentage;
 
-  if (!isSizeOfferActive(variant) || !variant.discountPercentage) {
+  if (!isSizeOfferActive(variant) || !discountPercentage) {
     return { effectivePrice: actualBase, hasDiscount: false, discountPercentage: 0 };
   }
 
-  const discounted = Math.round(actualBase * (1 - variant.discountPercentage / 100));
+  const discounted = Math.round(actualBase * (1 - discountPercentage / 100));
 
   return {
     effectivePrice: discounted,
     hasDiscount: true,
-    discountPercentage: variant.discountPercentage,
+    discountPercentage,
   };
 }
 
 export function getSizeRemainingDays(variant: ShoeSizeVariant): number | null {
-  if (!isSizeOfferActive(variant) || !variant.offerStartDate || !variant.offerDurationDays) {
+  const compatVariant = variant as CompatShoeSizeVariant;
+  const offerStartDate = compatVariant.discountStartDate ?? compatVariant.offerStartDate;
+  const offerDurationDays = compatVariant.discountDays ?? compatVariant.offerDurationDays;
+
+  if (!isSizeOfferActive(variant) || !offerStartDate || !offerDurationDays) {
     return null;
   }
 
-  const start = new Date(variant.offerStartDate);
+  const start = new Date(offerStartDate);
   const end = new Date(start);
-  end.setDate(end.getDate() + variant.offerDurationDays);
+  end.setDate(end.getDate() + offerDurationDays);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -126,7 +147,7 @@ export function getSizeRemainingDays(variant: ShoeSizeVariant): number | null {
 /** Check if a product (shoe or bag) has any active discount */
 export function productHasActiveDiscount(product: Product): boolean {
   if (product.category === 'zapatos') {
-    return product.sizes.some((s) => isSizeOfferActive(s));
+    return (product.sizes ?? []).some((s) => isSizeOfferActive(s));
   }
   return isOfferActive(product);
 }

@@ -54,19 +54,19 @@ function mapProductToFormData(product: Product): FormDataState {
     color: product.category === 'zapatos' ? product.color : '',
     sizes:
       product.category === 'zapatos'
-        ? product.sizes.map((s) => ({
+        ? (product.sizes ?? []).map((s) => ({
             _key: String(s.size),
             size: String(s.size),
             stock: String(s.stock),
             price: s.price != null ? String(s.price) : '',
-            discountPercentage: s.discountPercentage != null ? String(s.discountPercentage) : '',
-            offerDurationDays: s.offerDurationDays != null ? String(s.offerDurationDays) : '',
+            discountPercentage: s.discountPct != null ? String(s.discountPct) : '',
+            offerDurationDays: s.discountDays != null ? String(s.discountDays) : '',
           }))
         : [newSizeRow()],
     bagStock: product.category === 'bolsos' ? String(product.stock) : '0',
-    price: String(product.price),
-    discountPercentage: product.discountPercentage != null ? String(product.discountPercentage) : '',
-    offerDurationDays: product.offerDurationDays != null ? String(product.offerDurationDays) : '',
+    price: String(product.basePrice),
+    discountPercentage: product.discountPct != null ? String(product.discountPct) : '',
+    offerDurationDays: product.discountDays != null ? String(product.discountDays) : '',
     status: product.status ?? 'active',
   };
 }
@@ -195,7 +195,7 @@ export function ProductsDetailView({ productId }: ProductsDetailViewProps) {
 
     setIsSaving(true);
 
-    const price = Number(formData.price) || 0;
+    const basePrice = Number(formData.price) || 0;
     const discountPct = Number(formData.discountPercentage) || 0;
     const offerDays = Number(formData.offerDurationDays) || 0;
 
@@ -203,14 +203,15 @@ export function ProductsDetailView({ productId }: ProductsDetailViewProps) {
       id: resolvedProductId,
       sku: formData.sku || undefined,
       name: formData.name,
-      price,
+      basePrice,
+      isActive: formData.status === 'active',
       status: formData.status,
     };
 
     let product: Product;
 
     if (formData.category === 'zapatos') {
-      const originalSizes = pageState.originalProduct?.category === 'zapatos' ? pageState.originalProduct.sizes : [];
+      const originalSizes = pageState.originalProduct?.category === 'zapatos' ? (pageState.originalProduct.sizes ?? []) : [];
       const sizes = formData.sizes
         .map((row) => {
           const dpct = Number(row.discountPercentage) || 0;
@@ -223,9 +224,9 @@ export function ProductsDetailView({ productId }: ProductsDetailViewProps) {
             ...(sizePrice > 0 ? { price: sizePrice } : {}),
             ...(dpct > 0 && ddays > 0
               ? {
-                  discountPercentage: dpct,
-                  offerDurationDays: ddays,
-                  offerStartDate: originalSize?.offerStartDate ?? new Date().toISOString().slice(0, 10),
+                  discountPct: dpct,
+                  discountDays: ddays,
+                  discountStartDate: originalSize?.discountStartDate ?? new Date().toISOString().slice(0, 10),
                 }
               : {}),
           };
@@ -245,9 +246,9 @@ export function ProductsDetailView({ productId }: ProductsDetailViewProps) {
         ...base,
         ...(discountPct > 0 && offerDays > 0
           ? {
-              discountPercentage: discountPct,
-              offerDurationDays: offerDays,
-              offerStartDate: pageState.originalProduct?.offerStartDate ?? new Date().toISOString().slice(0, 10),
+              discountPct,
+              discountDays: offerDays,
+              discountStartDate: pageState.originalProduct?.discountStartDate ?? new Date().toISOString().slice(0, 10),
             }
           : {}),
         category: 'bolsos',

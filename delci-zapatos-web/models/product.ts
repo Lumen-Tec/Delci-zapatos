@@ -30,8 +30,8 @@ export interface BaseProduct {
 // - Las tallas sí se manejan como variantes dentro del producto.
 
 export interface ProductSize {
-  id: string;
-  productId: string;
+  id?: string;
+  productId?: string;
   size: string;
   price?: number;
   stock: number;

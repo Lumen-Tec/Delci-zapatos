@@ -68,14 +68,14 @@ const getNearestUpcomingPaymentDate = (referenceDateISO = todayISO()) => {
 };
 
 const computeStatus = (remainingAmount: number, nextPaymentDate?: string) => {
-  if (remainingAmount <= 0) return 'paid' as const;
+  if (remainingAmount <= 0) return 'pagada' as const;
 
   if (nextPaymentDate) {
     const today = todayISO();
-    if (nextPaymentDate < today) return 'overdue' as const;
+    if (nextPaymentDate < today) return 'atrasada' as const;
   }
 
-  return 'active' as const;
+  return 'activa' as const;
 };
 
 export {

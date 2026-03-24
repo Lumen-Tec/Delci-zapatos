@@ -1,7 +1,9 @@
 'use client';
 import React from 'react';
 import { useDashboard } from '@/app/dashboard/DashboardContext';
-import { DashboardShell } from '@/app/dashboard/DashboardShell';
+import { Navbar } from '@/app/components/shared/Navbar';
+import { NavButton } from '@/app/components/shared/Navbutton';
+import { Footer } from '@/app/components/shared/Footer';
 import HomeView from '@/app/dashboard/_views/HomeView';
 import { ProductsListView } from '@/app/dashboard/_views/ProductsListView';
 import { ProductsCreateView } from '@/app/dashboard/_views/ProductsCreateView';
@@ -39,5 +41,12 @@ export function DashboardContent() {
     );
   }
 
-  return <DashboardShell>{content}</DashboardShell>;
+  return (
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
+      <Navbar />
+      <NavButton />
+      <main className="flex-grow relative z-10 w-full">{content}</main>
+      <Footer />
+    </div>
+  );
 }
