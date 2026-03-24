@@ -19,7 +19,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
     return accounts
       .filter((account) => {
         const isEligible =
-          (account.status === 'active' || account.status === 'overdue') &&
+          (account.status === 'activa' || account.status === 'atrasada') &&
           !!account.nextPaymentDate;
         const matchesClient =
           !clientFilter ||
@@ -35,7 +35,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
 
   const totalEligible = useMemo(() => {
     return accounts.filter(
-      (a) => (a.status === 'active' || a.status === 'overdue') && a.nextPaymentDate
+      (a) => (a.status === 'activa' || a.status === 'atrasada') && a.nextPaymentDate
     ).length;
   }, [accounts]);
 
@@ -87,15 +87,15 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
 
   const getStatusBadge = (status: AccountListResult['status']) => {
     const styles = {
-      active: 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 shadow-sm',
-      paid: 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-200 shadow-sm',
-      overdue: 'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200 shadow-sm',
+      activa: 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 shadow-sm',
+      pagada: 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-200 shadow-sm',
+      atrasada: 'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200 shadow-sm',
     };
 
     const labels = {
-      active: 'Activa',
-      paid: 'Pagada',
-      overdue: 'Atrasada',
+      activa: 'Activa',
+      pagada: 'Pagada',
+      atrasada: 'Atrasada',
     };
 
     return (
@@ -186,7 +186,7 @@ export const DashboardAccountsTable = ({ accounts, onViewAccount, className = ''
                         {account.clientName}
                       </div>
                       <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                        {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Atrasada'}
+                        {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'activa' ? 'Activa' : account.status === 'pagada' ? 'Pagada' : 'Atrasada'}
                       </div>
                     </div>
                   </td>

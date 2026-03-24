@@ -37,7 +37,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
 
   const tabCounts = useMemo(() => {
     const proximosCount = accounts.filter(
-      (a) => (a.status === 'active' || a.status === 'overdue') && a.nextPaymentDate
+      (a) => (a.status === 'activa' || a.status === 'atrasada') && a.nextPaymentDate
     ).length;
     return {
       todas: accounts.length,
@@ -50,7 +50,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
       return accounts
         .filter((account) => {
           const isEligible =
-            (account.status === 'active' || account.status === 'overdue') &&
+            (account.status === 'activa' || account.status === 'atrasada') &&
             !!account.nextPaymentDate;
           const matchesClient =
             !filters.clientName ||
@@ -93,15 +93,15 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
 
   const getStatusBadge = (status: AccountListResult['status']) => {
     const styles = {
-      active: 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 shadow-sm',
-      paid: 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-200 shadow-sm',
-      overdue: 'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200 shadow-sm',
+      activa: 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 shadow-sm',
+      pagada: 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-200 shadow-sm',
+      atrasada: 'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200 shadow-sm',
     };
 
     const labels = {
-      active: 'Activa',
-      paid: 'Pagada',
-      overdue: 'Atrasada',
+      activa: 'Activa',
+      pagada: 'Pagada',
+      atrasada: 'Atrasada',
     };
 
     return (
@@ -186,7 +186,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                 <div>
                   <div className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]">{account.clientName}</div>
                   <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                    {account.totalProducts} productos • {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Atrasada'}
+                    {account.totalProducts} productos • {account.status === 'activa' ? 'Activa' : account.status === 'pagada' ? 'Pagada' : 'Atrasada'}
                   </div>
                 </div>
               </td>
@@ -274,7 +274,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                     {account.clientName}
                   </div>
                   <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                    {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'active' ? 'Activa' : account.status === 'paid' ? 'Pagada' : 'Atrasada'}
+                    {account.biweeklyAmount ? formatCurrency(account.biweeklyAmount) : '-'} · {account.status === 'activa' ? 'Activa' : account.status === 'pagada' ? 'Pagada' : 'Atrasada'}
                   </div>
                 </div>
               </td>
@@ -460,15 +460,15 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-                <span className="text-gray-600">Activas: {accounts.filter(a => a.status === 'active').length}</span>
+                <span className="text-gray-600">Activas: {accounts.filter(a => a.status === 'activa').length}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                <span className="text-gray-600">Pagadas: {accounts.filter(a => a.status === 'paid').length}</span>
+                <span className="text-gray-600">Pagadas: {accounts.filter(a => a.status === 'pagada').length}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-gray-600">Atrasadas: {accounts.filter(a => a.status === 'overdue').length}</span>
+                <span className="text-gray-600">Atrasadas: {accounts.filter(a => a.status === 'atrasada').length}</span>
               </div>
             </div>
           )}

@@ -56,6 +56,7 @@ export type ShoeProduct = BaseProduct & {
   color: string;
   sizes?: ProductSize[];
   modelGroupId?: string;
+  status?: ProductStatus;
 };
 
 // =========================
@@ -65,6 +66,7 @@ export type ShoeProduct = BaseProduct & {
 export type BagProduct = BaseProduct & {
   category: 'bolsos';
   stock: number;
+  status?: ProductStatus;
 };
 
 export type Product = ShoeProduct | BagProduct;
