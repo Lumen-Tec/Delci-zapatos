@@ -58,11 +58,30 @@ export default function AccountEditProductView() {
   const [shoeSizeByProductId, setShoeSizeByProductId] = useState<Record<string, string>>({});
 
   React.useEffect(() => {
-    // TODO: Cargar productos e informacion de cuenta desde API.
-    // GET /api/products
-    // GET /api/accounts/getById?id=<id>
-    setProducts([]);
-  }, []);
+    const fetchData = async () => {
+      if (!accountId) return;
+
+      try {
+        // Cargar cuenta
+        const accountResponse = await fetch(`/api/accounts/getById?id=${encodeURIComponent(accountId)}`, {
+          cache: 'no-store',
+        });
+        const accountData = await accountResponse.json();
+
+        if (accountResponse.ok && accountData?.ok && accountData?.account) {
+          setAccount(accountData.account as AccountDetailsResult);
+        }
+
+        // TODO: Cargar productos desde API de productos
+        // GET /api/products
+        setProducts([]);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    fetchData();
+  }, [accountId]);
 
   const filteredProducts = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
@@ -75,7 +94,7 @@ export default function AccountEditProductView() {
     });
   }, [products, filters]);
 
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = async (product: Product) => {
     if (!account) return;
 
     const quantity = Math.max(1, Number(quantityByProductId[product.id] ?? '1') || 1);
@@ -131,9 +150,28 @@ export default function AccountEditProductView() {
 
     setAccount(nextAccount);
 
-    // TODO: Persistir cambios via API.
-    // PATCH /api/accounts { id, ...fields }
-    console.log('Pending API integration - update account items payload:', nextAccount);
+    try {
+      const response = await fetch('/api/accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: nextAccount.id,
+          initialBalance: nextAccount.totalAmount - nextAccount.totalPaid,
+          quincenalAmount: nextAccount.biweeklyAmount,
+          detail: nextAccount.detail,
+          status: nextAccount.status,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.ok) {
+        console.error('Error updating account:', result?.error);
+        return;
+      }
+    } catch (error) {
+      console.error('Error updating account:', error);
+    }
   };
 
   if (!account) {
@@ -182,10 +220,6 @@ export default function AccountEditProductView() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3 text-xs text-rose-700 mb-4">
-        TODO: Integrar carga de productos y persistencia de cuenta por API.
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
