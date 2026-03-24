@@ -75,6 +75,11 @@ export type DbAccountPaymentInsert = {
     payment_date: string
 }
 
+export type DbAccountPaymentUpdate = Partial<{
+    amount: number
+    payment_date: string
+}>
+
 // ── Clients ─────────────────────────────────────────────
 export type DbClientRow = {
     id: string

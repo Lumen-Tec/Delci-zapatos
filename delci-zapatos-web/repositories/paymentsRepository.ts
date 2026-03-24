@@ -1,6 +1,17 @@
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
+import { getAccountById } from '@/repositories/accountsRepository'
 import type { DbAccountPaymentInsert } from '@/types/database'
-import type { CreatePaymentInput, CreatePaymentResult, PaymentResult, PaymentRow } from '@/types/paymentsRepository'
+import type {
+    CreatePaymentInput,
+    CreatePaymentResult,
+    DeletePaymentInput,
+    DeletePaymentResult,
+    PatchPaymentDbInput,
+    PatchPaymentInput,
+    PatchPaymentResult,
+    PaymentResult,
+    PaymentRow,
+} from '@/types/paymentsRepository'
 
 function mapPaymentRowToResult(row: PaymentRow): PaymentResult {
     return {
@@ -43,4 +54,74 @@ export async function createPayment(data: CreatePaymentInput): Promise<CreatePay
     if (error) throw error
 
     return { payment: mapPaymentRowToResult(payment as PaymentRow) }
+}
+
+/**
+ * Actualiza parcialmente un pago.
+ * Permite corregir monto y/o fecha de pago.
+ */
+export async function patchPayment(data: PatchPaymentInput): Promise<PatchPaymentResult> {
+    const supabase = await createSupabaseClient()
+
+    const { data: existingPayment, error: existingPaymentError } = await supabase
+        .from('account_payments')
+        .select('id, account_id, amount, payment_date, created_at')
+        .eq('id', data.paymentId)
+        .maybeSingle()
+
+    if (existingPaymentError) throw existingPaymentError
+    if (!existingPayment) return { ok: false, reason: 'not_found' }
+
+    if (data.amount !== undefined) {
+        const account = await getAccountById(existingPayment.account_id)
+        const maxAllowedAmount = existingPayment.amount + account.remainingAmount
+
+        if (data.amount > maxAllowedAmount) {
+            return {
+                ok: false,
+                reason: 'would_exceed_remaining',
+                maxAllowedAmount,
+                remainingAmount: account.remainingAmount,
+                currentAmount: existingPayment.amount,
+            }
+        }
+    }
+
+    const update: PatchPaymentDbInput = {}
+    if (data.amount !== undefined) update.amount = data.amount
+    if (data.paymentDate !== undefined) update.payment_date = data.paymentDate
+
+    const { data: updatedPayment, error: updateError } = await supabase
+        .from('account_payments')
+        .update(update)
+        .eq('id', data.paymentId)
+        .select('id, account_id, amount, payment_date, created_at')
+        .maybeSingle()
+
+    if (updateError) throw updateError
+    if (!updatedPayment) return { ok: false, reason: 'not_found' }
+
+    return {
+        ok: true,
+        payment: mapPaymentRowToResult(updatedPayment as PaymentRow),
+    }
+}
+
+/**
+ * Elimina un pago registrado.
+ */
+export async function deletePayment(data: DeletePaymentInput): Promise<DeletePaymentResult> {
+    const supabase = await createSupabaseClient()
+
+    const { data: deletedPayment, error } = await supabase
+        .from('account_payments')
+        .delete()
+        .eq('id', data.paymentId)
+        .select('id')
+        .maybeSingle()
+
+    if (error) throw error
+    if (!deletedPayment) return { ok: false, reason: 'not_found' }
+
+    return { ok: true, paymentId: deletedPayment.id }
 }
