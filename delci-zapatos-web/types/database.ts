@@ -2,18 +2,18 @@
 
 // ── Status ──────────────────────────────────────────────
 export type DbAccountStatus = 'activa' | 'pagada' | 'atrasada'
-export type FrontendAccountStatus = 'active' | 'paid' | 'overdue'
+export type FrontendAccountStatus = 'activa' | 'pagada' | 'atrasada'
 
 export const STATUS_DB_TO_FRONTEND = {
-    activa: 'active',
-    pagada: 'paid',
-    atrasada: 'overdue',
+    activa: 'activa',
+    pagada: 'pagada',
+    atrasada: 'atrasada',
 } as const satisfies Record<DbAccountStatus, FrontendAccountStatus>
 
 export const STATUS_FRONTEND_TO_DB = {
-    active: 'activa',
-    paid: 'pagada',
-    overdue: 'atrasada',
+    activa: 'activa',
+    pagada: 'pagada',
+    atrasada: 'atrasada',
 } as const satisfies Record<FrontendAccountStatus, DbAccountStatus>
 
 // ── Accounts ────────────────────────────────────────────
@@ -25,6 +25,13 @@ export type DbAccountInsert = {
     next_payment_date: string
     status?: DbAccountStatus
 }
+
+export type DbAccountUpdate = Partial<{
+    initial_balance: number
+    quincenal_amount: number
+    detail: string | null
+    status: DbAccountStatus
+}>
 
 export type DbAccountRow = {
     id: string

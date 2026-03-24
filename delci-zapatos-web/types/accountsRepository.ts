@@ -1,4 +1,5 @@
 import type {
+    DbAccountUpdate,
     DbAccountItemRow,
     DbAccountPaymentRow,
     DbAccountRow,
@@ -13,6 +14,31 @@ export type CreateAccountInput = {
     detail?: string
     nextPaymentDate: string
 }
+
+export type PatchAccountInput = {
+    initialBalance?: number
+    quincenalAmount?: number
+    detail?: string | null
+    status?: FrontendAccountStatus
+}
+
+export type PatchAccountDbInput = DbAccountUpdate
+
+export type PatchAccountResult =
+    | {
+        ok: true
+        accountId: string
+    }
+    | {
+        ok: false
+        reason: 'not_found'
+    }
+    | {
+        ok: false
+        reason: 'status_requires_full_payment'
+        totalAmount: number
+        totalPaid: number
+    }
 
 export type ClientRelation =
     | Pick<DbClientRow, 'full_name'>

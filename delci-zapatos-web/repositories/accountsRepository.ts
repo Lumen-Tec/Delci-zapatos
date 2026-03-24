@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import type {
+    DbAccountStatus,
     DbAccountInsert,
 } from '@/types/database'
 import type {
@@ -11,8 +12,11 @@ import type {
     AccountsListRow,
     ClientRelation,
     CreateAccountInput,
+    PatchAccountDbInput,
+    PatchAccountInput,
+    PatchAccountResult,
 } from '@/types/accountsRepository'
-import { STATUS_DB_TO_FRONTEND } from '@/types/database'
+import { STATUS_DB_TO_FRONTEND, STATUS_FRONTEND_TO_DB } from '@/types/database'
 
 type AccountTotals = {
     totalAmount: number
@@ -51,6 +55,17 @@ function calculateAccountTotals(
     }
 }
 
+function mapPatchAccountToDbInput(data: PatchAccountInput): PatchAccountDbInput {
+    const update: PatchAccountDbInput = {}
+
+    if (data.initialBalance !== undefined) update.initial_balance = data.initialBalance
+    if (data.quincenalAmount !== undefined) update.quincenal_amount = data.quincenalAmount
+    if (data.detail !== undefined) update.detail = data.detail
+    if (data.status !== undefined) update.status = STATUS_FRONTEND_TO_DB[data.status]
+
+    return update
+}
+
 /**
  * Crea una cuenta nueva con status inicial activa.
  */
@@ -74,6 +89,59 @@ export async function createAccount(data: CreateAccountInput) {
 
     if (error) throw error
     return account
+}
+
+/**
+ * Actualiza parcialmente una cuenta.
+ * Solo persiste los campos enviados y retorna null si la cuenta no existe.
+ */
+export async function patchAccountById(id: string, data: PatchAccountInput): Promise<PatchAccountResult> {
+    const supabase = await createClient()
+
+    const { data: baseAccount, error: baseAccountError } = await supabase
+        .from('accounts')
+        .select(`
+            id,
+            initial_balance,
+            account_items ( quantity, unit_price ),
+            account_payments ( amount )
+        `)
+        .eq('id', id)
+        .maybeSingle()
+
+    if (baseAccountError) throw baseAccountError
+    if (!baseAccount) return { ok: false, reason: 'not_found' }
+
+    if (data.status === 'pagada') {
+        const totals = calculateAccountTotals(
+            data.initialBalance ?? baseAccount.initial_balance,
+            baseAccount.account_items ?? [],
+            baseAccount.account_payments ?? [],
+        )
+
+        if (totals.totalAmount !== totals.totalPaid) {
+            return {
+                ok: false,
+                reason: 'status_requires_full_payment',
+                totalAmount: totals.totalAmount,
+                totalPaid: totals.totalPaid,
+            }
+        }
+    }
+
+    const update = mapPatchAccountToDbInput(data)
+
+    const { data: updated, error } = await supabase
+        .from('accounts')
+        .update(update)
+        .eq('id', id)
+        .select('id')
+        .maybeSingle()
+
+    if (error) throw error
+    if (!updated) return { ok: false, reason: 'not_found' }
+
+    return { ok: true, accountId: updated.id }
 }
 
 /**
@@ -119,7 +187,7 @@ export async function getAccounts(): Promise<AccountListResult[]> {
             totalPaid: totals.totalPaid,
             remainingAmount: totals.remainingAmount,
             totalProducts: totals.totalProducts,
-            status: STATUS_DB_TO_FRONTEND[row.status],
+            status: STATUS_DB_TO_FRONTEND[row.status as DbAccountStatus],
             nextPaymentDate: row.next_payment_date,
             biweeklyAmount: row.quincenal_amount,
         }
@@ -195,7 +263,7 @@ export async function getAccountById(id: string): Promise<AccountDetailsResult> 
         totalPaid: totals.totalPaid,
         remainingAmount: totals.remainingAmount,
         totalProducts: totals.totalProducts,
-        status: STATUS_DB_TO_FRONTEND[details.status],
+        status: STATUS_DB_TO_FRONTEND[details.status as DbAccountStatus],
         nextPaymentDate: details.next_payment_date,
         biweeklyAmount: details.quincenal_amount,
         detail: details.detail,
