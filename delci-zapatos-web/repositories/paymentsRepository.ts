@@ -113,6 +113,35 @@ export async function patchPayment(data: PatchPaymentInput): Promise<PatchPaymen
 export async function deletePayment(data: DeletePaymentInput): Promise<DeletePaymentResult> {
     const supabase = await createSupabaseClient()
 
+    const { data: targetPayment, error: targetPaymentError } = await supabase
+        .from('account_payments')
+        .select('id, account_id, payment_date, created_at')
+        .eq('id', data.paymentId)
+        .maybeSingle()
+
+    if (targetPaymentError) throw targetPaymentError
+    if (!targetPayment) return { ok: false, reason: 'not_found' }
+
+    const { data: latestPayment, error: latestPaymentError } = await supabase
+        .from('account_payments')
+        .select('id, payment_date')
+        .eq('account_id', targetPayment.account_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+    if (latestPaymentError) throw latestPaymentError
+    if (!latestPayment) return { ok: false, reason: 'not_found' }
+
+    if (latestPayment.id !== targetPayment.id) {
+        return {
+            ok: false,
+            reason: 'only_latest_payment_can_be_deleted',
+            latestPaymentId: latestPayment.id,
+            latestPaymentDate: latestPayment.payment_date,
+        }
+    }
+
     const { data: deletedPayment, error } = await supabase
         .from('account_payments')
         .delete()

@@ -62,3 +62,9 @@ export type DeletePaymentResult =
         ok: false
         reason: 'not_found'
     }
+    | {
+        ok: false
+        reason: 'only_latest_payment_can_be_deleted'
+        latestPaymentId: string
+        latestPaymentDate: string
+    }

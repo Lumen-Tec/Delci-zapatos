@@ -181,8 +181,20 @@ export async function DELETE(request: Request) {
 
         const deleted = await deletePayment({ paymentId })
 
-        if (!deleted.ok) {
+        if (!deleted.ok && deleted.reason === 'not_found') {
             return Response.json({ ok: false, error: 'Pago no encontrado' }, { status: 404 })
+        }
+
+        if (!deleted.ok && deleted.reason === 'only_latest_payment_can_be_deleted') {
+            return Response.json(
+                {
+                    ok: false,
+                    error: 'Solo se puede eliminar el ultimo pago registrado para mantener la fecha de pago correcta',
+                    latestPaymentId: deleted.latestPaymentId,
+                    latestPaymentDate: deleted.latestPaymentDate,
+                },
+                { status: 409 },
+            )
         }
 
         const reconciledAccount = await reconcileAccountAfterPayment(deleted.accountId, {

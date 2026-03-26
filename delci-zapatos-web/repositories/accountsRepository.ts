@@ -316,6 +316,7 @@ export async function getAccountById(id: string): Promise<AccountDetailsResult> 
         id: p.id,
         date: p.payment_date,
         amount: p.amount,
+        createdAt: p.created_at,
     }))
 
     const lastPayment = payments.length > 0

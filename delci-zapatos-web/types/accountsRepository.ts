@@ -89,6 +89,7 @@ export type AccountPaymentResult = {
     id: string
     date: string
     amount: number
+    createdAt: string
 }
 
 export type AccountDetailsResult = {

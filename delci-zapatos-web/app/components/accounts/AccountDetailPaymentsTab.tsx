@@ -52,6 +52,16 @@ export function AccountDetailPaymentsTab({
   onEditPaymentAmountChange,
   onEditPaymentDateChange,
 }: AccountDetailPaymentsTabProps) {
+  const paymentsByRegistration = React.useMemo(
+    () =>
+      payments
+        .slice()
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [payments],
+  );
+
+  const latestPaymentId = paymentsByRegistration[0]?.id ?? null;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-6">
       <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm sm:shadow-lg overflow-hidden">
@@ -86,7 +96,7 @@ export function AccountDetailPaymentsTab({
             Registrar pago
           </Button>
 
-          <Button onClick={onNotifyClient} variant="outline" size="md" className="w-full sm:w-auto" loading={isNotifyingClient}>
+          <Button onClick={onNotifyClient} variant="outline" size="md" className="w-full sm:w-auto sm:ml-2" loading={isNotifyingClient}>
             Notificar por WhatsApp
           </Button>
         </div>
@@ -101,11 +111,15 @@ export function AccountDetailPaymentsTab({
             <div className="text-xs sm:text-sm text-gray-600">Aun no hay pagos registrados.</div>
           ) : (
             <>
+              <div className="mb-2 text-[11px] sm:text-xs text-gray-500">
+                Solo se puede eliminar el ultimo pago registrado.
+              </div>
+
               <div className="md:hidden space-y-1.5">
-                {payments
-                  .slice()
-                  .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((payment) => (
+                {paymentsByRegistration.map((payment) => {
+                  const canDelete = payment.id === latestPaymentId;
+
+                  return (
                     <div key={payment.id} className="border-b border-gray-100 last:border-b-0 py-1.5 first:pt-0 last:pb-0">
                       {editingPaymentId === payment.id ? (
                         <div className="space-y-1.5 bg-rose-50/60 border border-rose-100 rounded-lg p-2">
@@ -162,8 +176,13 @@ export function AccountDetailPaymentsTab({
                             <button
                               type="button"
                               onClick={() => onDeletePayment(payment.id)}
-                              className="inline-flex items-center justify-center p-1 rounded-md text-red-600 hover:text-white bg-red-100 hover:bg-red-600 transition-colors"
-                              title="Eliminar pago"
+                              className={`inline-flex items-center justify-center p-1 rounded-md transition-colors ${
+                                canDelete
+                                  ? 'text-red-600 hover:text-white bg-red-100 hover:bg-red-600'
+                                  : 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                              }`}
+                              title={canDelete ? 'Eliminar pago' : 'Solo se puede eliminar el ultimo pago registrado'}
+                              disabled={!canDelete}
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -171,7 +190,8 @@ export function AccountDetailPaymentsTab({
                         </div>
                       )}
                     </div>
-                  ))}
+                  );
+                })}
               </div>
 
               <div className="hidden md:block overflow-x-auto">
@@ -184,10 +204,10 @@ export function AccountDetailPaymentsTab({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {payments
-                      .slice()
-                      .sort((a, b) => b.date.localeCompare(a.date))
-                      .map((payment) => (
+                    {paymentsByRegistration.map((payment) => {
+                      const canDelete = payment.id === latestPaymentId;
+
+                      return (
                         <tr key={payment.id} className="hover:bg-pink-50/30 transition-all">
                           {editingPaymentId === payment.id ? (
                             <>
@@ -243,8 +263,13 @@ export function AccountDetailPaymentsTab({
                                   <button
                                     type="button"
                                     onClick={() => onDeletePayment(payment.id)}
-                                    className="inline-flex items-center justify-center p-2 rounded-xl text-red-600 hover:text-white bg-red-100 hover:bg-red-600 transition-colors"
-                                    title="Eliminar pago"
+                                    className={`inline-flex items-center justify-center p-2 rounded-xl transition-colors ${
+                                      canDelete
+                                        ? 'text-red-600 hover:text-white bg-red-100 hover:bg-red-600'
+                                        : 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                    }`}
+                                    title={canDelete ? 'Eliminar pago' : 'Solo se puede eliminar el ultimo pago registrado'}
+                                    disabled={!canDelete}
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
@@ -253,7 +278,8 @@ export function AccountDetailPaymentsTab({
                             </>
                           )}
                         </tr>
-                      ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
