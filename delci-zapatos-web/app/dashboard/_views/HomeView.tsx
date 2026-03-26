@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useDashboard } from '@/app/dashboard/DashboardContext';
 import { WelcomeSection } from '@/app/components/dashboard/WelcomeSection';
 import { StatCard } from '@/app/components/dashboard/StatCard';
+import { MobileStatsList } from '@/app/components/dashboard/MobileStatsList';
 import { DashboardAccountsTable } from '@/app/components/dashboard/DashboardAccountsTable';
 import { SupportPanel } from '@/app/components/dashboard/SupportPanel';
 import { Button } from '@/app/components/commons/Button';
@@ -124,7 +125,12 @@ export default function Dashboard() {
         {/* Stats Cards */}
         {isLoading ? (
           <div className="mb-6 sm:mb-8 animate-pulse">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div className="sm:hidden space-y-2 mb-6">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-20 rounded-xl border border-gray-100 bg-gray-50" />
+              ))}
+            </div>
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className="h-32 rounded-2xl border border-gray-100 bg-gray-50" />
               ))}
@@ -145,7 +151,40 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="animate-content-fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <MobileStatsList
+              className="mb-6"
+              items={[
+                {
+                  title: 'Mi inventario',
+                  value: 0,
+                  description: 'productos en inventario/bodega',
+                  icon: inventoryIcon,
+                  actionText: 'Ver',
+                  color: 'blue',
+                  onAction: () => handleCardAction('add-product'),
+                },
+                {
+                  title: 'Cuentas de clientes',
+                  value: pendingAccountsCount,
+                  description: 'Total de cuentas',
+                  icon: accountsIcon,
+                  actionText: 'Ver',
+                  color: 'orange',
+                  onAction: () => handleCardAction('view-accounts'),
+                },
+                {
+                  title: 'Mis clientes',
+                  value: clients.length,
+                  description: 'Total de clientes',
+                  icon: clientsIcon,
+                  actionText: 'Ver',
+                  color: 'green',
+                  onAction: () => handleCardAction('view-clients'),
+                },
+              ]}
+            />
+
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
               <StatCard
                 title="Mi inventario"
                 value={0}
