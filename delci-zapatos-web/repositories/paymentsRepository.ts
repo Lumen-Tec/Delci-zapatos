@@ -130,3 +130,23 @@ export async function deletePayment(data: DeletePaymentInput): Promise<DeletePay
         paymentDate: deletedPayment.payment_date,
     }
 }
+
+/**
+ * Obtiene el ultimo pago registrado de una cuenta por created_at desc.
+ */
+export async function getLatestPaymentByAccountId(accountId: string): Promise<PaymentResult | null> {
+    const supabase = await createSupabaseClient()
+
+    const { data, error } = await supabase
+        .from('account_payments')
+        .select('id, account_id, amount, payment_date, created_at')
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+    if (error) throw error
+    if (!data) return null
+
+    return mapPaymentRowToResult(data as PaymentRow)
+}

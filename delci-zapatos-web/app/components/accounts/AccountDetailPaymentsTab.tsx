@@ -17,6 +17,8 @@ interface AccountDetailPaymentsTabProps {
   onSaveBiweekly: () => void;
   onRegisterPayment: () => void;
   isSavingPayment: boolean;
+  onNotifyClient: () => void;
+  isNotifyingClient: boolean;
   editingPaymentId: string | null;
   editPaymentAmount: string;
   editPaymentDate: string;
@@ -38,6 +40,8 @@ export function AccountDetailPaymentsTab({
   onSaveBiweekly,
   onRegisterPayment,
   isSavingPayment,
+  onNotifyClient,
+  isNotifyingClient,
   editingPaymentId,
   editPaymentAmount,
   editPaymentDate,
@@ -80,6 +84,10 @@ export function AccountDetailPaymentsTab({
           />
           <Button onClick={onRegisterPayment} variant="primary" size="md" className="w-full sm:w-auto" loading={isSavingPayment}>
             Registrar pago
+          </Button>
+
+          <Button onClick={onNotifyClient} variant="outline" size="md" className="w-full sm:w-auto" loading={isNotifyingClient}>
+            Notificar por WhatsApp
           </Button>
         </div>
       </div>

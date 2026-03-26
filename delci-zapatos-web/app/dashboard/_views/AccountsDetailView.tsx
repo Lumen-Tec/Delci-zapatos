@@ -56,6 +56,7 @@ export default function AccountsDetailView() {
   const [step, setStep] = useState<DetailStep>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
+  const [isNotifyingClient, setIsNotifyingClient] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editPaymentAmount, setEditPaymentAmount] = useState<string>('');
@@ -543,6 +544,51 @@ export default function AccountsDetailView() {
     }
   };
 
+  const handleNotifyClient = async () => {
+    if (!account) return;
+    if (isNotifyingClient) return;
+
+    setIsNotifyingClient(true);
+    try {
+      const response = await fetch('/api/payments/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result?.ok || !result?.waUrl) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'No se pudo preparar la notificación',
+          text: result?.error || 'Ocurrio un error al generar el enlace de WhatsApp',
+          confirmButtonColor: '#ec4899',
+        });
+        return;
+      }
+
+      const opened = window.open(result.waUrl as string, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Bloqueo de ventana detectado',
+          text: 'Permite ventanas emergentes para abrir WhatsApp.',
+          confirmButtonColor: '#ec4899',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating WhatsApp notification link:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error de conexion',
+        text: 'No se pudo conectar al servidor para notificar al cliente',
+        confirmButtonColor: '#ec4899',
+      });
+    } finally {
+      setIsNotifyingClient(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 md:pb-8 w-full">
@@ -640,6 +686,8 @@ export default function AccountsDetailView() {
           onSaveBiweekly={handleSaveBiweekly}
           onRegisterPayment={handleRegisterPayment}
           isSavingPayment={isSavingPayment}
+          onNotifyClient={handleNotifyClient}
+          isNotifyingClient={isNotifyingClient}
           editingPaymentId={editingPaymentId}
           editPaymentAmount={editPaymentAmount}
           editPaymentDate={editPaymentDate}
