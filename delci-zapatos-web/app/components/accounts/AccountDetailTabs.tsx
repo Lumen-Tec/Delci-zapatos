@@ -17,14 +17,14 @@ const tabOptions: Array<{ key: DetailStep; label: string }> = [
 
 export function AccountDetailTabs({ step, onChange }: AccountDetailTabsProps) {
   return (
-    <div className="mb-4 rounded-xl border border-rose-100 bg-white/90 p-4">
-      <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
+    <div className="mb-4 rounded-xl border border-rose-100 bg-white/90 p-2.5 sm:p-4">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-[11px] sm:text-sm">
         {tabOptions.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className={`rounded-lg px-3 py-2 font-medium transition-all ${
+            className={`rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 font-medium transition-all ${
               step === item.key ? 'bg-pink-500 text-white shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}
           >

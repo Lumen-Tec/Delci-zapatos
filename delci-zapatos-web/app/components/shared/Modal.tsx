@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -33,9 +34,10 @@ export const Modal = ({ isOpen, onClose, title, children, className = '' }: Moda
     }, [isOpen, onClose]);
 
     if (!isOpen) return null;
+    if (typeof window === 'undefined') return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300">
             <div
                 ref={modalRef}
                 className={`bg-white rounded-2xl shadow-xl w-full max-w-lg transform transition-all duration-300 scale-100 ${className}`}
@@ -57,6 +59,7 @@ export const Modal = ({ isOpen, onClose, title, children, className = '' }: Moda
                 </div>
                 <div className="p-6">{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

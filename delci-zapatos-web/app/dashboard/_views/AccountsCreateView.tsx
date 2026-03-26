@@ -57,6 +57,20 @@ function computeTotalsFromItems(items: AccountItem[]) {
   return { totalAmount, totalProducts };
 }
 
+const formatPhoneWithoutCountryCode = (phone: string) => {
+  const digits = phone.replace(/\D/g, '');
+
+  if (digits.length === 11 && digits.startsWith('506')) {
+    return digits.slice(3);
+  }
+
+  if (digits.length === 8) {
+    return digits;
+  }
+
+  return phone.replace(/^\+?506\s*/, '').trim();
+};
+
 export default function AccountsCreateView() {
   const dashboard = useDashboardOptional();
   const [step, setStep] = useState<CreateStep>(1);
@@ -235,94 +249,108 @@ export default function AccountsCreateView() {
         <div className="p-6 space-y-6">
           {step === 1 && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                <div className="relative max-w-md w-full">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Buscar por nombre o telefono..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm"
-                  />
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={() => setIsCreateClientModalOpen(true)}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Crear cliente
-                </Button>
-              </div>
-
-              {isClientsLoading ? (
-                <div className="text-sm text-gray-600">Cargando clientes...</div>
-              ) : filteredClients.length === 0 ? (
-                <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4 text-sm text-rose-700">
-                  No se encontraron clientes.
-                </div>
-              ) : (
-                <div className="border border-gray-100 rounded-xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
-                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {paginatedClients.map((client) => {
-                          const isSelected = draft.clientId === client.id;
-
-                          return (
-                            <tr key={client.id} className={isSelected ? 'bg-pink-50/60' : 'hover:bg-gray-50'}>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{client.fullName}</td>
-                              <td className="px-4 py-3 text-sm text-gray-700">{client.phone}</td>
-                              <td className="px-4 py-3 text-right">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant={isSelected ? 'secondary' : 'primary'}
-                                  onClick={() => setDraft((prev) => ({ ...prev, clientId: client.id }))}
-                                >
-                                  {isSelected ? 'Seleccionado' : 'Seleccionar'}
-                                </Button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="border-t border-gray-100">
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      totalItems={totalItems}
-                      startIndex={startIndex}
-                      endIndex={endIndex}
-                      pageSize={pageSize}
-                      onPageChange={setPage}
-                      onPageSizeChange={setPageSize}
-                      itemLabel="clientes"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {selectedClient && (
-                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+              {selectedClient ? (
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 space-y-3">
                   <div className="text-xs uppercase tracking-wide text-gray-500">Cliente seleccionado</div>
                   <div className="text-sm font-semibold text-gray-900 mt-1">{selectedClient.fullName}</div>
-                  <div className="text-xs text-gray-600 mt-1">{selectedClient.phone}</div>
+                  <div className="text-xs text-gray-600 mt-1">{formatPhoneWithoutCountryCode(selectedClient.phone)}</div>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      setDraft((prev) => ({ ...prev, clientId: '' }));
+                      setQuery('');
+                    }}
+                  >
+                    Seleccionar otro cliente
+                  </Button>
                 </div>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                    <div className="relative max-w-md w-full">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Buscar por nombre o telefono..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm"
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={() => setIsCreateClientModalOpen(true)}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Crear cliente
+                    </Button>
+                  </div>
+
+                  {isClientsLoading ? (
+                    <div className="text-sm text-gray-600">Cargando clientes...</div>
+                  ) : filteredClients.length === 0 ? (
+                    <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4 text-sm text-rose-700">
+                      No se encontraron clientes.
+                    </div>
+                  ) : (
+                    <div className="border border-gray-100 rounded-xl overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
+                              <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {paginatedClients.map((client) => {
+                              const isSelected = draft.clientId === client.id;
+
+                              return (
+                                <tr key={client.id} className={isSelected ? 'bg-pink-50/60' : 'hover:bg-gray-50'}>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{client.fullName}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">{formatPhoneWithoutCountryCode(client.phone)}</td>
+                                  <td className="px-4 py-3 text-right">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant={isSelected ? 'secondary' : 'primary'}
+                                      onClick={() => setDraft((prev) => ({ ...prev, clientId: client.id }))}
+                                    >
+                                      {isSelected ? 'Seleccionado' : 'Seleccionar'}
+                                    </Button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="border-t border-gray-100">
+                        <Pagination
+                          currentPage={currentPage}
+                          totalPages={totalPages}
+                          totalItems={totalItems}
+                          startIndex={startIndex}
+                          endIndex={endIndex}
+                          pageSize={pageSize}
+                          onPageChange={setPage}
+                          onPageSizeChange={setPageSize}
+                          itemLabel="clientes"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -359,22 +387,6 @@ export default function AccountsCreateView() {
                   className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded-lg border border-gray-300 bg-white text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-1 focus:border-pink-500"
                 />
               </div>
-
-              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-bold text-gray-900">Productos</h2>
-                    <p className="text-sm text-gray-600 mt-1">Opcional por ahora</p>
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  <div className="text-center py-8">
-                    <div className="text-sm font-semibold text-gray-900">No hay productos agregados</div>
-                    <div className="text-sm text-gray-600 mt-1">Puedes crear la cuenta sin productos por ahora.</div>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -404,10 +416,6 @@ export default function AccountsCreateView() {
                   <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
                 </div>
               </div>
-
-              <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-3 text-xs text-rose-700">
-                Puedes crear la cuenta sin productos. Los productos se podran agregar despues.
-              </div>
             </div>
           )}
 
@@ -417,7 +425,7 @@ export default function AccountsCreateView() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
             {step > 1 && (
               <Button type="button" variant="secondary" onClick={() => setStep((prev) => (prev - 1) as CreateStep)}>
                 <ChevronLeft className="w-4 h-4 mr-1" />
