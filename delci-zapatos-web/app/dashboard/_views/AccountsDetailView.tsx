@@ -4,11 +4,14 @@ import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { ChevronLeft, Trash2, Edit2, Save, X } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
-import { InputField } from '@/app/components/commons/InputField';
-import { formatCurrency, computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom } from '@/lib/accountUtils';
+import { AccountDetailTabs } from '@/app/components/accounts/AccountDetailTabs';
+import { AccountDetailSummaryTab } from '@/app/components/accounts/AccountDetailSummaryTab';
+import { AccountDetailProductsTab } from '@/app/components/accounts/AccountDetailProductsTab';
+import { AccountDetailPaymentsTab } from '@/app/components/accounts/AccountDetailPaymentsTab';
+import { formatCurrency, computeStatus, getNearestUpcomingPaymentDate } from '@/lib/accountUtils';
 import { getSuggestedPaymentAmount, validatePaymentAmount } from '@/lib/paymentUtil';
 import type { AccountDetailsResult, AccountPaymentResult } from '@/types/accountsRepository';
 
@@ -59,6 +62,8 @@ export default function AccountsDetailView() {
   const [editPaymentDate, setEditPaymentDate] = useState<string>('');
   const [isEditingDetail, setIsEditingDetail] = useState(false);
   const [editDetailValue, setEditDetailValue] = useState<string>('');
+  const [initialBalanceDraft, setInitialBalanceDraft] = useState('');
+  const [isSavingBalances, setIsSavingBalances] = useState(false);
 
   const [state, dispatch] = useReducer(accountReducer, {
     account: null,
@@ -104,6 +109,18 @@ export default function AccountsDetailView() {
   const account = state.account;
   const items = useMemo(() => account?.items ?? [], [account]);
   const payments = useMemo(() => account?.payments ?? [], [account]);
+  const itemsTotalAmount = useMemo(
+    () => items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+    [items],
+  );
+  const estimatedInitialBalance = useMemo(
+    () => Math.max(0, (account?.totalAmount ?? 0) - itemsTotalAmount),
+    [account?.totalAmount, itemsTotalAmount],
+  );
+  const accountIdForSuggestion = account?.id;
+  const biweeklyAmountForSuggestion = account?.biweeklyAmount;
+  const remainingAmountForSuggestion = account?.remainingAmount;
+  const suggestionSeed = `${biweeklyAmountForSuggestion ?? ''}:${remainingAmountForSuggestion ?? ''}`;
 
   const getStatusLabel = (status: AccountDetailsResult['status']) => {
     if (status === 'activa') return 'Activa';
@@ -131,10 +148,16 @@ export default function AccountsDetailView() {
 
   useEffect(() => {
     if (!account) return;
-    const suggested = getSuggestedPaymentAmount(account.biweeklyAmount, account.remainingAmount);
-    dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: account.biweeklyAmount ? String(account.biweeklyAmount) : '' });
+    setInitialBalanceDraft(String(estimatedInitialBalance));
+  }, [account?.id, account?.remainingAmount, estimatedInitialBalance]);
+
+  useEffect(() => {
+    if (biweeklyAmountForSuggestion == null || remainingAmountForSuggestion == null) return;
+
+    const suggested = getSuggestedPaymentAmount(biweeklyAmountForSuggestion, remainingAmountForSuggestion);
+    dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: biweeklyAmountForSuggestion ? String(biweeklyAmountForSuggestion) : '' });
     dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: suggested > 0 ? String(suggested) : '' });
-  }, [account?.id, account?.biweeklyAmount]);
+  }, [accountIdForSuggestion, suggestionSeed]);
 
   const persistAccount = async (next: AccountDetailsResult) => {
     dispatch({ type: 'SET_ACCOUNT', payload: next });
@@ -145,7 +168,6 @@ export default function AccountsDetailView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: next.id,
-          initialBalance: next.totalAmount - next.totalPaid,
           quincenalAmount: next.biweeklyAmount,
           detail: next.detail,
           status: next.status,
@@ -172,6 +194,64 @@ export default function AccountsDetailView() {
         text: 'No se pudo conectar al servidor para actualizar la cuenta',
         confirmButtonColor: '#ec4899',
       });
+    }
+  };
+
+  const handleSaveInitialBalance = async () => {
+    if (!account) return;
+
+    const nextInitialBalance = Number(initialBalanceDraft);
+    if (!Number.isFinite(nextInitialBalance) || nextInitialBalance < 0) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Saldo inicial invalido',
+        text: 'El saldo inicial debe ser un numero mayor o igual a 0',
+        confirmButtonColor: '#ec4899',
+      });
+      return;
+    }
+
+    setIsSavingBalances(true);
+    try {
+      const response = await fetch('/api/accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: account.id,
+          initialBalance: nextInitialBalance,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result?.ok || !result?.account) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'No se pudo actualizar',
+          text: result?.error || 'No se pudo actualizar el saldo inicial',
+          confirmButtonColor: '#ec4899',
+        });
+        return;
+      }
+
+      dispatch({ type: 'SET_ACCOUNT', payload: result.account as AccountDetailsResult });
+      await Swal.fire({
+        icon: 'success',
+        title: 'Saldo inicial actualizado',
+        timer: 1600,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+      });
+    } catch (error) {
+      console.error('Error updating initial balance:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error de conexion',
+        text: 'No se pudo conectar al servidor',
+        confirmButtonColor: '#ec4899',
+      });
+    } finally {
+      setIsSavingBalances(false);
     }
   };
 
@@ -254,28 +334,9 @@ export default function AccountsDetailView() {
         return;
       }
 
-      // Actualizar el pago en el estado local
-      const updatedPayments = account.payments.map((p) =>
-        p.id === paymentId ? { ...p, amount, date: editPaymentDate } : p
-      );
-
-      // Recalcular totales
-      const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
-      const remainingAmount = Math.max(0, account.totalAmount - totalPaid);
-      const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate : editPaymentDate;
-      const status = computeStatus(remainingAmount, nextPaymentDate);
-
-      dispatch({
-        type: 'SET_ACCOUNT',
-        payload: {
-          ...account,
-          payments: updatedPayments,
-          totalPaid,
-          remainingAmount,
-          nextPaymentDate,
-          status,
-        },
-      });
+      if (result?.account) {
+        dispatch({ type: 'SET_ACCOUNT', payload: result.account as AccountDetailsResult });
+      }
 
       setEditingPaymentId(null);
       setEditPaymentAmount('');
@@ -334,24 +395,9 @@ export default function AccountsDetailView() {
         return;
       }
 
-      // Actualizar el estado local
-      const updatedPayments = account.payments.filter((p) => p.id !== paymentId);
-      const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
-      const remainingAmount = Math.max(0, account.totalAmount - totalPaid);
-      const nextPaymentDate = remainingAmount > 0 ? getNearestUpcomingPaymentDate() : account.nextPaymentDate;
-      const status = computeStatus(remainingAmount, nextPaymentDate);
-
-      dispatch({
-        type: 'SET_ACCOUNT',
-        payload: {
-          ...account,
-          payments: updatedPayments,
-          totalPaid,
-          remainingAmount,
-          nextPaymentDate,
-          status,
-        },
-      });
+      if (result?.account) {
+        dispatch({ type: 'SET_ACCOUNT', payload: result.account as AccountDetailsResult });
+      }
 
       await Swal.fire({
         icon: 'success',
@@ -466,29 +512,10 @@ export default function AccountsDetailView() {
         return;
       }
 
-      const nextTotalPaid = account.totalPaid + amount;
-      const remainingAmount = Math.max(0, account.totalAmount - nextTotalPaid);
-      const payment: AccountPaymentResult = {
-        id: result?.created?.payment?.id ?? `PAY-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        date: paymentDate,
-        amount,
-      };
-      const nextPaymentDate = remainingAmount > 0 ? getNextPaymentDateFrom(paymentDate) : paymentDate;
-      const status = computeStatus(remainingAmount, nextPaymentDate);
+      const reconciledAccount = (result?.account as AccountDetailsResult | undefined) ?? account;
+      dispatch({ type: 'SET_ACCOUNT', payload: reconciledAccount });
 
-      const next = {
-        ...account,
-        totalPaid: nextTotalPaid,
-        remainingAmount,
-        lastPaymentDate: paymentDate,
-        nextPaymentDate,
-        payments: [...(account.payments ?? []), payment],
-        status,
-      };
-
-      await persistAccount(next);
-
-      const nextSuggested = getSuggestedPaymentAmount(next.biweeklyAmount, next.remainingAmount);
+      const nextSuggested = getSuggestedPaymentAmount(reconciledAccount.biweeklyAmount, reconciledAccount.remainingAmount);
       dispatch({ type: 'RESET_PAYMENT_FORM', payload: { amount: nextSuggested > 0 ? String(nextSuggested) : '' } });
 
       await Swal.fire({
@@ -575,368 +602,54 @@ export default function AccountsDetailView() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-xl border border-rose-100 bg-white/90 p-4">
-        <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
-          {[
-            { key: 1, label: 'Resumen' },
-            { key: 2, label: 'Productos' },
-            { key: 3, label: 'Pagos' },
-          ].map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setStep(item.key as DetailStep)}
-              className={`rounded-lg px-3 py-2 font-medium transition-all ${
-                step === item.key ? 'bg-pink-500 text-white shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <AccountDetailTabs step={step} onChange={setStep} />
 
       {step === 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Cliente</div>
-            <div className="text-lg font-semibold text-gray-900 mt-2">{account.clientName}</div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Saldo Pendiente</div>
-            <div className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(account.remainingAmount)}</div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Saldo pagado</div>
-            <div className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(account.totalPaid)}</div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Estado</div>
-            <div className="text-lg font-semibold text-gray-900 mt-2">{getStatusLabel(account.status)}</div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Monto quincenal</div>
-            <div className="text-lg font-semibold text-gray-900 mt-2">{formatCurrency(account.biweeklyAmount)}</div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Proximo pago</div>
-            <div className="text-lg font-semibold text-gray-900 mt-2">{account.nextPaymentDate || 'Sin fecha'}</div>
-          </div>
-          <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Detalle de la cuenta</div>
-              {!isEditingDetail ? (
-                <button
-                  type="button"
-                  onClick={handleEditDetail}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
-                  title="Editar detalle"
-                >
-                  <Edit2 className="w-3 h-3" />
-                  Editar
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSaveDetail}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-700 transition-colors"
-                  >
-                    <Save className="w-3 h-3" />
-                    Guardar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelEditDetail}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                    Cancelar
-                  </button>
-                </div>
-              )}
-            </div>
-            {isEditingDetail ? (
-              <textarea
-                value={editDetailValue}
-                onChange={(e) => setEditDetailValue(e.target.value)}
-                placeholder="Escribe el detalle de la cuenta..."
-                rows={4}
-                className="w-full px-3 py-2 text-sm text-gray-800 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none"
-              />
-            ) : (
-              <div className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">
-                {account.detail?.trim() ? account.detail : 'Sin detalle'}
-              </div>
-            )}
-          </div>
-        </div>
+        <AccountDetailSummaryTab
+          account={account}
+          initialBalanceDraft={initialBalanceDraft}
+          onInitialBalanceDraftChange={setInitialBalanceDraft}
+          onSaveInitialBalance={handleSaveInitialBalance}
+          isSavingBalances={isSavingBalances}
+          isEditingDetail={isEditingDetail}
+          editDetailValue={editDetailValue}
+          onEditDetailValueChange={setEditDetailValue}
+          onEditDetail={handleEditDetail}
+          onSaveDetail={handleSaveDetail}
+          onCancelEditDetail={handleCancelEditDetail}
+          getStatusLabel={getStatusLabel}
+        />
       )}
 
       {step === 2 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-gray-900">Productos</h2>
-              <Button onClick={() => dashboard?.setView({ key: 'accounts_detail', accountId: account.id })} variant="primary" size="sm">
-                Agregar productos
-              </Button>
-            </div>
-          </div>
-          <div className="p-6">
-            {items.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="text-sm font-semibold text-gray-900">No hay productos en esta cuenta</div>
-                <div className="text-sm text-gray-600 mt-1">Agrega productos para calcular el total.</div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Cant.</th>
-                      <th className="hidden sm:table-cell px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Subtotal</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {items.map((item) => (
-                      <tr key={item.id} className="hover:bg-pink-50/30 transition-all">
-                        <td className="px-4 py-3">
-                          <div className="text-sm font-semibold text-gray-900">{item.name}</div>
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-gray-900">{item.quantity}</td>
-                        <td className="hidden sm:table-cell px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                          {formatCurrency(item.unitPrice * item.quantity)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="inline-flex items-center justify-center px-3 py-2 rounded-xl text-gray-600 hover:text-white bg-gray-100 hover:bg-gray-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
+        <AccountDetailProductsTab
+          items={items}
+          onRemoveItem={handleRemoveItem}
+          onAddProducts={() => dashboard?.setView({ key: 'accounts_detail', accountId: account.id })}
+        />
       )}
 
       {step === 3 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Pagos</h2>
-            </div>
-            <div className="p-6 space-y-3">
-              <div className="rounded-xl border border-pink-100 bg-pink-50 p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-500">Saldo pendiente</div>
-                <div className="mt-1 text-2xl font-bold text-gray-900">{formatCurrency(account.remainingAmount)}</div>
-              </div>
-
-              <InputField
-                label="Monto quincenal"
-                type="number"
-                value={state.biweeklyAmount}
-                onChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
-              />
-              <Button onClick={handleSaveBiweekly} variant="secondary">
-                Guardar monto quincenal
-              </Button>
-
-              <InputField
-                label="Monto a registrar"
-                type="number"
-                value={state.paymentAmount}
-                onChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
-              />
-              <Button onClick={handleRegisterPayment} variant="primary" loading={isSavingPayment}>
-                Registrar pago
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Historial</h2>
-            </div>
-            <div className="p-6">
-              {payments.length === 0 ? (
-                <div className="text-sm text-gray-600">Aun no hay pagos registrados.</div>
-              ) : (
-                <>
-                  <div className="md:hidden space-y-3">
-                    {payments
-                      .slice()
-                      .sort((a, b) => b.date.localeCompare(a.date))
-                      .map((payment) => (
-                        <div key={payment.id} className="rounded-xl border border-gray-200 bg-white p-3">
-                          {editingPaymentId === payment.id ? (
-                            <div className="space-y-3">
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha</label>
-                                <input
-                                  type="date"
-                                  value={editPaymentDate}
-                                  onChange={(e) => setEditPaymentDate(e.target.value)}
-                                  className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Monto</label>
-                                <input
-                                  type="number"
-                                  value={editPaymentAmount}
-                                  onChange={(e) => setEditPaymentAmount(e.target.value)}
-                                  className="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg"
-                                />
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleSaveEditPayment(payment.id)}
-                                  className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700 text-xs font-medium"
-                                >
-                                  Guardar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleCancelEditPayment}
-                                  className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 text-xs font-medium"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Fecha</span>
-                                <span className="text-sm text-gray-800 font-medium">{payment.date}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Monto</span>
-                                <span className="text-sm text-gray-900 font-semibold">{formatCurrency(payment.amount)}</span>
-                              </div>
-                              <div className="flex items-center justify-end gap-2 pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditPayment(payment)}
-                                  className="inline-flex items-center justify-center p-2 rounded-xl text-blue-600 hover:text-white bg-blue-100 hover:bg-blue-600 transition-colors"
-                                  title="Editar pago"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeletePayment(payment.id)}
-                                  className="inline-flex items-center justify-center p-2 rounded-xl text-red-600 hover:text-white bg-red-100 hover:bg-red-600 transition-colors"
-                                  title="Eliminar pago"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
-                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Monto</th>
-                          <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {payments
-                          .slice()
-                          .sort((a, b) => b.date.localeCompare(a.date))
-                          .map((payment) => (
-                            <tr key={payment.id} className="hover:bg-pink-50/30 transition-all">
-                              {editingPaymentId === payment.id ? (
-                                <>
-                                  <td className="px-4 py-3">
-                                    <input
-                                      type="date"
-                                      value={editPaymentDate}
-                                      onChange={(e) => setEditPaymentDate(e.target.value)}
-                                      className="w-full px-2 py-1 text-sm text-gray-900 bg-white border border-gray-300 rounded"
-                                    />
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <input
-                                      type="number"
-                                      value={editPaymentAmount}
-                                      onChange={(e) => setEditPaymentAmount(e.target.value)}
-                                      className="w-full px-2 py-1 text-sm text-right text-gray-900 bg-white border border-gray-300 rounded"
-                                    />
-                                  </td>
-                                  <td className="px-4 py-3 text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSaveEditPayment(payment.id)}
-                                        className="inline-flex items-center justify-center px-2 py-1 rounded-lg text-white bg-green-600 hover:bg-green-700 text-xs"
-                                      >
-                                        Guardar
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={handleCancelEditPayment}
-                                        className="inline-flex items-center justify-center px-2 py-1 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 text-xs"
-                                      >
-                                        Cancelar
-                                      </button>
-                                    </div>
-                                  </td>
-                                </>
-                              ) : (
-                                <>
-                                  <td className="px-4 py-3 text-sm text-gray-700">{payment.date}</td>
-                                  <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{formatCurrency(payment.amount)}</td>
-                                  <td className="px-4 py-3 text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleEditPayment(payment)}
-                                        className="inline-flex items-center justify-center p-2 rounded-xl text-blue-600 hover:text-white bg-blue-100 hover:bg-blue-600 transition-colors"
-                                        title="Editar pago"
-                                      >
-                                        <Edit2 className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeletePayment(payment.id)}
-                                        className="inline-flex items-center justify-center p-2 rounded-xl text-red-600 hover:text-white bg-red-100 hover:bg-red-600 transition-colors"
-                                        title="Eliminar pago"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </>
-                              )}
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <AccountDetailPaymentsTab
+          account={account}
+          payments={payments}
+          biweeklyAmount={state.biweeklyAmount}
+          paymentAmount={state.paymentAmount}
+          onBiweeklyAmountChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
+          onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
+          onSaveBiweekly={handleSaveBiweekly}
+          onRegisterPayment={handleRegisterPayment}
+          isSavingPayment={isSavingPayment}
+          editingPaymentId={editingPaymentId}
+          editPaymentAmount={editPaymentAmount}
+          editPaymentDate={editPaymentDate}
+          onEditPayment={handleEditPayment}
+          onCancelEditPayment={handleCancelEditPayment}
+          onSaveEditPayment={handleSaveEditPayment}
+          onDeletePayment={handleDeletePayment}
+          onEditPaymentAmountChange={setEditPaymentAmount}
+          onEditPaymentDateChange={setEditPaymentDate}
+        />
       )}
     </div>
   );

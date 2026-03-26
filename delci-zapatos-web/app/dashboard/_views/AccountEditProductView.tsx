@@ -156,7 +156,6 @@ export default function AccountEditProductView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: nextAccount.id,
-          initialBalance: nextAccount.totalAmount - nextAccount.totalPaid,
           quincenalAmount: nextAccount.biweeklyAmount,
           detail: nextAccount.detail,
           status: nextAccount.status,
