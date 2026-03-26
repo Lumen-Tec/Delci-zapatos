@@ -1,5 +1,5 @@
 import { createPayment, deletePayment, patchPayment } from '@/repositories/paymentsRepository'
-import { getAccountById } from '@/repositories/accountsRepository'
+import { getAccountById, reconcileAccountAfterPayment } from '@/repositories/accountsRepository'
 import { getErrorMessage } from '@/utils/parsers/errors'
 
 type CreatePaymentRequestBody = {
@@ -12,6 +12,14 @@ type PatchPaymentRequestBody = {
     paymentId: string
     amount?: number
     paymentDate?: string
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
+}
+
+function isAccountNotFoundError(error: unknown): boolean {
+    return isObjectRecord(error) && error.code === 'PGRST116'
 }
 
 function isValidISODate(value: string): boolean {
@@ -71,8 +79,13 @@ export async function POST(request: Request) {
             )
         }
 
-        return Response.json({ ok: true, created }, { status: 201 })
+        const reconciledAccount = await reconcileAccountAfterPayment(body.accountId)
+
+        return Response.json({ ok: true, created, account: reconciledAccount }, { status: 201 })
     } catch (error: unknown) {
+        if (isAccountNotFoundError(error)) {
+            return Response.json({ ok: false, error: 'Cuenta no encontrada' }, { status: 404 })
+        }
         return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
 }
@@ -139,8 +152,13 @@ export async function PATCH(request: Request) {
             )
         }
 
-        return Response.json({ ok: true, updated: updated.payment })
+        const reconciledAccount = await reconcileAccountAfterPayment(updated.payment.accountId)
+
+        return Response.json({ ok: true, updated: updated.payment, account: reconciledAccount })
     } catch (error: unknown) {
+        if (isAccountNotFoundError(error)) {
+            return Response.json({ ok: false, error: 'Cuenta no encontrada' }, { status: 404 })
+        }
         return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
 }
@@ -163,12 +181,19 @@ export async function DELETE(request: Request) {
 
         const deleted = await deletePayment({ paymentId })
 
-        if (!deleted.ok && deleted.reason === 'not_found') {
+        if (!deleted.ok) {
             return Response.json({ ok: false, error: 'Pago no encontrado' }, { status: 404 })
         }
 
-        return Response.json({ ok: true, deleted })
+        const reconciledAccount = await reconcileAccountAfterPayment(deleted.accountId, {
+            deletedPaymentDateHint: deleted.paymentDate,
+        })
+
+        return Response.json({ ok: true, deleted, account: reconciledAccount })
     } catch (error: unknown) {
+        if (isAccountNotFoundError(error)) {
+            return Response.json({ ok: false, error: 'Cuenta no encontrada' }, { status: 404 })
+        }
         return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
 }

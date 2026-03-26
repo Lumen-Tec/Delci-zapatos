@@ -210,10 +210,13 @@ Reglas de negocio destacadas:
 - `amount` no puede ser mayor al saldo pendiente de la cuenta.
 
 Respuestas:
-- `201 Created`: `{ ok: true, created }`
+- `201 Created`: `{ ok: true, created, account }`
 - `400 Bad Request`: validaciones de body/monto/fecha
 - `404 Not Found`: cuenta no existe
 - `500 Internal Server Error`: `{ ok: false, error }`
+
+Notas:
+- `account` incluye el snapshot consolidado de la cuenta luego de registrar el pago (totales, status y proximo pago reconciliados en backend).
 
 Ejemplo:
 ```bash
@@ -237,11 +240,14 @@ Corrige monto y/o fecha de un pago existente.
     - `paymentDate` (string `YYYY-MM-DD`)
 
 Respuestas:
-- `200 OK`: `{ ok: true, updated }`
+- `200 OK`: `{ ok: true, updated, account }`
 - `400 Bad Request`: validaciones de body/campos
 - `404 Not Found`: `{ ok: false, error: "Pago no encontrado" }`
 - `409 Conflict`: monto corregido excede saldo pendiente
 - `500 Internal Server Error`: `{ ok: false, error }`
+
+Notas:
+- `account` devuelve la cuenta reconciliada despues de corregir el pago.
 
 Ejemplo:
 ```bash
@@ -261,10 +267,13 @@ Elimina un pago.
 - Body: no aplica
 
 Respuestas:
-- `200 OK`: `{ ok: true, deleted }`
+- `200 OK`: `{ ok: true, deleted, account }`
 - `400 Bad Request`: `{ ok: false, error: "paymentId es requerido" }`
 - `404 Not Found`: `{ ok: false, error: "Pago no encontrado" }`
 - `500 Internal Server Error`: `{ ok: false, error }`
+
+Notas:
+- `account` devuelve la cuenta reconciliada despues de eliminar el pago.
 
 Ejemplo:
 ```bash

@@ -55,6 +55,8 @@ export type DeletePaymentResult =
     | {
         ok: true
         paymentId: string
+        accountId: string
+        paymentDate: string
     }
     | {
         ok: false

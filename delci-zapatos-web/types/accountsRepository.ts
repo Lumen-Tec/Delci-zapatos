@@ -19,6 +19,7 @@ export type PatchAccountInput = {
     initialBalance?: number
     quincenalAmount?: number
     detail?: string | null
+    nextPaymentDate?: string
     status?: FrontendAccountStatus
 }
 

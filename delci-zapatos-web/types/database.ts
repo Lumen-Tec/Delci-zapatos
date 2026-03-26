@@ -30,6 +30,7 @@ export type DbAccountUpdate = Partial<{
     initial_balance: number
     quincenal_amount: number
     detail: string | null
+    next_payment_date: string
     status: DbAccountStatus
 }>
 

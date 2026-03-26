@@ -117,11 +117,16 @@ export async function deletePayment(data: DeletePaymentInput): Promise<DeletePay
         .from('account_payments')
         .delete()
         .eq('id', data.paymentId)
-        .select('id')
+        .select('id, account_id, payment_date')
         .maybeSingle()
 
     if (error) throw error
     if (!deletedPayment) return { ok: false, reason: 'not_found' }
 
-    return { ok: true, paymentId: deletedPayment.id }
+    return {
+        ok: true,
+        paymentId: deletedPayment.id,
+        accountId: deletedPayment.account_id,
+        paymentDate: deletedPayment.payment_date,
+    }
 }

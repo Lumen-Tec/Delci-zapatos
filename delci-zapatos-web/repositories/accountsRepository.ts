@@ -3,6 +3,7 @@ import type {
     DbAccountStatus,
     DbAccountInsert,
 } from '@/types/database'
+import { computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom, todayISO } from '@/lib/accountUtils'
 import type {
     AccountDetailsItemResult,
     AccountDetailsResult,
@@ -17,6 +18,16 @@ import type {
     PatchAccountResult,
 } from '@/types/accountsRepository'
 import { STATUS_DB_TO_FRONTEND, STATUS_FRONTEND_TO_DB } from '@/types/database'
+
+const MONEY_SCALE = 100
+
+function toMoneyCents(value: number): number {
+    return Math.round((value + Number.EPSILON) * MONEY_SCALE)
+}
+
+function fromMoneyCents(value: number): number {
+    return value / MONEY_SCALE
+}
 
 type AccountTotals = {
     totalAmount: number
@@ -42,15 +53,25 @@ function calculateAccountTotals(
     accountItems: Array<{ quantity: number; unit_price: number }>,
     accountPayments: Array<{ amount: number }>,
 ): AccountTotals {
-    const itemsTotal = accountItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)
-    const totalPaid = accountPayments.reduce((sum, payment) => sum + payment.amount, 0)
-    const totalAmount = initialBalance + itemsTotal
+    const initialBalanceCents = toMoneyCents(initialBalance)
+    const itemsTotalCents = accountItems.reduce((sum, item) => {
+        return sum + item.quantity * toMoneyCents(item.unit_price)
+    }, 0)
+    const totalPaidCents = accountPayments.reduce((sum, payment) => {
+        return sum + toMoneyCents(payment.amount)
+    }, 0)
+
+    const totalAmountCents = initialBalanceCents + itemsTotalCents
+    const remainingAmountCents = totalAmountCents - totalPaidCents
+
+    const totalAmount = fromMoneyCents(totalAmountCents)
+    const totalPaid = fromMoneyCents(totalPaidCents)
     const totalProducts = accountItems.reduce((sum, item) => sum + item.quantity, 0)
 
     return {
         totalAmount,
         totalPaid,
-        remainingAmount: totalAmount - totalPaid,
+        remainingAmount: fromMoneyCents(remainingAmountCents),
         totalProducts,
     }
 }
@@ -61,9 +82,35 @@ function mapPatchAccountToDbInput(data: PatchAccountInput): PatchAccountDbInput 
     if (data.initialBalance !== undefined) update.initial_balance = data.initialBalance
     if (data.quincenalAmount !== undefined) update.quincenal_amount = data.quincenalAmount
     if (data.detail !== undefined) update.detail = data.detail
+    if (data.nextPaymentDate !== undefined) update.next_payment_date = data.nextPaymentDate
     if (data.status !== undefined) update.status = STATUS_FRONTEND_TO_DB[data.status]
 
     return update
+}
+
+function resolvePendingNextPaymentDate(
+    payments: AccountPaymentResult[],
+    fallbackCurrentNextPaymentDate: string,
+    deletedPaymentDateHint?: string,
+): string {
+    if (payments.length > 0) {
+        const latestPaymentDate = payments.reduce((latest, payment) => {
+            return payment.date > latest ? payment.date : latest
+        }, payments[0].date)
+
+        return getNextPaymentDateFrom(latestPaymentDate)
+    }
+
+    if (deletedPaymentDateHint) {
+        return deletedPaymentDateHint
+    }
+
+    const today = todayISO()
+    if (!fallbackCurrentNextPaymentDate || fallbackCurrentNextPaymentDate < today) {
+        return getNearestUpcomingPaymentDate(today)
+    }
+
+    return fallbackCurrentNextPaymentDate
 }
 
 /**
@@ -119,7 +166,7 @@ export async function patchAccountById(id: string, data: PatchAccountInput): Pro
             baseAccount.account_payments ?? [],
         )
 
-        if (totals.totalAmount !== totals.totalPaid) {
+        if (toMoneyCents(totals.totalAmount) !== toMoneyCents(totals.totalPaid)) {
             return {
                 ok: false,
                 reason: 'status_requires_full_payment',
@@ -142,6 +189,39 @@ export async function patchAccountById(id: string, data: PatchAccountInput): Pro
     if (!updated) return { ok: false, reason: 'not_found' }
 
     return { ok: true, accountId: updated.id }
+}
+
+/**
+ * Recalcula y persiste estado/fecha de la cuenta tras operaciones de pago.
+ */
+export async function reconcileAccountAfterPayment(
+    accountId: string,
+    options?: { deletedPaymentDateHint?: string },
+): Promise<AccountDetailsResult> {
+    const snapshot = await getAccountById(accountId)
+
+    const nextPaymentDate = snapshot.remainingAmount > 0
+        ? resolvePendingNextPaymentDate(
+            snapshot.payments,
+            snapshot.nextPaymentDate,
+            options?.deletedPaymentDateHint,
+        )
+        : (snapshot.lastPaymentDate ?? snapshot.nextPaymentDate)
+
+    const status = computeStatus(snapshot.remainingAmount, nextPaymentDate)
+    const needsUpdate = snapshot.status !== status || snapshot.nextPaymentDate !== nextPaymentDate
+
+    if (!needsUpdate) {
+        return snapshot
+    }
+
+    const updated = await patchAccountById(accountId, { status, nextPaymentDate })
+
+    if (!updated.ok && updated.reason === 'status_requires_full_payment') {
+        return snapshot
+    }
+
+    return getAccountById(accountId)
 }
 
 /**
