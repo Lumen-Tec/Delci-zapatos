@@ -10,17 +10,25 @@ interface AccountDetailProductsTabProps {
   items: AccountDetailsResult['items'];
   onRemoveItem: (itemId: string) => void;
   onAddProducts: () => void;
+  showAddProductsButton?: boolean;
 }
 
-export function AccountDetailProductsTab({ items, onRemoveItem, onAddProducts }: AccountDetailProductsTabProps) {
+export function AccountDetailProductsTab({
+  items,
+  onRemoveItem,
+  onAddProducts,
+  showAddProductsButton = true,
+}: AccountDetailProductsTabProps) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
       <div className="p-6 border-b border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-gray-900">Productos</h2>
-          <Button onClick={onAddProducts} variant="primary" size="sm">
-            Agregar productos
-          </Button>
+          {showAddProductsButton && (
+            <Button onClick={onAddProducts} variant="primary" size="sm">
+              Agregar productos
+            </Button>
+          )}
         </div>
       </div>
       <div className="p-6">

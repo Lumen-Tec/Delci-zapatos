@@ -8,6 +8,48 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const normalizeAmountInput = (value: string) => {
+  let cleaned = value.replace(/\s+/g, '').replace(/,/g, '.').replace(/[^\d.]/g, '');
+  const firstDotIndex = cleaned.indexOf('.');
+
+  if (firstDotIndex >= 0) {
+    cleaned = `${cleaned.slice(0, firstDotIndex + 1)}${cleaned.slice(firstDotIndex + 1).replace(/\./g, '')}`;
+  }
+
+  const [rawIntegerPart = '', rawDecimalPart] = cleaned.split('.');
+  const integerPart = rawIntegerPart.replace(/^0+(?=\d)/, '');
+  const safeIntegerPart = integerPart || (cleaned.startsWith('.') ? '0' : '');
+
+  if (rawDecimalPart === undefined) {
+    return safeIntegerPart;
+  }
+
+  const decimalPart = rawDecimalPart.slice(0, 2);
+  return `${safeIntegerPart}.${decimalPart}`;
+};
+
+const formatAmountWithSpaces = (value: string | number) => {
+  const normalized = normalizeAmountInput(String(value));
+  if (!normalized) return '';
+
+  const [integerPart, decimalPart] = normalized.split('.');
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+  if (decimalPart === undefined) {
+    return formattedInteger;
+  }
+
+  return `${formattedInteger}.${decimalPart}`;
+};
+
+const parseAmountInput = (value: string) => {
+  const normalized = normalizeAmountInput(value);
+  if (!normalized || normalized === '.') {
+    return Number.NaN;
+  }
+  return Number(normalized);
+};
+
 const todayISO = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -80,6 +122,9 @@ const computeStatus = (remainingAmount: number, nextPaymentDate?: string) => {
 
 export {
   formatCurrency,
+  formatAmountWithSpaces,
+  normalizeAmountInput,
+  parseAmountInput,
   todayISO,
   addDaysISO,
   isAllowedPaymentDay,

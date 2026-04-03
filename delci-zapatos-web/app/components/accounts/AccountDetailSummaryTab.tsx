@@ -4,7 +4,7 @@ import React from 'react';
 import { Edit2, Save, X } from 'lucide-react';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
-import { formatCurrency } from '@/lib/accountUtils';
+import { formatAmountWithSpaces, formatCurrency, normalizeAmountInput } from '@/lib/accountUtils';
 import type { AccountDetailsResult } from '@/types/accountsRepository';
 
 interface AccountDetailSummaryTabProps {
@@ -13,6 +13,7 @@ interface AccountDetailSummaryTabProps {
   onInitialBalanceDraftChange: (value: string) => void;
   onSaveInitialBalance: () => void;
   isSavingBalances: boolean;
+  showBalanceAdjustSection?: boolean;
   isEditingDetail: boolean;
   editDetailValue: string;
   onEditDetailValueChange: (value: string) => void;
@@ -28,6 +29,7 @@ export function AccountDetailSummaryTab({
   onInitialBalanceDraftChange,
   onSaveInitialBalance,
   isSavingBalances,
+  showBalanceAdjustSection = true,
   isEditingDetail,
   editDetailValue,
   onEditDetailValueChange,
@@ -146,25 +148,27 @@ export function AccountDetailSummaryTab({
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-4 sm:p-6">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-3">Ajuste manual de saldo</div>
-        <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-2 max-w-md">
-            <InputField
-              label="Saldo inicial"
-              type="number"
-              value={initialBalanceDraft}
-              onChange={onInitialBalanceDraftChange}
-            />
-            <Button onClick={onSaveInitialBalance} variant="secondary" loading={isSavingBalances}>
-              Guardar saldo inicial
-            </Button>
-            <div className="text-xs text-gray-500">
-              El saldo pendiente se ajusta unicamente mediante el registro de pagos.
+      {showBalanceAdjustSection && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-4 sm:p-6">
+          <div className="text-xs uppercase tracking-wide text-gray-500 mb-3">Ajuste manual de saldo</div>
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2 max-w-md">
+              <InputField
+                label="Saldo inicial"
+                type="text"
+                value={formatAmountWithSpaces(initialBalanceDraft)}
+                onChange={(value) => onInitialBalanceDraftChange(normalizeAmountInput(value))}
+              />
+              <Button onClick={onSaveInitialBalance} variant="secondary" loading={isSavingBalances}>
+                Guardar saldo inicial
+              </Button>
+              <div className="text-xs text-gray-500">
+                El saldo pendiente se ajusta unicamente mediante el registro de pagos.
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
