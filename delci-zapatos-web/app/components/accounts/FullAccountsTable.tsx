@@ -147,16 +147,13 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
             Cliente
           </th>
           <th className="hidden sm:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-            Productos
+            Saldo pendiente
           </th>
           <th className="hidden md:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
             Total
           </th>
           <th className="hidden lg:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
             Pagado
-          </th>
-          <th className="hidden lg:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-            Restante
           </th>
           <th className="hidden sm:table-cell px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
             Estado
@@ -169,7 +166,7 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
       <tbody className="bg-white divide-y divide-gray-200">
         {filteredAccounts.length === 0 ? (
           <tr>
-            <td colSpan={7} className="px-6 py-12 text-center">
+            <td colSpan={6} className="px-6 py-12 text-center">
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                   <Search className="w-8 h-8 text-gray-400" />
@@ -181,17 +178,32 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
           </tr>
         ) : (
           paginatedAccounts.map((account) => (
-            <tr key={account.id} className="hover:bg-gray-50 transition-colors duration-150">
+            <tr
+              key={account.id}
+              onClick={() => onViewAccount?.(account.id)}
+              onKeyDown={(event) => {
+                if ((event.key === 'Enter' || event.key === ' ') && onViewAccount) {
+                  event.preventDefault();
+                  onViewAccount(account.id);
+                }
+              }}
+              tabIndex={onViewAccount ? 0 : -1}
+              role={onViewAccount ? 'button' : undefined}
+              className={`transition-colors duration-150 ${onViewAccount
+                ? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-300 focus-visible:ring-inset'
+                : 'hover:bg-gray-50'
+              }`}
+            >
               <td className="px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                 <div>
                   <div className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]">{account.clientName}</div>
                   <div className="sm:hidden text-xs text-gray-500 mt-0.5">
-                    {account.totalProducts} productos • {account.status === 'activa' ? 'Activa' : account.status === 'pagada' ? 'Pagada' : 'Atrasada'}
+                    {formatCurrency(account.remainingAmount)} pendiente • {account.status === 'activa' ? 'Activa' : account.status === 'pagada' ? 'Pagada' : 'Atrasada'}
                   </div>
                 </div>
               </td>
               <td className="hidden sm:table-cell px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
-                <div className="text-xs sm:text-xs md:text-sm lg:text-sm text-gray-900">{account.totalProducts}</div>
+                <div className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900">{formatCurrency(account.remainingAmount)}</div>
               </td>
               <td className="hidden md:table-cell px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                 <div className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900">
@@ -203,23 +215,14 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                   {formatCurrency(account.totalPaid)}
                 </div>
               </td>
-              <td className="hidden lg:table-cell px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
-                <div className="text-xs sm:text-xs md:text-sm lg:text-sm font-medium text-gray-900">
-                  {formatCurrency(account.remainingAmount)}
-                </div>
-              </td>
               <td className="hidden sm:table-cell px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                 {getStatusBadge(account.status)}
               </td>
               <td className="px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button
-                  onClick={() => onViewAccount?.(account.id)}
-                  className="inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 md:py-2 rounded-lg text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium whitespace-nowrap min-w-[60px] sm:min-w-[80px]"
-                  title="Ver cuenta"
-                >
-                  <span className="hidden sm:inline">Ver cuenta</span>
+                <span className="inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-pink-700 bg-pink-50 text-xs font-medium whitespace-nowrap min-w-[60px] sm:min-w-[80px]">
+                  <span className="hidden sm:inline">Ver detalle</span>
                   <span className="sm:hidden">Ver</span>
-                </button>
+                </span>
               </td>
             </tr>
           ))
@@ -267,7 +270,22 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
           </tr>
         ) : (
           paginatedAccounts.map((account) => (
-            <tr key={account.id} className="hover:bg-gray-50 transition-colors duration-150">
+            <tr
+              key={account.id}
+              onClick={() => onViewAccount?.(account.id)}
+              onKeyDown={(event) => {
+                if ((event.key === 'Enter' || event.key === ' ') && onViewAccount) {
+                  event.preventDefault();
+                  onViewAccount(account.id);
+                }
+              }}
+              tabIndex={onViewAccount ? 0 : -1}
+              role={onViewAccount ? 'button' : undefined}
+              className={`transition-colors duration-150 ${onViewAccount
+                ? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-300 focus-visible:ring-inset'
+                : 'hover:bg-gray-50'
+              }`}
+            >
               <td className="px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap">
                 <div>
                   <div className="text-xs sm:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-[200px]">
@@ -297,14 +315,10 @@ export const FullAccountsTable = ({ accounts, onViewAccount, className = '' }: F
                 {getStatusBadge(account.status)}
               </td>
               <td className="px-1 sm:px-2 md:px-3 lg:px-6 py-1.5 sm:py-2 md:py-3 lg:py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button
-                  onClick={() => onViewAccount?.(account.id)}
-                  className="inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 md:py-2 rounded-lg text-pink-600 hover:text-white bg-pink-50 hover:bg-pink-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium whitespace-nowrap min-w-[60px] sm:min-w-[80px]"
-                  title="Ver cuenta"
-                >
-                  <span className="hidden sm:inline">Ver cuenta</span>
+                <span className="inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-pink-700 bg-pink-50 text-xs font-medium whitespace-nowrap min-w-[60px] sm:min-w-[80px]">
+                  <span className="hidden sm:inline">Ver detalle</span>
                   <span className="sm:hidden">Ver</span>
-                </button>
+                </span>
               </td>
             </tr>
           ))

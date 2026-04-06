@@ -4,7 +4,7 @@ import React from 'react';
 import { Edit2, Save, X } from 'lucide-react';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
-import { formatAmountWithSpaces, formatCurrency, normalizeAmountInput } from '@/lib/accountUtils';
+import { formatAmountWithSpaces, formatCurrency, normalizeAmountInput } from '@/utils/accountUtils';
 import type { AccountDetailsResult } from '@/types/accountsRepository';
 
 interface AccountDetailSummaryTabProps {
@@ -40,7 +40,7 @@ export function AccountDetailSummaryTab({
 }: AccountDetailSummaryTabProps) {
   return (
     <div className="space-y-3 sm:space-y-6">
-      <div className="sm:hidden bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm sm:shadow-lg overflow-hidden">
         <div className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100">
           Resumen
         </div>
@@ -69,33 +69,6 @@ export function AccountDetailSummaryTab({
             <span className="text-xs text-gray-500">Proximo pago</span>
             <span className="text-sm font-medium text-gray-900">{account.nextPaymentDate || 'Sin fecha'}</span>
           </div>
-        </div>
-      </div>
-
-      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-500">Cliente</div>
-          <div className="text-lg font-semibold text-gray-900 mt-2">{account.clientName}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-500">Saldo Pendiente</div>
-          <div className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(account.remainingAmount)}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-500">Saldo pagado</div>
-          <div className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(account.totalPaid)}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-500">Estado</div>
-          <div className="text-lg font-semibold text-gray-900 mt-2">{getStatusLabel(account.status)}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-500">Monto quincenal</div>
-          <div className="text-lg font-semibold text-gray-900 mt-2">{formatCurrency(account.biweeklyAmount)}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-500">Proximo pago</div>
-          <div className="text-lg font-semibold text-gray-900 mt-2">{account.nextPaymentDate || 'Sin fecha'}</div>
         </div>
       </div>
 

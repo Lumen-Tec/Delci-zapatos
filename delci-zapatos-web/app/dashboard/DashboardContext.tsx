@@ -4,35 +4,53 @@ import {createContext, useCallback, useContext, useEffect, useMemo, useRef, useS
 
 export type DashboardView =
   | { key: 'home' }
-  | { key: 'products_list' }
-  | { key: 'products_new' }
-  | { key: 'accounts' }
   | { key: 'accounts_new' }
   | { key: 'accounts_detail'; accountId?: string }
-  | { key: 'clients' }
 
 
 interface DashboardContextValue {
   view: DashboardView
   setView: (view: DashboardView) => void
   goBack: () => void
-  canGoBack: boolean
-  isClientCreateModalOpen: boolean
-  openClientCreateModal: () => void
-  closeClientCreateModal: () => void
-  isClienteDetailModalOpen: boolean
-  openClienteDetailModalOpen: () => void
-  closeClienteDetailModalOpen: () => void
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 const storage_view = 'delci_dashboard_view'
 
+function getStoredView(): DashboardView | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const rawValue = localStorage.getItem(storage_view);
+    if (!rawValue) return null;
+
+    const parsed = JSON.parse(rawValue) as { key?: unknown; accountId?: unknown };
+
+    if (parsed?.key === 'home') {
+      return { key: 'home' };
+    }
+
+    if (parsed?.key === 'accounts_new') {
+      return { key: 'accounts_new' };
+    }
+
+    if (parsed?.key === 'accounts_detail') {
+      if (typeof parsed.accountId === 'string' && parsed.accountId.trim().length > 0) {
+        return { key: 'accounts_detail', accountId: parsed.accountId };
+      }
+
+      return { key: 'accounts_detail' };
+    }
+  } catch {}
+
+  return null;
+}
+
 function saveView(view: DashboardView) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(storage_view, JSON.stringify(view))
-  } catch(error) {}
+  } catch {}
 }
 
 export function DashboardProvider({
@@ -43,23 +61,19 @@ export function DashboardProvider({
   initialView?: DashboardView;
 }) {
   const [view, setViewState] = useState<DashboardView>(initialView);
-  const [isClientCreateModalOpen, setClientCreateModalOpen] = useState(false);
-  const [isClienteDetailModalOpen, setClienteDetailModalOpen] = useState(false);
-  const [isHydrating, setIsHydrating] = useState(true);
   const previousViewRef = useRef<DashboardView | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storage_view);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object' && 'key' in parsed) {
-          setViewState(parsed as DashboardView);
-        }
-      }
-    } catch (error) {}
-    setIsHydrating(false);
-  }, []);
+    const storedView = getStoredView();
+    if (storedView) {
+      queueMicrotask(() => {
+        setViewState(storedView);
+      });
+      return;
+    }
+
+    saveView(initialView);
+  }, [initialView]);
 
   const setView = useCallback((next: DashboardView) => {
     setViewState((current) => {
@@ -76,45 +90,24 @@ export function DashboardProvider({
       saveView(prevView);
       previousViewRef.current = null;
     } else {
-      const homeView = { key: 'home' } as DashboardView;
-      setViewState(homeView);
-      saveView(homeView);
+      const home_view = { key: 'home' } as DashboardView;
+      setViewState(home_view);
+      saveView(home_view);
     }
   }, []);
-
-  const openClientCreateModal = useCallback(() => setClientCreateModalOpen(true), []);
-  const closeClientCreateModal = useCallback(() => setClientCreateModalOpen(false), []);
-
-  const openClienteDetailModalOpen = useCallback(() => setClienteDetailModalOpen(true), []);
-  const closeClienteDetailModalOpen = useCallback(() => setClienteDetailModalOpen(false), []);
 
   const value = useMemo(
     () => ({
       view,
       setView,
       goBack,
-      canGoBack: previousViewRef.current !== null,
-      isClientCreateModalOpen,
-      openClientCreateModal,
-      closeClientCreateModal,
-      isClienteDetailModalOpen,
-      openClienteDetailModalOpen,
-      closeClienteDetailModalOpen,
     }),
     [
       view,
       setView,
       goBack,
-      isClientCreateModalOpen,
-      openClientCreateModal,
-      closeClientCreateModal,
-      isClienteDetailModalOpen,
-      openClienteDetailModalOpen,
-      closeClienteDetailModalOpen,
     ]
   );
-
-  if (isHydrating) return null;
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
 }

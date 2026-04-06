@@ -1,231 +1,98 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
+import { useCallback, useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useDashboard } from '@/app/dashboard/DashboardContext';
-import { WelcomeSection } from '@/app/components/dashboard/WelcomeSection';
-import { StatCard } from '@/app/components/dashboard/StatCard';
-import { MobileStatsList } from '@/app/components/dashboard/MobileStatsList';
-import { DashboardAccountsTable } from '@/app/components/dashboard/DashboardAccountsTable';
-import { SupportPanel } from '@/app/components/dashboard/SupportPanel';
+import { FullAccountsTable } from '@/app/components/accounts/FullAccountsTable';
 import { Button } from '@/app/components/commons/Button';
 import type { AccountListResult } from '@/types/accountsRepository';
-import type { Client } from '@/models/client';
 
-export default function Dashboard() {
+export default function HomeView() {
   const { setView } = useDashboard();
-  const [accounts, setAccounts] = useState<AccountListResult[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [accounts, set_accounts] = useState<AccountListResult[]>([]);
+  const [is_loading_accounts, set_is_loading_accounts] = useState(false);
+  const [accounts_error, set_accounts_error] = useState<string | null>(null);
 
-  const loadDashboardData = async () => {
-    setIsLoading(true);
-    setError(null);
+  const load_accounts = useCallback(async () => {
+    set_is_loading_accounts(true);
+    set_accounts_error(null);
 
     try {
-      const [accountsResponse, clientsResponse] = await Promise.all([
-        fetch('/api/accounts', { cache: 'no-store' }),
-        fetch('/api/clients', { cache: 'no-store' }),
-      ]);
+      const response = await fetch('/api/accounts', { cache: 'no-store' });
+      const data = await response.json();
 
-      const [accountsData, clientsData] = await Promise.all([
-        accountsResponse.json(),
-        clientsResponse.json(),
-      ]);
-
-      if (!accountsResponse.ok || !accountsData?.ok) {
-        throw new Error(accountsData?.error || 'Error al cargar cuentas');
+      if (!response.ok || !data?.ok) {
+        set_accounts_error(data?.error || 'Error al cargar cuentas');
+        set_accounts([]);
+        return;
       }
 
-      if (!clientsResponse.ok || !clientsData?.ok) {
-        throw new Error(clientsData?.error || 'Error al cargar clientes');
-      }
-
-      setAccounts((accountsData.accounts ?? []) as AccountListResult[]);
-      setClients((clientsData.clients ?? []) as Client[]);
-    } catch (loadError) {
-      console.error('Error loading dashboard data:', loadError);
-      setAccounts([]);
-      setClients([]);
-      setError('Error al cargar datos del dashboard');
+      set_accounts((data.accounts ?? []) as AccountListResult[]);
+    } catch (load_error) {
+      console.error('Error loading accounts:', load_error);
+      set_accounts_error('Error de conexion al servidor');
+      set_accounts([]);
     } finally {
-      setIsLoading(false);
+      set_is_loading_accounts(false);
     }
-  };
-
-  useEffect(() => {
-    loadDashboardData();
   }, []);
 
-  const pendingAccountsCount = useMemo(() => {
-    return accounts.filter((account) => account.remainingAmount > 0).length;
-  }, [accounts]);
-
-  const handleCardAction = (action: string) => {
-    console.log(`Action: ${action}`);
-    switch (action) {
-      case 'view-clients':
-        setView({ key: 'clients' });
-        break;
-      case 'add-product':
-        setView({ key: 'products_list' });
-        break;
-      case 'view-accounts':
-        setView({ key: 'accounts' });
-        break;
-      case 'view-alerts':
-        setView({ key: 'accounts' });
-        break;
-      default:
-        console.log('Unknown action:', action);
-    }
-  };
-
-  const handleViewDetail = (accountId: string) => {
-    setView({ key: 'accounts_detail', accountId });
-  };
-
-  // Icons for cards - using same icons as navbar
-  const inventoryIcon = (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717761/inventario_sdhozi.svg"
-      alt="Inventario"
-      width={24}
-      height={24}
-      className="w-6 h-6"
-    />
-  );
-
-  const accountsIcon = (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/cuentas_uqp46t.svg"
-      alt="Cuentas"
-      width={24}
-      height={24}
-      className="w-6 h-6"
-    />
-  );
-
-  const clientsIcon = (
-    <Image
-      src="https://res.cloudinary.com/drec8g03e/image/upload/v1769717760/clientes_t9s3kf.svg"
-      alt="Clientes"
-      width={24}
-      height={24}
-      className="w-6 h-6"
-    />
-  );
+  useEffect(() => {
+    void load_accounts();
+  }, [load_accounts]);
 
   return (
-    <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 md:pb-8 w-full">
-        {/* Welcome Section */}
-        <WelcomeSection />
+    <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-8 w-full">
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">¡Hola, Delci!</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Bienvenida a tu sistema de gestión. Aquí tienes el resumen de hoy.
+          </p>
+        </div>
 
-        {/* Stats Cards */}
-        {isLoading ? (
-          <div className="mb-6 sm:mb-8 animate-pulse">
-            <div className="sm:hidden space-y-2 mb-6">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-20 rounded-xl border border-gray-100 bg-gray-50" />
+        <Button
+          onClick={() => setView({ key: 'accounts_new' })}
+          className="w-fit self-end sm:self-auto flex items-center justify-center gap-2 py-3 px-5 shadow-lg hover:shadow-xl transition-all"
+          size="lg"
+        >
+          <Plus className="w-5 h-5" />
+          Crear cuenta
+        </Button>
+      </div>
+
+      {is_loading_accounts ? (
+        <div className="animate-pulse">
+          <div className="h-16 rounded-t-2xl border border-gray-100 bg-gray-50"></div>
+          <div className="h-96 rounded-b-2xl border-x border-b border-gray-100 bg-white">
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-10 rounded-lg bg-gray-100" />
               ))}
             </div>
-            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-32 rounded-2xl border border-gray-100 bg-gray-50" />
-              ))}
-            </div>
-            <div className="h-72 rounded-2xl border border-gray-100 bg-gray-50" />
           </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 sm:mb-8 animate-content-fade-in">
-            <p className="text-red-600">{error}</p>
-            <Button
-              onClick={loadDashboardData}
-              variant="outline"
-              size="sm"
-              className="mt-2"
-            >
-              Reintentar
-            </Button>
-          </div>
-        ) : (
-          <div className="animate-content-fade-in">
-            <MobileStatsList
-              className="mb-6"
-              items={[
-                {
-                  title: 'Mi inventario',
-                  value: 0,
-                  description: 'productos en inventario/bodega',
-                  icon: inventoryIcon,
-                  actionText: 'Ver',
-                  color: 'blue',
-                  onAction: () => handleCardAction('add-product'),
-                },
-                {
-                  title: 'Cuentas de clientes',
-                  value: pendingAccountsCount,
-                  description: 'Total de cuentas',
-                  icon: accountsIcon,
-                  actionText: 'Ver',
-                  color: 'orange',
-                  onAction: () => handleCardAction('view-accounts'),
-                },
-                {
-                  title: 'Mis clientes',
-                  value: clients.length,
-                  description: 'Total de clientes',
-                  icon: clientsIcon,
-                  actionText: 'Ver',
-                  color: 'green',
-                  onAction: () => handleCardAction('view-clients'),
-                },
-              ]}
-            />
-
-            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              <StatCard
-                title="Mi inventario"
-                value={0}
-                description="productos en inventario/bodega"
-                icon={inventoryIcon}
-                buttonText="Ver inventario"
-                color="blue"
-                onButtonClick={() => handleCardAction('add-product')}
-              />
-
-              <StatCard
-                title="Cuentas de clientes"
-                value={pendingAccountsCount}
-                description="Total de cuentas"
-                icon={accountsIcon}
-                buttonText="Ver cuentas"
-                color="orange"
-                onButtonClick={() => handleCardAction('view-accounts')}
-              />
-
-              <StatCard
-                title="Mis clientes"
-                value={clients.length}
-                description="Total de clientes"
-                icon={clientsIcon}
-                buttonText="Ver clientes"
-                color="green"
-                onButtonClick={() => handleCardAction('view-clients')}
-              />
-            </div>
-
-            <DashboardAccountsTable
-              accounts={accounts}
-              onViewAccount={handleViewDetail}
-              className="mb-6 sm:mb-8"
-            />
-          </div>
-        )}
-
-        {/* Support Panel */}
-        <SupportPanel />
+        </div>
+      ) : accounts_error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-content-fade-in">
+          <p className="text-red-600">{accounts_error}</p>
+          <Button
+            onClick={load_accounts}
+            variant="outline"
+            size="sm"
+            className="mt-2"
+          >
+            Reintentar
+          </Button>
+        </div>
+      ) : (
+        <div className="animate-content-fade-in">
+          <FullAccountsTable
+            accounts={accounts}
+            onViewAccount={(account_id) => setView({ key: 'accounts_detail', accountId: account_id })}
+            className="mb-6 sm:mb-8"
+          />
+        </div>
+      )}
     </div>
   );
 }

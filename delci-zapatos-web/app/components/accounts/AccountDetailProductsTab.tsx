@@ -4,7 +4,7 @@ import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/app/components/commons/Button';
 import type { AccountDetailsResult } from '@/types/accountsRepository';
-import { formatCurrency } from '@/lib/accountUtils';
+import { formatCurrency } from '@/utils/accountUtils';
 
 interface AccountDetailProductsTabProps {
   items: AccountDetailsResult['items'];

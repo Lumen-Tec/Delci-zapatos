@@ -8,23 +8,18 @@ import { ChevronLeft } from 'lucide-react';
 import { useDashboardOptional } from '@/app/dashboard/DashboardContext';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
-import { AccountDetailTabs } from '@/app/components/accounts/AccountDetailTabs';
+import { Modal } from '@/app/components/shared/Modal';
 import { AccountDetailSummaryTab } from '@/app/components/accounts/AccountDetailSummaryTab';
-import { AccountDetailProductsTab } from '@/app/components/accounts/AccountDetailProductsTab';
 import { AccountDetailPaymentsTab } from '@/app/components/accounts/AccountDetailPaymentsTab';
 import {
   formatAmountWithSpaces,
   formatCurrency,
   normalizeAmountInput,
   parseAmountInput,
-  computeStatus,
   getNearestUpcomingPaymentDate,
-} from '@/lib/accountUtils';
-import { validatePaymentAmount } from '@/lib/paymentUtil';
+} from '@/utils/accountUtils';
+import { validatePaymentAmount } from '@/utils/paymentUtil';
 import type { AccountDetailsResult, AccountPaymentResult } from '@/types/accountsRepository';
-
-type DetailStep = 1 | 2 | 3;
-type MobileAction = 'products' | 'balance' | 'biweekly' | 'history' | 'register';
 
 interface AccountState {
   account: AccountDetailsResult | null;
@@ -60,9 +55,7 @@ export default function AccountsDetailView() {
   const routeAccountId = Array.isArray(routeId) ? routeId[0] : routeId;
   const dashboardAccountId = dashboard?.view.key === 'accounts_detail' ? dashboard.view.accountId : undefined;
   const accountId = dashboardAccountId ?? routeAccountId;
-  const stepStorageKey = accountId ? `accounts-detail-step:${accountId}` : null;
 
-  const [step, setStep] = useState<DetailStep>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [isNotifyingClient, setIsNotifyingClient] = useState(false);
@@ -74,7 +67,10 @@ export default function AccountsDetailView() {
   const [editDetailValue, setEditDetailValue] = useState<string>('');
   const [initialBalanceDraft, setInitialBalanceDraft] = useState('');
   const [isSavingBalances, setIsSavingBalances] = useState(false);
-  const [mobileAction, setMobileAction] = useState<MobileAction | null>(null);
+  const [isSavingBiweekly, setIsSavingBiweekly] = useState(false);
+  const [isInitialBalanceModalOpen, setIsInitialBalanceModalOpen] = useState(false);
+  const [isBiweeklyModalOpen, setIsBiweeklyModalOpen] = useState(false);
+  const [isRegisterPaymentModalOpen, setIsRegisterPaymentModalOpen] = useState(false);
 
   const [state, dispatch] = useReducer(accountReducer, {
     account: null,
@@ -137,24 +133,6 @@ export default function AccountsDetailView() {
   };
 
   useEffect(() => {
-    if (!stepStorageKey) return;
-
-    const raw = window.localStorage.getItem(stepStorageKey);
-    const parsed = Number(raw);
-    if (parsed === 1 || parsed === 2 || parsed === 3) {
-      setStep(parsed as DetailStep);
-      return;
-    }
-
-    setStep(1);
-  }, [stepStorageKey]);
-
-  useEffect(() => {
-    if (!stepStorageKey) return;
-    window.localStorage.setItem(stepStorageKey, String(step));
-  }, [step, stepStorageKey]);
-
-  useEffect(() => {
     if (!account?.id) return;
     setInitialBalanceDraft(String(estimatedInitialBalance));
   }, [account?.id, estimatedInitialBalance]);
@@ -170,10 +148,9 @@ export default function AccountsDetailView() {
 
   useEffect(() => {
     dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: '' });
-    setMobileAction(null);
   }, [accountId]);
 
-  const persistAccount = async (next: AccountDetailsResult) => {
+  const persistAccount = async (next: AccountDetailsResult): Promise<boolean> => {
     dispatch({ type: 'SET_ACCOUNT', payload: next });
 
     try {
@@ -198,8 +175,10 @@ export default function AccountsDetailView() {
           text: result?.error || 'No se pudo actualizar la cuenta',
           confirmButtonColor: '#ec4899',
         });
-        return;
+        return false;
       }
+
+      return true;
     } catch (error) {
       console.error('Error updating account:', error);
       await Swal.fire({
@@ -208,11 +187,13 @@ export default function AccountsDetailView() {
         text: 'No se pudo conectar al servidor para actualizar la cuenta',
         confirmButtonColor: '#ec4899',
       });
+
+      return false;
     }
   };
 
-  const handleSaveInitialBalance = async () => {
-    if (!account) return;
+  const handleSaveInitialBalance = async (): Promise<boolean> => {
+    if (!account) return false;
 
     const nextInitialBalance = parseAmountInput(initialBalanceDraft);
     if (!Number.isFinite(nextInitialBalance) || nextInitialBalance < 0) {
@@ -222,7 +203,7 @@ export default function AccountsDetailView() {
         text: 'El saldo inicial debe ser un numero mayor o igual a 0',
         confirmButtonColor: '#ec4899',
       });
-      return;
+      return false;
     }
 
     setIsSavingBalances(true);
@@ -244,18 +225,18 @@ export default function AccountsDetailView() {
           text: result?.error || 'No se pudo actualizar el saldo inicial',
           confirmButtonColor: '#ec4899',
         });
-        return;
+        return false;
       }
 
       dispatch({ type: 'SET_ACCOUNT', payload: result.account as AccountDetailsResult });
       await Swal.fire({
         icon: 'success',
         title: 'Saldo inicial actualizado',
-        timer: 1600,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        confirmButtonColor: '#ec4899',
+        confirmButtonText: 'Aceptar',
       });
+
+      return true;
     } catch (error) {
       console.error('Error updating initial balance:', error);
       await Swal.fire({
@@ -264,39 +245,44 @@ export default function AccountsDetailView() {
         text: 'No se pudo conectar al servidor',
         confirmButtonColor: '#ec4899',
       });
+
+      return false;
     } finally {
       setIsSavingBalances(false);
     }
   };
 
-  const handleRemoveItem = async (itemId: string) => {
-    if (!account) return;
+  const handleSaveBiweekly = async (): Promise<boolean> => {
+    if (!account) return false;
+    if (isSavingBiweekly) return false;
 
-    const nextItems = (account.items ?? []).filter((item) => item.id !== itemId);
-    const totalAmount = nextItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const totalProducts = nextItems.reduce((sum, item) => sum + item.quantity, 0);
-
-    const remainingAmount = Math.max(0, totalAmount - account.totalPaid);
-    const nextPaymentDate = remainingAmount > 0 ? account.nextPaymentDate : getNearestUpcomingPaymentDate();
-    const status = computeStatus(remainingAmount, nextPaymentDate);
-
-    await persistAccount({
-      ...account,
-      items: nextItems,
-      totalAmount,
-      totalProducts,
-      remainingAmount,
-      nextPaymentDate,
-      status,
-    });
-  };
-
-  const handleSaveBiweekly = async () => {
-    if (!account) return;
     const amt = parseAmountInput(state.biweeklyAmount);
-    if (!Number.isFinite(amt) || amt <= 0) return;
+    if (!Number.isFinite(amt) || amt <= 0) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Monto invalido',
+        text: 'El monto quincenal debe ser mayor a 0',
+        confirmButtonColor: '#ec4899',
+      });
+      return false;
+    }
 
-    await persistAccount({ ...account, biweeklyAmount: amt });
+    setIsSavingBiweekly(true);
+    try {
+      const wasSaved = await persistAccount({ ...account, biweeklyAmount: amt });
+      if (!wasSaved) return false;
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Monto quincenal actualizado',
+        confirmButtonColor: '#ec4899',
+        confirmButtonText: 'Aceptar',
+      });
+
+      return true;
+    } finally {
+      setIsSavingBiweekly(false);
+    }
   };
 
   const handleEditPayment = (payment: AccountPaymentResult) => {
@@ -360,10 +346,8 @@ export default function AccountsDetailView() {
         icon: 'success',
         title: 'Pago actualizado',
         text: 'El pago se actualizó correctamente',
-        timer: 1800,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        confirmButtonColor: '#ec4899',
+        confirmButtonText: 'Aceptar',
       });
     } catch (error) {
       console.error('Error updating payment:', error);
@@ -417,10 +401,8 @@ export default function AccountsDetailView() {
         icon: 'success',
         title: 'Pago eliminado',
         text: 'El pago se eliminó correctamente',
-        timer: 1800,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        confirmButtonColor: '#ec4899',
+        confirmButtonText: 'Aceptar',
       });
     } catch (error) {
       console.error('Error deleting payment:', error);
@@ -447,10 +429,12 @@ export default function AccountsDetailView() {
   const handleSaveDetail = async () => {
     if (!account) return;
 
-    await persistAccount({
+    const wasSaved = await persistAccount({
       ...account,
       detail: editDetailValue.trim() || null,
     });
+
+    if (!wasSaved) return;
 
     setIsEditingDetail(false);
     setEditDetailValue('');
@@ -459,16 +443,14 @@ export default function AccountsDetailView() {
       icon: 'success',
       title: 'Detalle actualizado',
       text: 'El detalle de la cuenta se actualizó correctamente',
-      timer: 1800,
-      showConfirmButton: false,
-      toast: true,
-      position: 'top-end',
+      confirmButtonColor: '#ec4899',
+      confirmButtonText: 'Aceptar',
     });
   };
 
-  const handleRegisterPayment = async () => {
-    if (!account) return;
-    if (isSavingPayment) return;
+  const handleRegisterPayment = async (): Promise<boolean> => {
+    if (!account) return false;
+    if (isSavingPayment) return false;
 
     const amount = parseAmountInput(state.paymentAmount);
     const amountError = validatePaymentAmount(amount, account.remainingAmount);
@@ -477,12 +459,10 @@ export default function AccountsDetailView() {
         icon: 'error',
         title: 'Monto invalido',
         text: amountError,
-        timer: 2400,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        confirmButtonColor: '#ec4899',
+        confirmButtonText: 'Aceptar',
       });
-      return;
+      return false;
     }
 
     const paymentDate = account.nextPaymentDate ?? getNearestUpcomingPaymentDate();
@@ -498,7 +478,7 @@ export default function AccountsDetailView() {
       cancelButtonColor: '#6b7280',
     });
 
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation.isConfirmed) return false;
 
     setIsSavingPayment(true);
     try {
@@ -518,12 +498,10 @@ export default function AccountsDetailView() {
           icon: 'error',
           title: 'No se pudo registrar el pago',
           text: result?.error || 'Ocurrio un error al registrar el pago',
-          timer: 2400,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
+          confirmButtonColor: '#ec4899',
+          confirmButtonText: 'Aceptar',
         });
-        return;
+        return false;
       }
 
       const reconciledAccount = (result?.account as AccountDetailsResult | undefined) ?? account;
@@ -535,22 +513,22 @@ export default function AccountsDetailView() {
         icon: 'success',
         title: 'Pago registrado',
         text: 'El pago se registro correctamente',
-        timer: 1800,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        confirmButtonColor: '#ec4899',
+        confirmButtonText: 'Aceptar',
       });
+
+      return true;
     } catch (error) {
       console.error('Error registering payment:', error);
       await Swal.fire({
         icon: 'error',
         title: 'Error de conexion',
         text: 'No se pudo conectar al servidor para registrar el pago',
-        timer: 2400,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end',
+        confirmButtonColor: '#ec4899',
+        confirmButtonText: 'Aceptar',
       });
+
+      return false;
     } finally {
       setIsSavingPayment(false);
     }
@@ -601,21 +579,23 @@ export default function AccountsDetailView() {
     }
   };
 
-  const handleOpenProductsPanel = () => {
-    setStep(2);
-    setMobileAction('products');
+  const handleSaveInitialBalanceModal = async () => {
+    const wasSaved = await handleSaveInitialBalance();
+    if (!wasSaved) return;
+    setIsInitialBalanceModalOpen(false);
   };
 
-  const handleToggleMobileAction = (action: MobileAction) => {
-    setMobileAction((current) => (current === action ? null : action));
+  const handleSaveBiweeklyModal = async () => {
+    const wasSaved = await handleSaveBiweekly();
+    if (!wasSaved) return;
+    setIsBiweeklyModalOpen(false);
   };
 
-  const getMobileActionButtonClass = (isActive: boolean) =>
-    `rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition-all ${
-      isActive
-        ? 'border-pink-300 bg-pink-50 text-pink-700'
-        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-    }`;
+  const handleRegisterPaymentModal = async () => {
+    const wasSaved = await handleRegisterPayment();
+    if (!wasSaved) return;
+    setIsRegisterPaymentModalOpen(false);
+  };
 
   if (isLoading) {
     return (
@@ -634,7 +614,7 @@ export default function AccountsDetailView() {
           <div className="text-lg font-bold text-gray-900">Cuenta no encontrada</div>
           {loadError && <div className="text-sm text-gray-600 mt-2">{loadError}</div>}
           <div className="mt-6 flex justify-center">
-            <Button onClick={() => dashboard?.setView({ key: 'accounts' })} variant="primary">
+            <Button onClick={() => dashboard?.setView({ key: 'home' })} variant="primary">
               Volver a cuentas
             </Button>
           </div>
@@ -650,7 +630,7 @@ export default function AccountsDetailView() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => dashboard?.setView({ key: 'accounts' })}
+              onClick={() => dashboard?.setView({ key: 'home' })}
               className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/80 border border-rose-200 text-rose-700 shadow-sm hover:bg-white transition-all"
               title="Volver"
             >
@@ -676,61 +656,7 @@ export default function AccountsDetailView() {
         </div>
       </div>
 
-      <div className="hidden md:block">
-        <AccountDetailTabs step={step} onChange={setStep} />
-
-        {step === 1 && (
-          <AccountDetailSummaryTab
-            account={account}
-            initialBalanceDraft={initialBalanceDraft}
-            onInitialBalanceDraftChange={setInitialBalanceDraft}
-            onSaveInitialBalance={handleSaveInitialBalance}
-            isSavingBalances={isSavingBalances}
-            isEditingDetail={isEditingDetail}
-            editDetailValue={editDetailValue}
-            onEditDetailValueChange={setEditDetailValue}
-            onEditDetail={handleEditDetail}
-            onSaveDetail={handleSaveDetail}
-            onCancelEditDetail={handleCancelEditDetail}
-            getStatusLabel={getStatusLabel}
-          />
-        )}
-
-        {step === 2 && (
-          <AccountDetailProductsTab
-            items={items}
-            onRemoveItem={handleRemoveItem}
-            onAddProducts={handleOpenProductsPanel}
-          />
-        )}
-
-        {step === 3 && (
-          <AccountDetailPaymentsTab
-            account={account}
-            payments={payments}
-            biweeklyAmount={state.biweeklyAmount}
-            paymentAmount={state.paymentAmount}
-            onBiweeklyAmountChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
-            onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
-            onSaveBiweekly={handleSaveBiweekly}
-            onRegisterPayment={handleRegisterPayment}
-            isSavingPayment={isSavingPayment}
-            onNotifyClient={handleNotifyClient}
-            isNotifyingClient={isNotifyingClient}
-            editingPaymentId={editingPaymentId}
-            editPaymentAmount={editPaymentAmount}
-            editPaymentDate={editPaymentDate}
-            onEditPayment={handleEditPayment}
-            onCancelEditPayment={handleCancelEditPayment}
-            onSaveEditPayment={handleSaveEditPayment}
-            onDeletePayment={handleDeletePayment}
-            onEditPaymentAmountChange={setEditPaymentAmount}
-            onEditPaymentDateChange={setEditPaymentDate}
-          />
-        )}
-      </div>
-
-      <div className="md:hidden space-y-3 pb-6">
+      <div className="space-y-4 pb-6">
         <AccountDetailSummaryTab
           account={account}
           initialBalanceDraft={initialBalanceDraft}
@@ -747,185 +673,142 @@ export default function AccountsDetailView() {
           getStatusLabel={getStatusLabel}
         />
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <h2 className="text-sm font-bold text-gray-900">Acciones</h2>
-            <p className="text-xs text-gray-500 mt-1">Selecciona una accion para continuar.</p>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+          <div className="px-4 sm:px-6 py-3 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">Acciones de cuenta</h2>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 p-3">
-            <button
-              type="button"
-              onClick={handleOpenProductsPanel}
-              className={getMobileActionButtonClass(mobileAction === 'products')}
+          <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <Button
+              variant="secondary"
+              className="w-full border border-rose-200 bg-rose-100 text-rose-700 hover:bg-rose-200 focus:ring-rose-300"
+              onClick={() => setIsInitialBalanceModalOpen(true)}
             >
-              1. Ver productos
-            </button>
-
-            <button
-              type="button"
-              onClick={handleOpenProductsPanel}
-              className={getMobileActionButtonClass(mobileAction === 'products')}
+              Cambiar saldo inicial
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full border border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 focus:ring-fuchsia-300"
+              onClick={() => setIsBiweeklyModalOpen(true)}
             >
-              2. Agregar productos
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleToggleMobileAction('balance')}
-              className={getMobileActionButtonClass(mobileAction === 'balance')}
+              Cambiar monto quincenal
+            </Button>
+            <Button
+              variant="primary"
+              className="w-full bg-pink-600 hover:bg-pink-700 focus:ring-pink-600"
+              onClick={() => setIsRegisterPaymentModalOpen(true)}
             >
-              3. Cambiar saldo
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleToggleMobileAction('biweekly')}
-              className={getMobileActionButtonClass(mobileAction === 'biweekly')}
-            >
-              4. Cambiar monto quincenal
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleToggleMobileAction('history')}
-              className={getMobileActionButtonClass(mobileAction === 'history')}
-            >
-              5. Historial de pagos
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleToggleMobileAction('register')}
-              className={getMobileActionButtonClass(mobileAction === 'register')}
-            >
-              6. Registrar pago
-            </button>
-
-            <button
-              type="button"
+              Registrar pago
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
               onClick={handleNotifyClient}
-              disabled={isNotifyingClient}
-              className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 disabled:opacity-70 disabled:cursor-not-allowed"
+              loading={isNotifyingClient}
             >
-              {isNotifyingClient ? 'Notificando saldo...' : '7. Notificar saldo'}
-            </button>
+              Notificar por WhatsApp
+            </Button>
           </div>
         </div>
 
-        {mobileAction === 'products' && (
-          <AccountDetailProductsTab
-            items={items}
-            onRemoveItem={handleRemoveItem}
-            onAddProducts={handleOpenProductsPanel}
-            showAddProductsButton={false}
-          />
-        )}
-
-        {mobileAction === 'balance' && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900">Cambiar saldo</h2>
-            </div>
-            <div className="p-4 space-y-3">
-              <InputField
-                label="Saldo inicial"
-                type="text"
-                size="sm"
-                value={formatAmountWithSpaces(initialBalanceDraft)}
-                onChange={(value) => setInitialBalanceDraft(normalizeAmountInput(value))}
-              />
-              <Button onClick={handleSaveInitialBalance} variant="secondary" loading={isSavingBalances} className="w-full">
-                Guardar saldo inicial
-              </Button>
-              <div className="text-xs text-gray-500">
-                El saldo pendiente se ajusta unicamente mediante el registro de pagos.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {mobileAction === 'biweekly' && (
-          <AccountDetailPaymentsTab
-            account={account}
-            payments={payments}
-            biweeklyAmount={state.biweeklyAmount}
-            paymentAmount={state.paymentAmount}
-            onBiweeklyAmountChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
-            onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
-            onSaveBiweekly={handleSaveBiweekly}
-            onRegisterPayment={handleRegisterPayment}
-            isSavingPayment={isSavingPayment}
-            onNotifyClient={handleNotifyClient}
-            isNotifyingClient={isNotifyingClient}
-            editingPaymentId={editingPaymentId}
-            editPaymentAmount={editPaymentAmount}
-            editPaymentDate={editPaymentDate}
-            onEditPayment={handleEditPayment}
-            onCancelEditPayment={handleCancelEditPayment}
-            onSaveEditPayment={handleSaveEditPayment}
-            onDeletePayment={handleDeletePayment}
-            onEditPaymentAmountChange={setEditPaymentAmount}
-            onEditPaymentDateChange={setEditPaymentDate}
-            mode="biweekly"
-            showNotifyButton={false}
-          />
-        )}
-
-        {mobileAction === 'history' && (
-          <AccountDetailPaymentsTab
-            account={account}
-            payments={payments}
-            biweeklyAmount={state.biweeklyAmount}
-            paymentAmount={state.paymentAmount}
-            onBiweeklyAmountChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
-            onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
-            onSaveBiweekly={handleSaveBiweekly}
-            onRegisterPayment={handleRegisterPayment}
-            isSavingPayment={isSavingPayment}
-            onNotifyClient={handleNotifyClient}
-            isNotifyingClient={isNotifyingClient}
-            editingPaymentId={editingPaymentId}
-            editPaymentAmount={editPaymentAmount}
-            editPaymentDate={editPaymentDate}
-            onEditPayment={handleEditPayment}
-            onCancelEditPayment={handleCancelEditPayment}
-            onSaveEditPayment={handleSaveEditPayment}
-            onDeletePayment={handleDeletePayment}
-            onEditPaymentAmountChange={setEditPaymentAmount}
-            onEditPaymentDateChange={setEditPaymentDate}
-            mode="history"
-            showNotifyButton={false}
-          />
-        )}
-
-        {mobileAction === 'register' && (
-          <AccountDetailPaymentsTab
-            account={account}
-            payments={payments}
-            biweeklyAmount={state.biweeklyAmount}
-            paymentAmount={state.paymentAmount}
-            onBiweeklyAmountChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
-            onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
-            onSaveBiweekly={handleSaveBiweekly}
-            onRegisterPayment={handleRegisterPayment}
-            isSavingPayment={isSavingPayment}
-            onNotifyClient={handleNotifyClient}
-            isNotifyingClient={isNotifyingClient}
-            editingPaymentId={editingPaymentId}
-            editPaymentAmount={editPaymentAmount}
-            editPaymentDate={editPaymentDate}
-            onEditPayment={handleEditPayment}
-            onCancelEditPayment={handleCancelEditPayment}
-            onSaveEditPayment={handleSaveEditPayment}
-            onDeletePayment={handleDeletePayment}
-            onEditPaymentAmountChange={setEditPaymentAmount}
-            onEditPaymentDateChange={setEditPaymentDate}
-            mode="register"
-            showNotifyButton={false}
-          />
-        )}
+        <AccountDetailPaymentsTab
+          account={account}
+          payments={payments}
+          biweeklyAmount={state.biweeklyAmount}
+          paymentAmount={state.paymentAmount}
+          onBiweeklyAmountChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: value })}
+          onPaymentAmountChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: value })}
+          onSaveBiweekly={handleSaveBiweekly}
+          onRegisterPayment={handleRegisterPayment}
+          isSavingPayment={isSavingPayment}
+          onNotifyClient={handleNotifyClient}
+          isNotifyingClient={isNotifyingClient}
+          editingPaymentId={editingPaymentId}
+          editPaymentAmount={editPaymentAmount}
+          editPaymentDate={editPaymentDate}
+          onEditPayment={handleEditPayment}
+          onCancelEditPayment={handleCancelEditPayment}
+          onSaveEditPayment={handleSaveEditPayment}
+          onDeletePayment={handleDeletePayment}
+          onEditPaymentAmountChange={setEditPaymentAmount}
+          onEditPaymentDateChange={setEditPaymentDate}
+          mode="history"
+          showNotifyButton={false}
+        />
       </div>
+
+      <Modal
+        isOpen={isInitialBalanceModalOpen}
+        onClose={() => setIsInitialBalanceModalOpen(false)}
+        title="Cambiar saldo inicial"
+      >
+        <div className="space-y-4">
+          <InputField
+            label="Nuevo saldo inicial"
+            type="text"
+            value={formatAmountWithSpaces(initialBalanceDraft)}
+            onChange={(value) => setInitialBalanceDraft(normalizeAmountInput(value))}
+            placeholder="Ej: 120000"
+          />
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button variant="secondary" onClick={() => setIsInitialBalanceModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveInitialBalanceModal} loading={isSavingBalances}>
+              Guardar cambio
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isBiweeklyModalOpen}
+        onClose={() => setIsBiweeklyModalOpen(false)}
+        title="Cambiar monto quincenal"
+      >
+        <div className="space-y-4">
+          <InputField
+            label="Nuevo monto quincenal"
+            type="text"
+            value={formatAmountWithSpaces(state.biweeklyAmount)}
+            onChange={(value) => dispatch({ type: 'SET_BIWEEKLY_AMOUNT', payload: normalizeAmountInput(value) })}
+            placeholder="Ej: 45000"
+          />
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button variant="secondary" onClick={() => setIsBiweeklyModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveBiweeklyModal} loading={isSavingBiweekly}>
+              Guardar cambio
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isRegisterPaymentModalOpen}
+        onClose={() => setIsRegisterPaymentModalOpen(false)}
+        title="Registrar pago"
+      >
+        <div className="space-y-4">
+          <div className="text-xs text-gray-500 uppercase tracking-wide">Saldo pendiente</div>
+          <div className="text-lg font-semibold text-gray-900 -mt-3">{formatCurrency(account.remainingAmount)}</div>
+          <InputField
+            label="Monto a registrar"
+            type="text"
+            value={formatAmountWithSpaces(state.paymentAmount)}
+            onChange={(value) => dispatch({ type: 'SET_PAYMENT_AMOUNT', payload: normalizeAmountInput(value) })}
+            placeholder="Ej: 30000"
+          />
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button variant="secondary" onClick={() => setIsRegisterPaymentModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleRegisterPaymentModal} loading={isSavingPayment}>
+              Registrar pago
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { getAccounts, createAccount } from '@/repositories/accountsRepository'
-import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils'
+import { getNearestUpcomingPaymentDate, todayISO } from '@/utils/accountUtils'
 
 // TODO: Refactorizar a utils/
 function getErrorMessage(error: unknown): string {

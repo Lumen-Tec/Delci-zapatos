@@ -1,5 +1,3 @@
-import type { ProductSize } from '@/models/product';
-
 export type AccountItemBase = {
   id: string;
   productId?: string;

@@ -1,7 +1,7 @@
 import { getAccountById } from '@/repositories/accountsRepository'
 import { getClientById } from '@/repositories/clientsRepository'
 import { getLatestPaymentByAccountId } from '@/repositories/paymentsRepository'
-import { formatCurrency } from '@/lib/accountUtils'
+import { formatCurrency } from '@/utils/accountUtils'
 import { getErrorMessage } from '@/utils/parsers/errors'
 
 type NotifyPaymentRequestBody = {

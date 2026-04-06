@@ -3,7 +3,7 @@ import type {
     DbAccountStatus,
     DbAccountInsert,
 } from '@/types/database'
-import { computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom, todayISO } from '@/lib/accountUtils'
+import { computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom, todayISO } from '@/utils/accountUtils'
 import type {
     AccountDetailsItemResult,
     AccountDetailsResult,

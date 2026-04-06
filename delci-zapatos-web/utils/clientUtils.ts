@@ -11,6 +11,23 @@ export interface ClientValidationResult {
 }
 
 /**
+ * Normaliza telefono para almacenamiento uniforme (+506XXXXXXXX).
+ */
+export const normalizePhoneForStorage = (phone: string): string => {
+  const digitsOnly = phone.replace(/\D/g, '');
+
+  if (digitsOnly.length === 8) {
+    return `+506${digitsOnly}`;
+  }
+
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('506')) {
+    return `+${digitsOnly}`;
+  }
+
+  return '';
+};
+
+/**
  * Valida el campo de nombre completo del cliente
  */
 export const validateFullName = (fullName: string): ClientValidationError | null => {
@@ -32,14 +49,6 @@ export const validateFullName = (fullName: string): ClientValidationError | null
     return {
       field: 'fullName',
       message: 'El nombre no puede exceder 100 caracteres'
-    };
-  }
-
-  // Validar que contenga al menos un espacio (nombre y apellido)
-  if (!fullName.trim().includes(' ')) {
-    return {
-      field: 'fullName',
-      message: 'Debe incluir nombre y apellido'
     };
   }
 
@@ -66,36 +75,16 @@ export const validatePhone = (phone: string): ClientValidationError | null => {
     };
   }
 
-  // Limpiar el teléfono para validación
-  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-
-  // Validar longitud mínima y máxima
-  if (cleanPhone.length < 8) {
+  const normalizedPhone = normalizePhoneForStorage(phone);
+  if (!normalizedPhone) {
     return {
       field: 'phone',
-      message: 'El teléfono debe tener al menos 8 dígitos'
+      message: 'El teléfono debe tener 8 dígitos de Costa Rica'
     };
   }
 
-  if (cleanPhone.length > 15) {
-    return {
-      field: 'phone',
-      message: 'El teléfono no puede exceder 15 dígitos'
-    };
-  }
-
-  // Validar que contenga solo números (después de limpiar)
-  const phonePattern = /^\+?[0-9]+$/;
-  if (!phonePattern.test(cleanPhone)) {
-    return {
-      field: 'phone',
-      message: 'El teléfono solo puede contener números y el signo + al inicio'
-    };
-  }
-
-  // Validar formato específico para Costa Rica (opcional)
-  const costaRicaPattern = /^\+?506[2-8]\d{7}$/;
-  if (cleanPhone.startsWith('506') && !costaRicaPattern.test(cleanPhone)) {
+  const costaRicaPattern = /^\+506[2-9]\d{7}$/;
+  if (!costaRicaPattern.test(normalizedPhone)) {
     return {
       field: 'phone',
       message: 'El formato para teléfonos de Costa Rica debe ser +506 seguido de 8 dígitos'
@@ -154,11 +143,11 @@ export const validateClient = (client: Partial<Client>): ClientValidationResult 
  * Formatea el número de teléfono para mostrarlo consistentemente
  */
 export const formatPhone = (phone: string): string => {
-  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+  const cleanPhone = normalizePhoneForStorage(phone) || phone.replace(/[\s\-\(\)]/g, '');
   
   // Formato para Costa Rica: +506 XXXX-XXXX
-  if (cleanPhone.startsWith('506') && cleanPhone.length === 11) {
-    return `+506 ${cleanPhone.slice(3, 7)}-${cleanPhone.slice(7)}`;
+  if (cleanPhone.startsWith('+506') && cleanPhone.length === 12) {
+    return `+506 ${cleanPhone.slice(4, 8)}-${cleanPhone.slice(8)}`;
   }
   
   // Formato general: mantener el formato original pero limpio

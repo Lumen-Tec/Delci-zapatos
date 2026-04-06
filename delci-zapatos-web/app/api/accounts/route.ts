@@ -1,6 +1,6 @@
 import { createAccount, getAccountById, getAccounts, patchAccountById } from '@/repositories/accountsRepository'
 import type { FrontendAccountStatus } from '@/types/database'
-import { getNearestUpcomingPaymentDate, todayISO } from '@/lib/accountUtils'
+import { getNearestUpcomingPaymentDate, todayISO } from '@/utils/accountUtils'
 import { getErrorMessage } from '@/utils/parsers/errors'
 
 type CreateAccountRequestBody = {

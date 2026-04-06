@@ -1,7 +1,7 @@
 
-import { createClient, getClients, updateClientById } from '@/repositories/clientsRepository'
+import { createClient, getClientByPhone, getClients, updateClientById } from '@/repositories/clientsRepository'
 import { getErrorMessage } from '@/utils/parsers/errors'
-import { validateAddress, validateClient, validateFullName, validatePhone } from '@/lib/clientUtils'
+import { normalizePhoneForStorage, validateAddress, validateClient, validateFullName, validatePhone } from '@/utils/clientUtils'
 
 type CreateClientRequestBody = {
 	fullName: string
@@ -36,9 +36,13 @@ export async function GET() {
 export async function POST(request: Request) {
 	try {
 		const body = await request.json() as CreateClientRequestBody
+		const normalizedPhone = normalizePhoneForStorage(body.phone)
 
 		// Validar datos del cliente usando las utilidades de validación
-		const validation = validateClient(body)
+		const validation = validateClient({
+			...body,
+			phone: normalizedPhone || body.phone,
+		})
 		if (!validation.isValid) {
 			return Response.json(
 				{ 
@@ -50,9 +54,22 @@ export async function POST(request: Request) {
 			)
 		}
 
+		const existingClient = await getClientByPhone(normalizedPhone)
+		if (existingClient) {
+			return Response.json(
+				{
+					ok: false,
+					error: 'Ya existe un cliente con este telefono',
+					code: 'duplicate_phone',
+					clientId: existingClient.id,
+				},
+				{ status: 409 },
+			)
+		}
+
 		const created = await createClient({
 			fullName: body.fullName,
-			phone: body.phone,
+			phone: normalizedPhone,
 			address: body.address || '', // Address is optional
 		})
 
@@ -77,6 +94,9 @@ export async function PATCH(request: Request) {
 		const hasFullName = Object.prototype.hasOwnProperty.call(body, 'fullName')
 		const hasPhone = Object.prototype.hasOwnProperty.call(body, 'phone')
 		const hasAddress = Object.prototype.hasOwnProperty.call(body, 'address')
+		const normalizedPhone = hasPhone && typeof body.phone === 'string'
+			? normalizePhoneForStorage(body.phone)
+			: undefined
 
 		if (!hasFullName && !hasPhone && !hasAddress) {
 			return Response.json(
@@ -98,7 +118,7 @@ export async function PATCH(request: Request) {
 			if (typeof body.phone !== 'string') {
 				fieldErrors.push({ field: 'phone', message: 'phone debe ser string' })
 			} else {
-				const error = validatePhone(body.phone)
+				const error = validatePhone(normalizedPhone || body.phone)
 				if (error) fieldErrors.push(error)
 			}
 		}
@@ -118,10 +138,25 @@ export async function PATCH(request: Request) {
 			)
 		}
 
+		if (hasPhone && normalizedPhone) {
+			const existingClient = await getClientByPhone(normalizedPhone)
+			if (existingClient && existingClient.id !== body.id) {
+				return Response.json(
+					{
+						ok: false,
+						error: 'Ya existe un cliente con este telefono',
+						code: 'duplicate_phone',
+						clientId: existingClient.id,
+					},
+					{ status: 409 },
+				)
+			}
+		}
+
 		const updated = await updateClientById({
 			id: body.id,
 			...(hasFullName ? { fullName: body.fullName } : {}),
-			...(hasPhone ? { phone: body.phone } : {}),
+			...(hasPhone && normalizedPhone ? { phone: normalizedPhone } : {}),
 			...(hasAddress ? { address: body.address } : {}),
 		})
 

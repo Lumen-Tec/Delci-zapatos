@@ -4,7 +4,7 @@ import React from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
-import { formatAmountWithSpaces, formatCurrency, normalizeAmountInput } from '@/lib/accountUtils';
+import { formatAmountWithSpaces, formatCurrency, normalizeAmountInput } from '@/utils/accountUtils';
 import type { AccountDetailsResult, AccountPaymentResult } from '@/types/accountsRepository';
 
 type AccountDetailPaymentsTabMode = 'full' | 'history' | 'register' | 'biweekly';
@@ -65,6 +65,23 @@ export function AccountDetailPaymentsTab({
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [payments],
   );
+
+  const paymentBalanceSnapshotById = React.useMemo(() => {
+    const balancesById: Record<string, { before: number; after: number }> = {};
+    let runningRemaining = account.remainingAmount;
+
+    for (const payment of paymentsByRegistration) {
+      const balanceAfterPayment = runningRemaining;
+      const balanceBeforePayment = runningRemaining + payment.amount;
+      balancesById[payment.id] = {
+        before: balanceBeforePayment,
+        after: balanceAfterPayment,
+      };
+      runningRemaining = balanceBeforePayment;
+    }
+
+    return balancesById;
+  }, [account.remainingAmount, paymentsByRegistration]);
 
   const latestPaymentId = paymentsByRegistration[0]?.id ?? null;
   const showControlsPanel = mode === 'full' || mode === 'register' || mode === 'biweekly';
@@ -142,6 +159,9 @@ export function AccountDetailPaymentsTab({
                 <div className="md:hidden space-y-1.5">
                   {paymentsByRegistration.map((payment) => {
                     const canDelete = payment.id === latestPaymentId;
+                    const balanceSnapshot = paymentBalanceSnapshotById[payment.id];
+                    const balanceBeforePayment = balanceSnapshot?.before ?? (account.remainingAmount + payment.amount);
+                    const balanceAfterPayment = balanceSnapshot?.after ?? account.remainingAmount;
 
                     return (
                       <div key={payment.id} className="border-b border-gray-100 last:border-b-0 py-1.5 first:pt-0 last:pb-0">
@@ -186,7 +206,12 @@ export function AccountDetailPaymentsTab({
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <div className="text-[10px] text-gray-500">{payment.date}</div>
+                              <div className="text-[11px] text-gray-500 mt-0.5">Monto pagado</div>
                               <div className="text-xs text-gray-900 font-semibold truncate">{formatCurrency(payment.amount)}</div>
+                              <div className="text-[11px] text-gray-500 mt-0.5">Saldo antes del pago</div>
+                              <div className="text-xs text-gray-900 font-medium truncate">{formatCurrency(balanceBeforePayment)}</div>
+                              <div className="text-[11px] text-gray-500 mt-0.5">Saldo despues del pago</div>
+                              <div className="text-xs text-gray-900 font-medium truncate">{formatCurrency(balanceAfterPayment)}</div>
                             </div>
                             <div className="flex items-center justify-end gap-1">
                               <button
@@ -223,13 +248,18 @@ export function AccountDetailPaymentsTab({
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
-                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Monto</th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Monto pagado</th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Saldo antes del pago</th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Saldo despues del pago</th>
                         <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {paymentsByRegistration.map((payment) => {
                         const canDelete = payment.id === latestPaymentId;
+                        const balanceSnapshot = paymentBalanceSnapshotById[payment.id];
+                        const balanceBeforePayment = balanceSnapshot?.before ?? (account.remainingAmount + payment.amount);
+                        const balanceAfterPayment = balanceSnapshot?.after ?? account.remainingAmount;
 
                         return (
                           <tr key={payment.id} className="hover:bg-pink-50/30 transition-all">
@@ -251,6 +281,8 @@ export function AccountDetailPaymentsTab({
                                     className="w-full px-2 py-1 text-sm text-right text-gray-900 bg-white border border-gray-300 rounded"
                                   />
                                 </td>
+                                <td className="px-4 py-3 text-right text-sm font-medium text-gray-700">{formatCurrency(balanceBeforePayment)}</td>
+                                <td className="px-4 py-3 text-right text-sm font-medium text-gray-700">{formatCurrency(balanceAfterPayment)}</td>
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex items-center justify-center gap-2">
                                     <button
@@ -274,6 +306,8 @@ export function AccountDetailPaymentsTab({
                               <>
                                 <td className="px-4 py-3 text-sm text-gray-700">{payment.date}</td>
                                 <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{formatCurrency(payment.amount)}</td>
+                                <td className="px-4 py-3 text-right text-sm font-medium text-gray-700">{formatCurrency(balanceBeforePayment)}</td>
+                                <td className="px-4 py-3 text-right text-sm font-medium text-gray-700">{formatCurrency(balanceAfterPayment)}</td>
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex items-center justify-center gap-2">
                                     <button

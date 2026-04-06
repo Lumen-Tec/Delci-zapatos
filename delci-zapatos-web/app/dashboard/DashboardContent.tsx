@@ -2,13 +2,8 @@
 import React from 'react';
 import { useDashboard } from '@/app/dashboard/DashboardContext';
 import { Navbar } from '@/app/components/shared/Navbar';
-import { NavButton } from '@/app/components/shared/Navbutton';
 import { Footer } from '@/app/components/shared/Footer';
-import HomeView from '@/app/dashboard/_views/HomeView';
-import { ProductsListView } from '@/app/dashboard/_views/ProductsListView';
-import { ProductsCreateView } from '@/app/dashboard/_views/ProductsCreateView';
-import { ClientsView } from '@/app/dashboard/_views/ClientsView';
-import AccountsView from './_views/AccountsView';
+import HomeView from './_views/HomeView';
 import AccountsCreateView from './_views/AccountsCreateView';
 import AccountsDetailView from './_views/AccountsDetailView';
 
@@ -19,14 +14,6 @@ export function DashboardContent() {
 
   if (view.key === 'home') {
     content = <HomeView />;
-  } else if (view.key === 'products_list') {
-    content = <ProductsListView />;
-  } else if (view.key === 'products_new') {
-    content = <ProductsCreateView />;
-  } else if (view.key === 'clients') {
-    content = <ClientsView />;
-  } else if (view.key === 'accounts') {
-    content = <AccountsView />;
   } else if (view.key === 'accounts_new') {
     content = <AccountsCreateView />;
   } else if (view.key === 'accounts_detail') {
@@ -44,7 +31,6 @@ export function DashboardContent() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 relative">
       <Navbar />
-      <NavButton />
       <main className="flex-grow relative z-10 w-full">{content}</main>
       <Footer />
     </div>

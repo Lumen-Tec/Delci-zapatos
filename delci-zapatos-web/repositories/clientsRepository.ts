@@ -56,6 +56,24 @@ export async function getClientById(id: string): Promise<ClientDetailsResult> {
 }
 
 /**
+ * Busca un cliente por telefono exacto.
+ */
+export async function getClientByPhone(phone: string): Promise<ClientDetailsResult | null> {
+	const supabase = await createSupabaseClient()
+
+	const { data, error } = await supabase
+		.from('clients')
+		.select('id, full_name, phone, address, created_at')
+		.eq('phone', phone)
+		.maybeSingle()
+
+	if (error) throw error
+	if (!data) return null
+
+	return mapClientRowToResult(data as ClientRow)
+}
+
+/**
  * Crea un nuevo cliente.
  */
 export async function createClient(data: CreateClientInput): Promise<CreateClientResult> {
