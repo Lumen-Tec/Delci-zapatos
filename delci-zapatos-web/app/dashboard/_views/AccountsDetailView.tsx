@@ -19,6 +19,12 @@ import {
   getNearestUpcomingPaymentDate,
 } from '@/utils/accountUtils';
 import { validatePaymentAmount } from '@/utils/paymentUtil';
+import {
+  normalizePhoneForStorage,
+  validateAddress,
+  validateFullName,
+  validatePhone,
+} from '@/utils/clientUtils';
 import type { AccountDetailsResult, AccountPaymentResult } from '@/types/accountsRepository';
 
 interface AccountState {
@@ -65,6 +71,11 @@ export default function AccountsDetailView() {
   const [editPaymentDate, setEditPaymentDate] = useState<string>('');
   const [isEditingDetail, setIsEditingDetail] = useState(false);
   const [editDetailValue, setEditDetailValue] = useState<string>('');
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [editClientFullName, setEditClientFullName] = useState('');
+  const [editClientPhone, setEditClientPhone] = useState('');
+  const [editClientAddress, setEditClientAddress] = useState('');
+  const [isSavingClient, setIsSavingClient] = useState(false);
   const [initialBalanceDraft, setInitialBalanceDraft] = useState('');
   const [isSavingBalances, setIsSavingBalances] = useState(false);
   const [isSavingBiweekly, setIsSavingBiweekly] = useState(false);
@@ -448,6 +459,127 @@ export default function AccountsDetailView() {
     });
   };
 
+  const handleEditClient = () => {
+    if (!account) return;
+
+    setEditClientFullName(account.clientName);
+    setEditClientPhone(account.clientPhone);
+    setEditClientAddress(account.clientAddress);
+    setIsEditingClient(true);
+  };
+
+  const handleCancelEditClient = () => {
+    setEditClientFullName('');
+    setEditClientPhone('');
+    setEditClientAddress('');
+    setIsEditingClient(false);
+  };
+
+  const handleSaveClient = async () => {
+    if (!account) return;
+    if (isSavingClient) return;
+
+    const nextFullName = editClientFullName.trim();
+    const nextPhoneInput = editClientPhone.trim();
+    const nextAddress = editClientAddress.trim();
+
+    const fullNameError = validateFullName(nextFullName);
+    if (fullNameError) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Nombre invalido',
+        text: fullNameError.message,
+        confirmButtonColor: '#ec4899',
+      });
+      return;
+    }
+
+    const normalizedPhone = normalizePhoneForStorage(nextPhoneInput);
+    const phoneError = validatePhone(normalizedPhone || nextPhoneInput);
+    if (phoneError) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Telefono invalido',
+        text: phoneError.message,
+        confirmButtonColor: '#ec4899',
+      });
+      return;
+    }
+
+    const addressError = validateAddress(nextAddress);
+    if (addressError) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Direccion invalida',
+        text: addressError.message,
+        confirmButtonColor: '#ec4899',
+      });
+      return;
+    }
+
+    setIsSavingClient(true);
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: account.clientId,
+          fullName: nextFullName,
+          phone: normalizedPhone,
+          address: nextAddress,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result?.ok || !result?.updated) {
+        const fallbackError = Array.isArray(result?.errors)
+          ? result.errors.find((err: { message?: string }) => typeof err?.message === 'string')?.message
+          : undefined;
+
+        await Swal.fire({
+          icon: 'error',
+          title: 'No se pudo actualizar cliente',
+          text: fallbackError || result?.error || 'Ocurrio un error al actualizar cliente',
+          confirmButtonColor: '#ec4899',
+        });
+        return;
+      }
+
+      const updated = result.updated as { fullName: string; phone: string; address: string };
+      dispatch({
+        type: 'SET_ACCOUNT',
+        payload: {
+          ...account,
+          clientName: updated.fullName,
+          clientPhone: updated.phone,
+          clientAddress: updated.address,
+        },
+      });
+
+      setIsEditingClient(false);
+      setEditClientFullName('');
+      setEditClientPhone('');
+      setEditClientAddress('');
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Cliente actualizado',
+        text: 'Los datos del cliente se actualizaron correctamente',
+        confirmButtonColor: '#ec4899',
+      });
+    } catch (error) {
+      console.error('Error updating client:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error de conexion',
+        text: 'No se pudo conectar al servidor para actualizar el cliente',
+        confirmButtonColor: '#ec4899',
+      });
+    } finally {
+      setIsSavingClient(false);
+    }
+  };
+
   const handleRegisterPayment = async (): Promise<boolean> => {
     if (!account) return false;
     if (isSavingPayment) return false;
@@ -664,6 +796,17 @@ export default function AccountsDetailView() {
           onSaveInitialBalance={handleSaveInitialBalance}
           isSavingBalances={isSavingBalances}
           showBalanceAdjustSection={false}
+          isEditingClient={isEditingClient}
+          clientFullNameDraft={editClientFullName}
+          clientPhoneDraft={editClientPhone}
+          clientAddressDraft={editClientAddress}
+          onClientFullNameChange={setEditClientFullName}
+          onClientPhoneChange={setEditClientPhone}
+          onClientAddressChange={setEditClientAddress}
+          onEditClient={handleEditClient}
+          onSaveClient={handleSaveClient}
+          onCancelEditClient={handleCancelEditClient}
+          isSavingClient={isSavingClient}
           isEditingDetail={isEditingDetail}
           editDetailValue={editDetailValue}
           onEditDetailValueChange={setEditDetailValue}

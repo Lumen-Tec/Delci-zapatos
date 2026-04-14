@@ -5,6 +5,7 @@ import { Edit2, Save, X } from 'lucide-react';
 import { Button } from '@/app/components/commons/Button';
 import { InputField } from '@/app/components/commons/InputField';
 import { formatAmountWithSpaces, formatCurrency, normalizeAmountInput } from '@/utils/accountUtils';
+import { formatPhone } from '@/utils/clientUtils';
 import type { AccountDetailsResult } from '@/types/accountsRepository';
 
 interface AccountDetailSummaryTabProps {
@@ -14,6 +15,17 @@ interface AccountDetailSummaryTabProps {
   onSaveInitialBalance: () => void;
   isSavingBalances: boolean;
   showBalanceAdjustSection?: boolean;
+  isEditingClient: boolean;
+  clientFullNameDraft: string;
+  clientPhoneDraft: string;
+  clientAddressDraft: string;
+  onClientFullNameChange: (value: string) => void;
+  onClientPhoneChange: (value: string) => void;
+  onClientAddressChange: (value: string) => void;
+  onEditClient: () => void;
+  onSaveClient: () => void;
+  onCancelEditClient: () => void;
+  isSavingClient: boolean;
   isEditingDetail: boolean;
   editDetailValue: string;
   onEditDetailValueChange: (value: string) => void;
@@ -30,6 +42,17 @@ export function AccountDetailSummaryTab({
   onSaveInitialBalance,
   isSavingBalances,
   showBalanceAdjustSection = true,
+  isEditingClient,
+  clientFullNameDraft,
+  clientPhoneDraft,
+  clientAddressDraft,
+  onClientFullNameChange,
+  onClientPhoneChange,
+  onClientAddressChange,
+  onEditClient,
+  onSaveClient,
+  onCancelEditClient,
+  isSavingClient,
   isEditingDetail,
   editDetailValue,
   onEditDetailValueChange,
@@ -70,6 +93,91 @@ export function AccountDetailSummaryTab({
             <span className="text-sm font-medium text-gray-900">{account.nextPaymentDate || 'Sin fecha'}</span>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm sm:shadow-lg overflow-hidden">
+        <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between gap-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Datos del cliente</div>
+          {!isEditingClient ? (
+            <button
+              type="button"
+              onClick={onEditClient}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+              title="Editar datos del cliente"
+            >
+              <Edit2 className="w-3 h-3" />
+              Editar
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onSaveClient}
+                disabled={isSavingClient}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-60"
+              >
+                <Save className="w-3 h-3" />
+                {isSavingClient ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                type="button"
+                onClick={onCancelEditClient}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isEditingClient ? (
+          <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <InputField
+              label="Nombre completo"
+              type="text"
+              value={clientFullNameDraft}
+              onChange={onClientFullNameChange}
+              placeholder="Ej: Maria Perez"
+              required
+            />
+            <InputField
+              label="Telefono"
+              type="text"
+              value={clientPhoneDraft}
+              onChange={onClientPhoneChange}
+              placeholder="Ej: 88887777"
+              required
+            />
+            <InputField
+              label="Direccion"
+              type="text"
+              value={clientAddressDraft}
+              onChange={onClientAddressChange}
+              placeholder="Opcional"
+              className="sm:col-span-2"
+            />
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            <div className="px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-500">Nombre</span>
+              <span className="text-sm font-medium text-gray-900 text-right">{account.clientName}</span>
+            </div>
+            <div className="px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-500">Telefono</span>
+              <span className="text-sm font-medium text-gray-900 text-right">
+                {account.clientPhone ? formatPhone(account.clientPhone) : 'Sin telefono'}
+              </span>
+            </div>
+            <div className="px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-500">Direccion</span>
+              <span className="text-sm font-medium text-gray-900 text-right">
+                {account.clientAddress?.trim() ? account.clientAddress : 'Sin direccion'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden p-4 sm:p-6">

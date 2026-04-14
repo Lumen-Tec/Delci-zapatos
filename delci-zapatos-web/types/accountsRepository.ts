@@ -41,19 +41,24 @@ export type PatchAccountResult =
         totalPaid: number
     }
 
-export type ClientRelation =
+export type ClientListRelation =
     | Pick<DbClientRow, 'full_name'>
     | Array<Pick<DbClientRow, 'full_name'>>
     | null
 
+export type ClientDetailRelation =
+    | Pick<DbClientRow, 'full_name' | 'phone' | 'address'>
+    | Array<Pick<DbClientRow, 'full_name' | 'phone' | 'address'>>
+    | null
+
 export type AccountsListRow = DbAccountRow & {
-    clients: ClientRelation
+    clients: ClientListRelation
     account_items: Array<Pick<DbAccountItemRow, 'quantity' | 'unit_price'>> | null
     account_payments: Array<Pick<DbAccountPaymentRow, 'amount'>> | null
 }
 
 export type AccountDetailsRow = DbAccountRow & {
-    clients: ClientRelation
+    clients: ClientDetailRelation
     account_items: DbAccountItemRow[] | null
     account_payments: DbAccountPaymentRow[] | null
 }
@@ -96,6 +101,8 @@ export type AccountDetailsResult = {
     id: string
     clientId: string
     clientName: string
+    clientPhone: string
+    clientAddress: string
     createdAt: string
     totalAmount: number
     totalPaid: number

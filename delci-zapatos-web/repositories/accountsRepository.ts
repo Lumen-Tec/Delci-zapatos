@@ -11,7 +11,8 @@ import type {
     AccountListResult,
     AccountPaymentResult,
     AccountsListRow,
-    ClientRelation,
+    ClientDetailRelation,
+    ClientListRelation,
     CreateAccountInput,
     PatchAccountDbInput,
     PatchAccountInput,
@@ -40,9 +41,23 @@ type AccountTotals = {
  * Normaliza el nombre de cliente para relaciones de Supabase.
  * Dependiendo del join inferido puede venir como objeto, arreglo o null.
  */
-function getClientName(clients: ClientRelation): string {
+function getClientName(clients: ClientListRelation | ClientDetailRelation): string {
     if (Array.isArray(clients)) return clients[0]?.full_name ?? 'Cliente'
     return clients?.full_name ?? 'Cliente'
+}
+
+function getClientDetailData(clients: ClientDetailRelation): {
+    clientName: string
+    clientPhone: string
+    clientAddress: string
+} {
+    const client = Array.isArray(clients) ? clients[0] : clients
+
+    return {
+        clientName: client?.full_name ?? 'Cliente',
+        clientPhone: client?.phone ?? '',
+        clientAddress: client?.address ?? '',
+    }
 }
 
 /**
@@ -291,7 +306,7 @@ export async function getAccountById(id: string): Promise<AccountDetailsResult> 
             next_payment_date,
             status,
             created_at,
-            clients ( full_name ),
+            clients ( full_name, phone, address ),
             account_items (
                 id, product_id, product_size_id,
                 product_name, category, color, size,
@@ -335,10 +350,14 @@ export async function getAccountById(id: string): Promise<AccountDetailsResult> 
         discountPercentage: i.discount_pct,
     }))
 
+    const clientDetails = getClientDetailData(details.clients)
+
     return {
         id: details.id,
         clientId: details.client_id,
-        clientName: getClientName(details.clients),
+        clientName: clientDetails.clientName,
+        clientPhone: clientDetails.clientPhone,
+        clientAddress: clientDetails.clientAddress,
         createdAt: details.created_at,
         totalAmount: totals.totalAmount,
         totalPaid: totals.totalPaid,
