@@ -282,7 +282,7 @@ export async function getAccounts(): Promise<AccountListResult[]> {
             totalPaid: totals.totalPaid,
             remainingAmount: totals.remainingAmount,
             totalProducts: totals.totalProducts,
-            status: STATUS_DB_TO_FRONTEND[row.status as DbAccountStatus],
+            status: computeStatus(totals.remainingAmount, row.next_payment_date),
             nextPaymentDate: row.next_payment_date,
             biweeklyAmount: row.quincenal_amount,
         }
@@ -363,7 +363,7 @@ export async function getAccountById(id: string): Promise<AccountDetailsResult> 
         totalPaid: totals.totalPaid,
         remainingAmount: totals.remainingAmount,
         totalProducts: totals.totalProducts,
-        status: STATUS_DB_TO_FRONTEND[details.status as DbAccountStatus],
+        status: computeStatus(totals.remainingAmount, details.next_payment_date),
         nextPaymentDate: details.next_payment_date,
         biweeklyAmount: details.quincenal_amount,
         detail: details.detail,

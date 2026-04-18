@@ -14,6 +14,7 @@ import {
   normalize_phone_input,
   validate_cuenta_cliente_form,
 } from '@/utils/account_create_utils';
+import { todayISO } from '@/utils/accountUtils';
 
 export default function AccountsCreateView() {
   const { setView } = useDashboard();
@@ -43,7 +44,7 @@ export default function AccountsCreateView() {
         return { ...current_form_data, telefono: normalize_phone_input(value) };
       }
 
-      if (field === 'monto_quincenal' || field === 'saldo_inicial') {
+      if (field === 'monto_quincenal' || field === 'saldo_inicial' || field === 'abono_inicial') {
         return {
           ...current_form_data,
           [field]: normalize_amount_input_for_form(value),
@@ -89,14 +90,15 @@ export default function AccountsCreateView() {
     }
 
     const payload = map_form_to_payload(form_data);
-    const initial_balance_text = form_data.saldo_inicial.trim().length > 0
-      ? format_currency(payload.initial_balance)
-      : 'Sin saldo inicial';
+    const initial_balance_text = format_currency(payload.initial_balance);
+    const initial_payment_text = payload.initial_payment_amount > 0
+      ? format_currency(payload.initial_payment_amount)
+      : 'Sin abono inicial';
 
     const confirmation = await Swal.fire({
       icon: 'question',
       title: 'Confirmar creacion',
-      text: `Se creara el cliente y su cuenta.\nCliente: ${payload.full_name}\nTelefono: ${payload.phone}\nMonto quincenal: ${format_currency(payload.quincenal_amount)}\nSaldo inicial: ${initial_balance_text}`,
+      text: `Se creara el cliente y su cuenta.\nCliente: ${payload.full_name}\nTelefono: ${payload.phone}\nMonto quincenal: ${format_currency(payload.quincenal_amount)}\nSaldo inicial: ${initial_balance_text}\nAbono inicial: ${initial_payment_text}`,
       showCancelButton: true,
       confirmButtonText: 'Si, crear cuenta',
       cancelButtonText: 'Cancelar',
@@ -199,10 +201,61 @@ export default function AccountsCreateView() {
         return;
       }
 
+      const account_id = create_account_data?.created?.id as string | undefined;
+      if (!account_id) {
+        set_form_errors({ general: 'No se pudo obtener el identificador de la cuenta creada.' });
+        await Swal.fire({
+          icon: 'error',
+          title: 'Error de integridad',
+          text: 'No se pudo obtener el identificador de la cuenta creada.',
+          confirmButtonColor: '#ec4899',
+        });
+        return;
+      }
+
+      if (payload.initial_payment_amount > 0) {
+        try {
+          const create_payment_response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              accountId: account_id,
+              amount: payload.initial_payment_amount,
+              paymentDate: todayISO(),
+            }),
+          });
+
+          const create_payment_data = await create_payment_response.json();
+
+          if (!create_payment_response.ok || !create_payment_data?.ok) {
+            await Swal.fire({
+              icon: 'warning',
+              title: 'Cuenta creada con observaciones',
+              text: create_payment_data?.error || 'La cuenta se creo, pero no se pudo registrar el abono inicial.',
+              confirmButtonColor: '#ec4899',
+            });
+            setView({ key: 'home' });
+            return;
+          }
+        } catch (payment_error) {
+          console.error('Error creating initial payment:', payment_error);
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Cuenta creada con observaciones',
+            text: 'La cuenta se creo, pero no se pudo registrar el abono inicial por un error de conexion.',
+            confirmButtonColor: '#ec4899',
+          });
+          setView({ key: 'home' });
+          return;
+        }
+      }
+
       await Swal.fire({
         icon: 'success',
-        title: 'Cuenta creada',
-        text: 'La cuenta se creo correctamente.',
+        title: payload.initial_payment_amount > 0 ? 'Cuenta y abono creados' : 'Cuenta creada',
+        text: payload.initial_payment_amount > 0
+          ? 'La cuenta y el abono inicial se registraron correctamente.'
+          : 'La cuenta se creo correctamente.',
         confirmButtonColor: '#ec4899',
         confirmButtonText: 'Aceptar',
       });
@@ -231,6 +284,7 @@ export default function AccountsCreateView() {
             onClick={() => setView({ key: 'home' })}
             className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/80 border border-rose-200 text-rose-700 shadow-sm hover:bg-white transition-all"
             title="Volver"
+            aria-label="Volver al listado de cuentas"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>

@@ -11,6 +11,7 @@ export const create_empty_cuenta_cliente_form = (): CuentaClienteFormulario => (
   direccion: '',
   monto_quincenal: '',
   saldo_inicial: '',
+  abono_inicial: '',
   detalle_cuenta: '',
 });
 
@@ -90,10 +91,27 @@ export const validate_cuenta_cliente_form = (
     errores.monto_quincenal = 'El monto quincenal debe ser mayor a 0.';
   }
 
-  if (form_data.saldo_inicial.trim().length > 0) {
-    const saldo_inicial = parseAmountInput(form_data.saldo_inicial);
+  const has_saldo_inicial = form_data.saldo_inicial.trim().length > 0;
+  let saldo_inicial = 0;
+  let saldo_inicial_valido = true;
+
+  if (!has_saldo_inicial) {
+    errores.saldo_inicial = 'El saldo inicial es obligatorio.';
+    saldo_inicial_valido = false;
+  } else {
+    saldo_inicial = parseAmountInput(form_data.saldo_inicial);
     if (!Number.isFinite(saldo_inicial) || saldo_inicial < 0) {
       errores.saldo_inicial = 'El saldo inicial debe ser 0 o mayor.';
+      saldo_inicial_valido = false;
+    }
+  }
+
+  if (form_data.abono_inicial.trim().length > 0) {
+    const abono_inicial = parseAmountInput(form_data.abono_inicial);
+    if (!Number.isFinite(abono_inicial) || abono_inicial <= 0) {
+      errores.abono_inicial = 'El abono inicial debe ser mayor a 0.';
+    } else if (saldo_inicial_valido && abono_inicial > saldo_inicial) {
+      errores.abono_inicial = 'El abono inicial no puede ser mayor al saldo inicial.';
     }
   }
 
@@ -105,6 +123,9 @@ export const map_form_to_payload = (form_data: CuentaClienteFormulario): CuentaC
   const saldo_inicial = form_data.saldo_inicial.trim().length > 0
     ? parseAmountInput(form_data.saldo_inicial)
     : 0;
+  const abono_inicial = form_data.abono_inicial.trim().length > 0
+    ? parseAmountInput(form_data.abono_inicial)
+    : 0;
 
   return {
     full_name: normalize_full_name_input(form_data.nombre_completo),
@@ -112,6 +133,7 @@ export const map_form_to_payload = (form_data: CuentaClienteFormulario): CuentaC
     address: form_data.direccion.trim(),
     quincenal_amount: Number.isFinite(monto_quincenal) ? monto_quincenal : 0,
     initial_balance: Number.isFinite(saldo_inicial) ? saldo_inicial : 0,
+    initial_payment_amount: Number.isFinite(abono_inicial) ? abono_inicial : 0,
     detail: form_data.detalle_cuenta.trim() || undefined,
   };
 };

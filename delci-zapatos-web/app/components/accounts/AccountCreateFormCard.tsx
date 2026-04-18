@@ -32,11 +32,9 @@ export function AccountCreateFormCard({
       </div>
 
       <div className="p-4 sm:p-6 space-y-5">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Datos del cliente</h3>
-            <p className="text-xs text-gray-500 mt-1">Nombre, telefono y direccion del cliente.</p>
-          </div>
+        <fieldset className="space-y-4">
+          <legend className="text-sm font-semibold text-gray-900">Datos del cliente</legend>
+          <p className="text-xs text-gray-500">Nombre, telefono unico y direccion opcional del cliente.</p>
 
           <InputField
             label="Nombre completo"
@@ -64,13 +62,11 @@ export function AccountCreateFormCard({
             placeholder="Ej: San Jose, Desamparados"
             error={form_errors.direccion}
           />
-        </div>
+        </fieldset>
 
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Datos de la cuenta</h3>
-            <p className="text-xs text-gray-500 mt-1">Defina el monto quincenal y opcionalmente saldo inicial.</p>
-          </div>
+        <fieldset className="space-y-4">
+          <legend className="text-sm font-semibold text-gray-900">Datos de la cuenta</legend>
+          <p className="text-xs text-gray-500">Monto quincenal, saldo inicial y abono inicial opcional.</p>
 
           <InputField
             label="Monto quincenal"
@@ -82,12 +78,22 @@ export function AccountCreateFormCard({
           />
 
           <InputField
-            label="Saldo inicial (opcional)"
+            label="Saldo inicial"
             value={format_amount_input_for_display(form_data.saldo_inicial)}
             onChange={(value) => on_change_field('saldo_inicial', value)}
             placeholder="Ej: 100,000"
             error={form_errors.saldo_inicial}
+            required
           />
+
+          <InputField
+            label="Abono inicial (opcional)"
+            value={format_amount_input_for_display(form_data.abono_inicial)}
+            onChange={(value) => on_change_field('abono_inicial', value)}
+            placeholder="Ej: 20,000"
+            error={form_errors.abono_inicial}
+          />
+          <p className="text-xs text-gray-500 -mt-2">Si ingresa un abono, no puede ser mayor al saldo inicial.</p>
 
           <div>
             <label htmlFor="detalle_cuenta" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
@@ -95,17 +101,19 @@ export function AccountCreateFormCard({
             </label>
             <textarea
               id="detalle_cuenta"
+              name="detalle_cuenta"
               rows={3}
               value={form_data.detalle_cuenta}
               onChange={(event) => on_change_field('detalle_cuenta', event.target.value)}
               placeholder="Ej: Cuenta creada por compra de calzado escolar"
+              aria-label="Detalle de la cuenta"
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-all duration-200 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
           </div>
-        </div>
+        </fieldset>
 
         {form_errors.general && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert" aria-live="polite">
             {form_errors.general}
           </div>
         )}

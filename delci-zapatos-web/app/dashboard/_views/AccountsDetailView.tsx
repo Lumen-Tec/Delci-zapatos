@@ -39,6 +39,8 @@ type AccountAction =
   | { type: 'SET_BIWEEKLY_AMOUNT'; payload: string }
   | { type: 'RESET_PAYMENT_FORM'; payload: { amount: string } };
 
+type BalanceAdjustmentType = 'add' | 'remove';
+
 const accountReducer = (state: AccountState, action: AccountAction): AccountState => {
   switch (action.type) {
     case 'SET_ACCOUNT':
@@ -80,6 +82,9 @@ export default function AccountsDetailView() {
   const [isSavingBalances, setIsSavingBalances] = useState(false);
   const [isSavingBiweekly, setIsSavingBiweekly] = useState(false);
   const [isInitialBalanceModalOpen, setIsInitialBalanceModalOpen] = useState(false);
+  const [isBalanceAdjustmentModalOpen, setIsBalanceAdjustmentModalOpen] = useState(false);
+  const [balanceAdjustmentType, setBalanceAdjustmentType] = useState<BalanceAdjustmentType>('add');
+  const [balanceAdjustmentDraft, setBalanceAdjustmentDraft] = useState('');
   const [isBiweeklyModalOpen, setIsBiweeklyModalOpen] = useState(false);
   const [isRegisterPaymentModalOpen, setIsRegisterPaymentModalOpen] = useState(false);
 
@@ -203,15 +208,17 @@ export default function AccountsDetailView() {
     }
   };
 
-  const handleSaveInitialBalance = async (): Promise<boolean> => {
+  const updateAccountInitialBalance = async (
+    nextInitialBalance: number,
+    successFeedback: { title: string; text?: string },
+  ): Promise<boolean> => {
     if (!account) return false;
 
-    const nextInitialBalance = parseAmountInput(initialBalanceDraft);
     if (!Number.isFinite(nextInitialBalance) || nextInitialBalance < 0) {
       await Swal.fire({
         icon: 'error',
-        title: 'Saldo inicial invalido',
-        text: 'El saldo inicial debe ser un numero mayor o igual a 0',
+        title: 'Saldo invalido',
+        text: 'El saldo debe ser un numero mayor o igual a 0',
         confirmButtonColor: '#ec4899',
       });
       return false;
@@ -233,23 +240,26 @@ export default function AccountsDetailView() {
         await Swal.fire({
           icon: 'error',
           title: 'No se pudo actualizar',
-          text: result?.error || 'No se pudo actualizar el saldo inicial',
+          text: result?.error || 'No se pudo actualizar el saldo de la cuenta',
           confirmButtonColor: '#ec4899',
         });
         return false;
       }
 
       dispatch({ type: 'SET_ACCOUNT', payload: result.account as AccountDetailsResult });
+      setInitialBalanceDraft(String(nextInitialBalance));
+
       await Swal.fire({
         icon: 'success',
-        title: 'Saldo inicial actualizado',
+        title: successFeedback.title,
+        text: successFeedback.text,
         confirmButtonColor: '#ec4899',
         confirmButtonText: 'Aceptar',
       });
 
       return true;
     } catch (error) {
-      console.error('Error updating initial balance:', error);
+      console.error('Error updating account balance:', error);
       await Swal.fire({
         icon: 'error',
         title: 'Error de conexion',
@@ -261,6 +271,60 @@ export default function AccountsDetailView() {
     } finally {
       setIsSavingBalances(false);
     }
+  };
+
+  const handleSaveInitialBalance = async (): Promise<boolean> => {
+    const nextInitialBalance = parseAmountInput(initialBalanceDraft);
+    return updateAccountInitialBalance(nextInitialBalance, {
+      title: 'Saldo de cuenta actualizado',
+      text: 'El saldo de la cuenta se actualizo correctamente.',
+    });
+  };
+
+  const openBalanceAdjustmentModal = (type: BalanceAdjustmentType) => {
+    setBalanceAdjustmentType(type);
+    setBalanceAdjustmentDraft('');
+    setIsBalanceAdjustmentModalOpen(true);
+  };
+
+  const handleSaveBalanceAdjustment = async (): Promise<boolean> => {
+    const adjustmentAmount = parseAmountInput(balanceAdjustmentDraft);
+    if (!Number.isFinite(adjustmentAmount) || adjustmentAmount <= 0) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Monto invalido',
+        text: 'El monto debe ser mayor a 0',
+        confirmButtonColor: '#ec4899',
+      });
+      return false;
+    }
+
+    if (balanceAdjustmentType === 'remove' && adjustmentAmount > estimatedInitialBalance) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Monto invalido',
+        text: 'No puede eliminar mas saldo del que tiene la cuenta actualmente',
+        confirmButtonColor: '#ec4899',
+      });
+      return false;
+    }
+
+    const nextInitialBalance = balanceAdjustmentType === 'add'
+      ? estimatedInitialBalance + adjustmentAmount
+      : estimatedInitialBalance - adjustmentAmount;
+
+    return updateAccountInitialBalance(
+      nextInitialBalance,
+      balanceAdjustmentType === 'add'
+        ? {
+            title: 'Saldo agregado',
+            text: `Se agrego ${formatCurrency(adjustmentAmount)} al saldo de la cuenta.`,
+          }
+        : {
+            title: 'Saldo eliminado',
+            text: `Se elimino ${formatCurrency(adjustmentAmount)} del saldo de la cuenta.`,
+          },
+    );
   };
 
   const handleSaveBiweekly = async (): Promise<boolean> => {
@@ -717,6 +781,13 @@ export default function AccountsDetailView() {
     setIsInitialBalanceModalOpen(false);
   };
 
+  const handleSaveBalanceAdjustmentModal = async () => {
+    const wasSaved = await handleSaveBalanceAdjustment();
+    if (!wasSaved) return;
+    setIsBalanceAdjustmentModalOpen(false);
+    setBalanceAdjustmentDraft('');
+  };
+
   const handleSaveBiweeklyModal = async () => {
     const wasSaved = await handleSaveBiweekly();
     if (!wasSaved) return;
@@ -765,6 +836,7 @@ export default function AccountsDetailView() {
               onClick={() => dashboard?.setView({ key: 'home' })}
               className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/80 border border-rose-200 text-rose-700 shadow-sm hover:bg-white transition-all"
               title="Volver"
+              aria-label="Volver al listado de cuentas"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -820,13 +892,27 @@ export default function AccountsDetailView() {
           <div className="px-4 sm:px-6 py-3 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-900">Acciones de cuenta</h2>
           </div>
-          <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             <Button
               variant="secondary"
               className="w-full border border-rose-200 bg-rose-100 text-rose-700 hover:bg-rose-200 focus:ring-rose-300"
               onClick={() => setIsInitialBalanceModalOpen(true)}
             >
-              Cambiar saldo inicial
+              Cambiar saldo de cuenta
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full border border-emerald-200 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 focus:ring-emerald-300"
+              onClick={() => openBalanceAdjustmentModal('add')}
+            >
+              Agregar saldo
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full border border-amber-200 bg-amber-100 text-amber-700 hover:bg-amber-200 focus:ring-amber-300"
+              onClick={() => openBalanceAdjustmentModal('remove')}
+            >
+              Eliminar saldo
             </Button>
             <Button
               variant="secondary"
@@ -882,22 +968,69 @@ export default function AccountsDetailView() {
       <Modal
         isOpen={isInitialBalanceModalOpen}
         onClose={() => setIsInitialBalanceModalOpen(false)}
-        title="Cambiar saldo inicial"
+        title="Cambiar saldo de cuenta"
       >
         <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Saldo actual</div>
+            <div className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(estimatedInitialBalance)}</div>
+          </div>
           <InputField
-            label="Nuevo saldo inicial"
+            label="Nuevo saldo de cuenta"
             type="text"
             value={formatAmountWithSpaces(initialBalanceDraft)}
             onChange={(value) => setInitialBalanceDraft(normalizeAmountInput(value))}
             placeholder="Ej: 120000"
           />
+          <div className="text-xs text-gray-500">Este cambio redefine el saldo base de la cuenta.</div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <Button variant="secondary" onClick={() => setIsInitialBalanceModalOpen(false)}>
               Cancelar
             </Button>
             <Button onClick={handleSaveInitialBalanceModal} loading={isSavingBalances}>
               Guardar cambio
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isBalanceAdjustmentModalOpen}
+        onClose={() => {
+          setIsBalanceAdjustmentModalOpen(false);
+          setBalanceAdjustmentDraft('');
+        }}
+        title={balanceAdjustmentType === 'add' ? 'Agregar saldo' : 'Eliminar saldo'}
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Saldo actual</div>
+            <div className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(estimatedInitialBalance)}</div>
+          </div>
+          <InputField
+            label={balanceAdjustmentType === 'add' ? 'Monto a agregar' : 'Monto a eliminar'}
+            type="text"
+            value={formatAmountWithSpaces(balanceAdjustmentDraft)}
+            onChange={(value) => setBalanceAdjustmentDraft(normalizeAmountInput(value))}
+            placeholder="Ej: 20000"
+          />
+          <div className="text-xs text-gray-500">
+            {balanceAdjustmentType === 'add'
+              ? 'El monto se sumara al saldo actual de la cuenta.'
+              : 'El monto no puede ser mayor al saldo actual de la cuenta.'}
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsBalanceAdjustmentModalOpen(false);
+                setBalanceAdjustmentDraft('');
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveBalanceAdjustmentModal} loading={isSavingBalances}>
+              {balanceAdjustmentType === 'add' ? 'Agregar saldo' : 'Eliminar saldo'}
             </Button>
           </div>
         </div>

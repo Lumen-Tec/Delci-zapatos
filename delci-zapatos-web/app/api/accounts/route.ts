@@ -47,18 +47,46 @@ export async function GET() {
  */
 export async function POST(request: Request) {
     try {
-        const body = await request.json() as CreateAccountRequestBody
+        const rawBody: unknown = await request.json()
+
+        if (!isObjectRecord(rawBody)) {
+            return Response.json({ ok: false, error: 'Body invalido' }, { status: 400 })
+        }
+
+        const body = rawBody as CreateAccountRequestBody
+
+        const validationError = validateCreateAccountBody(body)
+        if (validationError) {
+            return Response.json({ ok: false, error: validationError }, { status: 400 })
+        }
+
         const account = await createAccount({
-            clientId: body.clientId,
+            clientId: body.clientId.trim(),
             initialBalance: body.initialBalance ?? 0,
             quincenalAmount: body.quincenalAmount,
-            detail: body.detail,
+            detail: body.detail?.trim() || undefined,
             nextPaymentDate: getNearestUpcomingPaymentDate(todayISO()),
         })
         return Response.json({ ok: true, created: account }, { status: 201 })
     } catch (error: unknown) {
         return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
+}
+
+function validateCreateAccountBody(body: CreateAccountRequestBody): string | null {
+    if (typeof body.clientId !== 'string' || !body.clientId.trim()) {
+        return 'clientId es requerido'
+    }
+    if (typeof body.quincenalAmount !== 'number' || body.quincenalAmount <= 0) {
+        return 'quincenalAmount debe ser un numero mayor a 0'
+    }
+    if (body.initialBalance !== undefined && (typeof body.initialBalance !== 'number' || body.initialBalance < 0)) {
+        return 'initialBalance debe ser un numero mayor o igual a 0'
+    }
+    if (body.detail !== undefined && typeof body.detail !== 'string') {
+        return 'detail debe ser string'
+    }
+    return null
 }
 
 /**
@@ -73,52 +101,17 @@ export async function PATCH(request: Request) {
             return Response.json({ ok: false, error: 'Body invalido' }, { status: 400 })
         }
 
-        const hasId = Object.prototype.hasOwnProperty.call(rawBody, 'id')
+        const validationError = validatePatchAccountBody(rawBody)
+        if (validationError) {
+            return Response.json({ ok: false, error: validationError }, { status: 400 })
+        }
+
         const hasInitialBalance = Object.prototype.hasOwnProperty.call(rawBody, 'initialBalance')
         const hasQuincenalAmount = Object.prototype.hasOwnProperty.call(rawBody, 'quincenalAmount')
         const hasDetail = Object.prototype.hasOwnProperty.call(rawBody, 'detail')
         const hasStatus = Object.prototype.hasOwnProperty.call(rawBody, 'status')
 
-        if (!hasId || typeof rawBody.id !== 'string' || !rawBody.id) {
-            return Response.json({ ok: false, error: 'id es requerido' }, { status: 400 })
-        }
-
-        if (!hasInitialBalance && !hasQuincenalAmount && !hasDetail && !hasStatus) {
-            return Response.json(
-                { ok: false, error: 'Debe enviar al menos un campo para actualizar' },
-                { status: 400 },
-            )
-        }
-
         const body = rawBody as PatchAccountRequestBody
-
-        if (hasInitialBalance && (typeof body.initialBalance !== 'number' || body.initialBalance < 0)) {
-            return Response.json(
-                { ok: false, error: 'initialBalance debe ser un numero mayor o igual a 0' },
-                { status: 400 },
-            )
-        }
-
-        if (hasQuincenalAmount && (typeof body.quincenalAmount !== 'number' || body.quincenalAmount < 0)) {
-            return Response.json(
-                { ok: false, error: 'quincenalAmount debe ser un numero mayor o igual a 0' },
-                { status: 400 },
-            )
-        }
-
-        if (hasDetail && body.detail !== null && typeof body.detail !== 'string') {
-            return Response.json(
-                { ok: false, error: 'detail debe ser string o null' },
-                { status: 400 },
-            )
-        }
-
-        if (hasStatus && (typeof body.status !== 'string' || !VALID_STATUS.includes(body.status))) {
-            return Response.json(
-                { ok: false, error: 'status debe ser activa, pagada o atrasada' },
-                { status: 400 },
-            )
-        }
 
         const updated = await patchAccountById(body.id, {
             ...(hasInitialBalance ? { initialBalance: body.initialBalance } : {}),
@@ -151,4 +144,38 @@ export async function PATCH(request: Request) {
         }
         return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
     }
+}
+
+function validatePatchAccountBody(rawBody: Record<string, unknown>): string | null {
+    const hasId = Object.prototype.hasOwnProperty.call(rawBody, 'id')
+    const hasInitialBalance = Object.prototype.hasOwnProperty.call(rawBody, 'initialBalance')
+    const hasQuincenalAmount = Object.prototype.hasOwnProperty.call(rawBody, 'quincenalAmount')
+    const hasDetail = Object.prototype.hasOwnProperty.call(rawBody, 'detail')
+    const hasStatus = Object.prototype.hasOwnProperty.call(rawBody, 'status')
+
+    if (!hasId || typeof rawBody.id !== 'string' || !rawBody.id) {
+        return 'id es requerido'
+    }
+
+    if (!hasInitialBalance && !hasQuincenalAmount && !hasDetail && !hasStatus) {
+        return 'Debe enviar al menos un campo para actualizar'
+    }
+
+    if (hasInitialBalance && (typeof rawBody.initialBalance !== 'number' || rawBody.initialBalance < 0)) {
+        return 'initialBalance debe ser un numero mayor o igual a 0'
+    }
+
+    if (hasQuincenalAmount && (typeof rawBody.quincenalAmount !== 'number' || rawBody.quincenalAmount < 0)) {
+        return 'quincenalAmount debe ser un numero mayor o igual a 0'
+    }
+
+    if (hasDetail && rawBody.detail !== null && typeof rawBody.detail !== 'string') {
+        return 'detail debe ser string o null'
+    }
+
+    if (hasStatus && (typeof rawBody.status !== 'string' || !VALID_STATUS.includes(rawBody.status as FrontendAccountStatus))) {
+        return 'status debe ser activa, pagada o atrasada'
+    }
+
+    return null
 }

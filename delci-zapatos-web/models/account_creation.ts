@@ -4,6 +4,7 @@ export interface CuentaClienteFormulario {
   direccion: string;
   monto_quincenal: string;
   saldo_inicial: string;
+  abono_inicial: string;
   detalle_cuenta: string;
 }
 
@@ -13,6 +14,7 @@ export interface CuentaClienteErroresFormulario {
   direccion?: string;
   monto_quincenal?: string;
   saldo_inicial?: string;
+  abono_inicial?: string;
   detalle_cuenta?: string;
   general?: string;
 }
@@ -23,5 +25,6 @@ export interface CuentaClientePayload {
   address: string;
   quincenal_amount: number;
   initial_balance: number;
+  initial_payment_amount: number;
   detail?: string;
 }
