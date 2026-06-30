@@ -1005,7 +1005,7 @@ export default function AccountsDetailView() {
         <div className="space-y-4">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
             <div className="text-xs uppercase tracking-wide text-gray-500">Saldo actual</div>
-            <div className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(estimatedInitialBalance)}</div>
+            <div className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(account.remainingAmount)}</div>
           </div>
           <InputField
             label={balanceAdjustmentType === 'add' ? 'Monto a agregar' : 'Monto a eliminar'}
