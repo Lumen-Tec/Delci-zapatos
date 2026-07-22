@@ -132,7 +132,7 @@ export function AccountDetailPaymentsTab({
                   onChange={(value) => onPaymentAmountChange(normalizeAmountInput(value))}
                 />
                 <Button onClick={onRegisterPayment} variant="primary" size="md" className="w-full sm:w-auto" loading={isSavingPayment}>
-                  Registrar pago
+                  Registrar abono
                 </Button>
               </>
             )}

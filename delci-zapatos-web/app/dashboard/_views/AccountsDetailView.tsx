@@ -39,7 +39,7 @@ type AccountAction =
   | { type: 'SET_BIWEEKLY_AMOUNT'; payload: string }
   | { type: 'RESET_PAYMENT_FORM'; payload: { amount: string } };
 
-type BalanceAdjustmentType = 'add' | 'remove';
+type BalanceAdjustmentType = 'add';
 
 const accountReducer = (state: AccountState, action: AccountAction): AccountState => {
   switch (action.type) {
@@ -299,31 +299,14 @@ export default function AccountsDetailView() {
       return false;
     }
 
-    if (balanceAdjustmentType === 'remove' && adjustmentAmount > estimatedInitialBalance) {
-      await Swal.fire({
-        icon: 'error',
-        title: 'Monto invalido',
-        text: 'No puede eliminar mas saldo del que tiene la cuenta actualmente',
-        confirmButtonColor: '#ec4899',
-      });
-      return false;
-    }
-
-    const nextInitialBalance = balanceAdjustmentType === 'add'
-      ? estimatedInitialBalance + adjustmentAmount
-      : estimatedInitialBalance - adjustmentAmount;
+    const nextInitialBalance = estimatedInitialBalance + adjustmentAmount;
 
     return updateAccountInitialBalance(
       nextInitialBalance,
-      balanceAdjustmentType === 'add'
-        ? {
-            title: 'Saldo agregado',
-            text: `Se agrego ${formatCurrency(adjustmentAmount)} al saldo de la cuenta.`,
-          }
-        : {
-            title: 'Saldo eliminado',
-            text: `Se elimino ${formatCurrency(adjustmentAmount)} del saldo de la cuenta.`,
-          },
+      {
+        title: 'Producto agregado',
+        text: `Se agrego ${formatCurrency(adjustmentAmount)} al saldo de la cuenta.`,
+      }
     );
   };
 
@@ -668,7 +651,7 @@ export default function AccountsDetailView() {
       title: 'Confirmar pago',
       text: `Cliente: ${account.clientName}\nMonto: ${formatCurrency(amount)}\nFecha de pago: ${paymentDate}`,
       showCancelButton: true,
-      confirmButtonText: 'Si, registrar pago',
+      confirmButtonText: 'Si, registrar abono',
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#ec4899',
       cancelButtonColor: '#6b7280',
@@ -898,21 +881,14 @@ export default function AccountsDetailView() {
               className="w-full border border-rose-200 bg-rose-100 text-rose-700 hover:bg-rose-200 focus:ring-rose-300"
               onClick={() => setIsInitialBalanceModalOpen(true)}
             >
-              Cambiar saldo de cuenta
+              Cambiar saldo total
             </Button>
             <Button
               variant="secondary"
               className="w-full border border-emerald-200 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 focus:ring-emerald-300"
               onClick={() => openBalanceAdjustmentModal('add')}
             >
-              Agregar saldo
-            </Button>
-            <Button
-              variant="secondary"
-              className="w-full border border-amber-200 bg-amber-100 text-amber-700 hover:bg-amber-200 focus:ring-amber-300"
-              onClick={() => openBalanceAdjustmentModal('remove')}
-            >
-              Eliminar saldo
+              Agregar producto
             </Button>
             <Button
               variant="secondary"
@@ -926,7 +902,7 @@ export default function AccountsDetailView() {
               className="w-full bg-pink-600 hover:bg-pink-700 focus:ring-pink-600"
               onClick={() => setIsRegisterPaymentModalOpen(true)}
             >
-              Registrar pago
+              Registrar abono
             </Button>
             <Button
               variant="outline"
@@ -968,7 +944,7 @@ export default function AccountsDetailView() {
       <Modal
         isOpen={isInitialBalanceModalOpen}
         onClose={() => setIsInitialBalanceModalOpen(false)}
-        title="Cambiar saldo de cuenta"
+        title="Cambiar saldo total de la cuenta"
       >
         <div className="space-y-4">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -1000,7 +976,7 @@ export default function AccountsDetailView() {
           setIsBalanceAdjustmentModalOpen(false);
           setBalanceAdjustmentDraft('');
         }}
-        title={balanceAdjustmentType === 'add' ? 'Agregar saldo' : 'Eliminar saldo'}
+        title='Agregar producto'
       >
         <div className="space-y-4">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -1008,16 +984,14 @@ export default function AccountsDetailView() {
             <div className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(account.remainingAmount)}</div>
           </div>
           <InputField
-            label={balanceAdjustmentType === 'add' ? 'Monto a agregar' : 'Monto a eliminar'}
+            label={'Monto a agregar'}
             type="text"
             value={formatAmountWithSpaces(balanceAdjustmentDraft)}
             onChange={(value) => setBalanceAdjustmentDraft(normalizeAmountInput(value))}
             placeholder="Ej: 20000"
           />
           <div className="text-xs text-gray-500">
-            {balanceAdjustmentType === 'add'
-              ? 'El monto se sumara al saldo actual de la cuenta.'
-              : 'El monto no puede ser mayor al saldo actual de la cuenta.'}
+            {'El monto se sumara al saldo actual de la cuenta.'}
           </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <Button
@@ -1029,8 +1003,8 @@ export default function AccountsDetailView() {
             >
               Cancelar
             </Button>
-            <Button onClick={handleSaveBalanceAdjustmentModal} loading={isSavingBalances}>
-              {balanceAdjustmentType === 'add' ? 'Agregar saldo' : 'Eliminar saldo'}
+            <Button onClick={handleSaveBalanceAdjustmentModal}>
+              Guardar cambio
             </Button>
           </div>
         </div>
@@ -1063,7 +1037,7 @@ export default function AccountsDetailView() {
       <Modal
         isOpen={isRegisterPaymentModalOpen}
         onClose={() => setIsRegisterPaymentModalOpen(false)}
-        title="Registrar pago"
+        title="Registrar abono"
       >
         <div className="space-y-4">
           <div className="text-xs text-gray-500 uppercase tracking-wide">Saldo pendiente</div>
@@ -1080,7 +1054,7 @@ export default function AccountsDetailView() {
               Cancelar
             </Button>
             <Button onClick={handleRegisterPaymentModal} loading={isSavingPayment}>
-              Registrar pago
+              Registrar abono
             </Button>
           </div>
         </div>
