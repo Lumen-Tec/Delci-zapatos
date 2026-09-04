@@ -119,3 +119,33 @@ export async function updateClientById(data: UpdateClientInput): Promise<UpdateC
 
 	return { ok: true, client: mapClientRowToResult(updatedClient as ClientRow) }
 }
+
+/** Busca un cliente por nombre completo, sin distinguir mayúsculas. */
+export async function getClientByFullName(fullName: string): Promise<ClientDetailsResult | null> {
+    const supabase = await createSupabaseClient()
+    const { data, error } = await supabase
+        .from('clients')
+        .select('id, full_name, phone, address, created_at')
+        .ilike('full_name', fullName.trim())
+        .maybeSingle()
+    if (error) throw error
+    return data ? mapClientRowToResult(data as ClientRow) : null
+}
+
+/**
+ * Busca clientes por una parte de su nombre, sin distinguir mayúsculas.
+ */
+export async function searchClientsByName(query: string): Promise<ClientListResult[]> {
+	const normalizedQuery = query.trim()
+	if (!normalizedQuery) return []
+
+	const supabase = await createSupabaseClient()
+	const { data, error } = await supabase
+		.from('clients')
+		.select('id, full_name, phone, address, created_at')
+		.ilike('full_name', `%${normalizedQuery}%`)
+		.order('created_at', { ascending: false })
+
+	if (error) throw error
+	return ((data ?? []) as ClientRow[]).map(mapClientRowToResult)
+}

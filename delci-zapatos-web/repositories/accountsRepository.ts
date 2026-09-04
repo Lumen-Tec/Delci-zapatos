@@ -1,14 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
+import type { DbAccountInsert } from '@/types/database'
+import { computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom, getNoPendingPaymentDate, isNoPendingPaymentDate, todayISO } from '@/utils/accountUtils'
 import type {
-    DbAccountStatus,
-    DbAccountInsert,
-} from '@/types/database'
-import { computeStatus, getNearestUpcomingPaymentDate, getNextPaymentDateFrom, todayISO } from '@/utils/accountUtils'
-import type {
-    AccountDetailsItemResult,
+    AccountChargeResult,
     AccountDetailsResult,
     AccountDetailsRow,
     AccountListResult,
+    AccountListQuery,
     AccountPaymentResult,
     AccountsListRow,
     ClientDetailRelation,
@@ -17,8 +15,8 @@ import type {
     PatchAccountDbInput,
     PatchAccountInput,
     PatchAccountResult,
+    PaginatedAccountsResult,
 } from '@/types/accountsRepository'
-import { STATUS_DB_TO_FRONTEND, STATUS_FRONTEND_TO_DB } from '@/types/database'
 
 const MONEY_SCALE = 100
 
@@ -30,345 +28,212 @@ function fromMoneyCents(value: number): number {
     return value / MONEY_SCALE
 }
 
-type AccountTotals = {
-    totalAmount: number
-    totalPaid: number
-    remainingAmount: number
-    totalProducts: number
-}
+type AccountTotals = { totalAmount: number; totalPaid: number; remainingAmount: number; totalCharges: number }
 
-/**
- * Normaliza el nombre de cliente para relaciones de Supabase.
- * Dependiendo del join inferido puede venir como objeto, arreglo o null.
- */
 function getClientName(clients: ClientListRelation | ClientDetailRelation): string {
-    if (Array.isArray(clients)) return clients[0]?.full_name ?? 'Cliente'
-    return clients?.full_name ?? 'Cliente'
+    return Array.isArray(clients) ? clients[0]?.full_name ?? 'Cliente' : clients?.full_name ?? 'Cliente'
 }
 
-function getClientDetailData(clients: ClientDetailRelation): {
-    clientName: string
-    clientPhone: string
-    clientAddress: string
-} {
+function getClientPhone(clients: ClientListRelation): string {
     const client = Array.isArray(clients) ? clients[0] : clients
-
-    return {
-        clientName: client?.full_name ?? 'Cliente',
-        clientPhone: client?.phone ?? '',
-        clientAddress: client?.address ?? '',
-    }
+    return client?.phone ?? ''
 }
 
-/**
- * Centraliza el cálculo de totales para evitar duplicación entre listados y detalle.
- */
+function getClientDetailData(clients: ClientDetailRelation) {
+    const client = Array.isArray(clients) ? clients[0] : clients
+    return { clientName: client?.full_name ?? 'Cliente', clientPhone: client?.phone ?? '', clientAddress: client?.address ?? '' }
+}
+
 function calculateAccountTotals(
     initialBalance: number,
-    accountItems: Array<{ quantity: number; unit_price: number }>,
+    accountCharges: Array<{ amount: number }>,
     accountPayments: Array<{ amount: number }>,
 ): AccountTotals {
     const initialBalanceCents = toMoneyCents(initialBalance)
-    const itemsTotalCents = accountItems.reduce((sum, item) => {
-        return sum + item.quantity * toMoneyCents(item.unit_price)
-    }, 0)
-    const totalPaidCents = accountPayments.reduce((sum, payment) => {
-        return sum + toMoneyCents(payment.amount)
-    }, 0)
-
-    const totalAmountCents = initialBalanceCents + itemsTotalCents
-    const remainingAmountCents = totalAmountCents - totalPaidCents
-
-    const totalAmount = fromMoneyCents(totalAmountCents)
-    const totalPaid = fromMoneyCents(totalPaidCents)
-    const totalProducts = accountItems.reduce((sum, item) => sum + item.quantity, 0)
+    const chargesTotalCents = accountCharges.reduce((sum, charge) => sum + toMoneyCents(charge.amount), 0)
+    const totalPaidCents = accountPayments.reduce((sum, payment) => sum + toMoneyCents(payment.amount), 0)
+    const totalAmountCents = initialBalanceCents + chargesTotalCents
 
     return {
-        totalAmount,
-        totalPaid,
-        remainingAmount: fromMoneyCents(remainingAmountCents),
-        totalProducts,
+        totalAmount: fromMoneyCents(totalAmountCents),
+        totalPaid: fromMoneyCents(totalPaidCents),
+        remainingAmount: fromMoneyCents(totalAmountCents - totalPaidCents),
+        totalCharges: accountCharges.length,
     }
 }
 
 function mapPatchAccountToDbInput(data: PatchAccountInput): PatchAccountDbInput {
     const update: PatchAccountDbInput = {}
-
     if (data.initialBalance !== undefined) update.initial_balance = data.initialBalance
     if (data.quincenalAmount !== undefined) update.quincenal_amount = data.quincenalAmount
     if (data.detail !== undefined) update.detail = data.detail
     if (data.nextPaymentDate !== undefined) update.next_payment_date = data.nextPaymentDate
-    if (data.status !== undefined) update.status = STATUS_FRONTEND_TO_DB[data.status]
-
+    if (data.status !== undefined) update.status = data.status
     return update
 }
 
 function resolvePendingNextPaymentDate(
     payments: AccountPaymentResult[],
     fallbackCurrentNextPaymentDate: string,
-    deletedPaymentDateHint?: string,
+    options?: { advancePaymentSchedule?: boolean; resetNextPaymentToNearest?: boolean },
 ): string {
-    if (payments.length > 0) {
-        const latestPaymentDate = payments.reduce((latest, payment) => {
-            return payment.date > latest ? payment.date : latest
-        }, payments[0].date)
-
-        return getNextPaymentDateFrom(latestPaymentDate)
-    }
-
-    if (deletedPaymentDateHint) {
-        return deletedPaymentDateHint
-    }
-
-    const today = todayISO()
-    if (!fallbackCurrentNextPaymentDate || fallbackCurrentNextPaymentDate < today) {
-        return getNearestUpcomingPaymentDate(today)
-    }
-
-    return fallbackCurrentNextPaymentDate
+    const currentDate = !fallbackCurrentNextPaymentDate || isNoPendingPaymentDate(fallbackCurrentNextPaymentDate)
+        ? getNearestUpcomingPaymentDate(todayISO())
+        : fallbackCurrentNextPaymentDate
+    if (options?.advancePaymentSchedule && payments.length > 0) return getNextPaymentDateFrom(currentDate)
+    if (options?.resetNextPaymentToNearest) return getNearestUpcomingPaymentDate(todayISO())
+    return currentDate
 }
 
-/**
- * Crea una cuenta nueva con status inicial activa.
- */
 export async function createAccount(data: CreateAccountInput) {
     const supabase = await createClient()
-
     const insert: DbAccountInsert = {
         client_id: data.clientId,
         initial_balance: data.initialBalance,
         quincenal_amount: data.quincenalAmount,
         detail: data.detail,
         next_payment_date: data.nextPaymentDate,
-        status: 'activa',
+        status: data.initialBalance > 0 ? 'activa' : 'pagada',
     }
-
-    const { data: account, error } = await supabase
-        .from('accounts')
-        .insert(insert)
-        .select('id')
-        .single()
-
+    const { data: account, error } = await supabase.from('accounts').insert(insert).select('id').single()
     if (error) throw error
     return account
 }
 
-/**
- * Actualiza parcialmente una cuenta.
- * Solo persiste los campos enviados y retorna null si la cuenta no existe.
- */
 export async function patchAccountById(id: string, data: PatchAccountInput): Promise<PatchAccountResult> {
     const supabase = await createClient()
-
     const { data: baseAccount, error: baseAccountError } = await supabase
         .from('accounts')
-        .select(`
-            id,
-            initial_balance,
-            account_items ( quantity, unit_price ),
-            account_payments ( amount )
-        `)
+        .select('id, initial_balance, account_charges ( amount ), account_payments ( amount )')
         .eq('id', id)
         .maybeSingle()
 
     if (baseAccountError) throw baseAccountError
     if (!baseAccount) return { ok: false, reason: 'not_found' }
 
-    if (data.status === 'pagada') {
-        const totals = calculateAccountTotals(
-            data.initialBalance ?? baseAccount.initial_balance,
-            baseAccount.account_items ?? [],
-            baseAccount.account_payments ?? [],
-        )
+    if (data.initialBalance !== undefined && (baseAccount.account_payments?.length ?? 0) > 0) {
+        return { ok: false, reason: 'initial_balance_locked_after_payments' }
+    }
 
+    if (data.status === 'pagada') {
+        const totals = calculateAccountTotals(data.initialBalance ?? baseAccount.initial_balance, baseAccount.account_charges ?? [], baseAccount.account_payments ?? [])
         if (toMoneyCents(totals.totalAmount) !== toMoneyCents(totals.totalPaid)) {
-            return {
-                ok: false,
-                reason: 'status_requires_full_payment',
-                totalAmount: totals.totalAmount,
-                totalPaid: totals.totalPaid,
-            }
+            return { ok: false, reason: 'status_requires_full_payment', totalAmount: totals.totalAmount, totalPaid: totals.totalPaid }
         }
     }
 
-    const update = mapPatchAccountToDbInput(data)
-
-    const { data: updated, error } = await supabase
-        .from('accounts')
-        .update(update)
-        .eq('id', id)
-        .select('id')
-        .maybeSingle()
-
+    const { data: updated, error } = await supabase.from('accounts').update(mapPatchAccountToDbInput(data)).eq('id', id).select('id').maybeSingle()
     if (error) throw error
-    if (!updated) return { ok: false, reason: 'not_found' }
-
-    return { ok: true, accountId: updated.id }
+    return updated ? { ok: true, accountId: updated.id } : { ok: false, reason: 'not_found' }
 }
 
-/**
- * Recalcula y persiste estado/fecha de la cuenta tras operaciones de pago.
- */
-export async function reconcileAccountAfterPayment(
-    accountId: string,
-    options?: { deletedPaymentDateHint?: string },
-): Promise<AccountDetailsResult> {
+/** Recalcula y persiste estado y próximo vencimiento tras cualquier movimiento. */
+export async function reconcileAccount(accountId: string, options?: { advancePaymentSchedule?: boolean; resetNextPaymentToNearest?: boolean }): Promise<AccountDetailsResult> {
     const snapshot = await getAccountById(accountId)
-
     const nextPaymentDate = snapshot.remainingAmount > 0
-        ? resolvePendingNextPaymentDate(
-            snapshot.payments,
-            snapshot.nextPaymentDate,
-            options?.deletedPaymentDateHint,
-        )
-        : (snapshot.lastPaymentDate ?? snapshot.nextPaymentDate)
-
+        ? resolvePendingNextPaymentDate(snapshot.payments, snapshot.nextPaymentDate, options)
+        : getNoPendingPaymentDate()
     const status = computeStatus(snapshot.remainingAmount, nextPaymentDate)
-    const needsUpdate = snapshot.status !== status || snapshot.nextPaymentDate !== nextPaymentDate
 
-    if (!needsUpdate) {
-        return snapshot
+    const supabase = await createClient()
+    const { data: storedAccount, error } = await supabase.from('accounts').select('status, next_payment_date').eq('id', accountId).maybeSingle()
+    if (error) throw error
+    if (!storedAccount) throw new Error(`Account ${accountId} was not found during reconciliation`)
+
+    if (storedAccount.status !== status || storedAccount.next_payment_date !== nextPaymentDate) {
+        const updated = await patchAccountById(accountId, { status, nextPaymentDate })
+        if (!updated.ok && updated.reason === 'status_requires_full_payment') return snapshot
     }
-
-    const updated = await patchAccountById(accountId, { status, nextPaymentDate })
-
-    if (!updated.ok && updated.reason === 'status_requires_full_payment') {
-        return snapshot
-    }
-
     return getAccountById(accountId)
 }
 
-/**
- * Obtiene el listado de cuentas para dashboard, incluyendo totales agregados.
- */
-export async function getAccounts(): Promise<AccountListResult[]> {
-    const supabase = await createClient()
+const ACCOUNT_LIST_FIELDS = 'id, client_id, initial_balance, quincenal_amount, detail, next_payment_date, status, created_at, clients ( full_name, phone ), account_charges ( amount ), account_payments ( amount )'
 
-    const { data, error } = await supabase
-        .from('accounts')
-        .select(`
-            id,
-            client_id,
-            initial_balance,
-            quincenal_amount,
-            detail,
-            next_payment_date,
-            status,
-            created_at,
-            clients ( full_name ),
-            account_items ( quantity, unit_price ),
-            account_payments ( amount )
-        `)
-        .order('created_at', { ascending: false })
-
-    if (error) throw error
-
-    const rows = (data ?? []) as AccountsListRow[]
-
-    return rows.map((row) => {
-        const totals = calculateAccountTotals(
-            row.initial_balance,
-            row.account_items ?? [],
-            row.account_payments ?? [],
-        )
-
-        return {
-            id: row.id,
-            clientId: row.client_id,
-            clientName: getClientName(row.clients),
-            createdAt: row.created_at,
-            totalAmount: totals.totalAmount,
-            totalPaid: totals.totalPaid,
-            remainingAmount: totals.remainingAmount,
-            totalProducts: totals.totalProducts,
-            status: computeStatus(totals.remainingAmount, row.next_payment_date),
-            nextPaymentDate: row.next_payment_date,
-            biweeklyAmount: row.quincenal_amount,
-        }
-    })
+function mapAccountListRow(row: AccountsListRow): AccountListResult {
+    const totals = calculateAccountTotals(row.initial_balance, row.account_charges ?? [], row.account_payments ?? [])
+    return {
+        id: row.id, clientId: row.client_id, clientName: getClientName(row.clients), clientPhone: getClientPhone(row.clients), createdAt: row.created_at,
+        ...totals, status: computeStatus(totals.remainingAmount, row.next_payment_date),
+        nextPaymentDate: row.next_payment_date, biweeklyAmount: row.quincenal_amount,
+    }
 }
 
-/**
- * Obtiene una cuenta por id con sus items y pagos para la vista de detalle.
- */
+async function getClientIdsBySearch(search: string): Promise<string[]> {
+    const supabase = await createClient()
+    const normalizedSearch = search.trim()
+    if (!normalizedSearch) return []
+
+    const { data: nameMatches, error: nameError } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('full_name', `%${normalizedSearch}%`)
+    if (nameError) throw nameError
+
+    const digits = normalizedSearch.replace(/\D/g, '')
+    if (!digits) return (nameMatches ?? []).map((client) => client.id)
+
+    const { data: phoneMatches, error: phoneError } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('phone', `%${digits}%`)
+    if (phoneError) throw phoneError
+
+    return [...new Set([...(nameMatches ?? []), ...(phoneMatches ?? [])].map((client) => client.id))]
+}
+
+/** Lista una página de cuentas y el total exacto que cumple los filtros. */
+export async function getAccountsPage(query: AccountListQuery): Promise<PaginatedAccountsResult> {
+    const supabase = await createClient()
+    const from = (query.page - 1) * query.pageSize
+    const to = from + query.pageSize - 1
+    const clientIds = query.clientSearch ? await getClientIdsBySearch(query.clientSearch) : undefined
+    if (clientIds && clientIds.length === 0) return { accounts: [], total: 0 }
+
+    let request = supabase
+        .from('accounts')
+        .select(ACCOUNT_LIST_FIELDS, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to)
+    if (clientIds) request = request.in('client_id', clientIds)
+    if (query.status) request = request.eq('status', query.status)
+    if (query.pendingFrom && query.pendingTo) request = request
+        .neq('status', 'pagada')
+        .gte('next_payment_date', query.pendingFrom)
+        .lte('next_payment_date', query.pendingTo)
+
+    const { data, error, count } = await request
+    if (error) throw error
+    return { accounts: ((data ?? []) as AccountsListRow[]).map(mapAccountListRow), total: count ?? 0 }
+}
+
+/** @deprecated Usa getAccountsPage para no cargar todas las cuentas. */
+export async function getAccounts(): Promise<AccountListResult[]> {
+    const result = await getAccountsPage({ page: 1, pageSize: 1_000 })
+    return result.accounts
+}
+
 export async function getAccountById(id: string): Promise<AccountDetailsResult> {
     const supabase = await createClient()
-
     const { data, error } = await supabase
         .from('accounts')
-        .select(`
-            id,
-            client_id,
-            initial_balance,
-            quincenal_amount,
-            detail,
-            next_payment_date,
-            status,
-            created_at,
-            clients ( full_name, phone, address ),
-            account_items (
-                id, product_id, product_size_id,
-                product_name, category, color, size,
-                quantity, unit_price, original_price, discount_pct
-            ),
-            account_payments ( id, amount, payment_date, created_at )
-        `)
+        .select('id, client_id, initial_balance, quincenal_amount, detail, next_payment_date, status, created_at, clients ( full_name, phone, address ), account_charges ( id, description, amount, charge_date, created_at ), account_payments ( id, amount, payment_date, created_at )')
         .eq('id', id)
         .single()
-
     if (error) throw error
 
-    const details: AccountDetailsRow = data as AccountDetailsRow
-
-    const totals = calculateAccountTotals(
-        details.initial_balance,
-        details.account_items ?? [],
-        details.account_payments ?? [],
-    )
-
-    const payments: AccountPaymentResult[] = (details.account_payments ?? []).map((p) => ({
-        id: p.id,
-        date: p.payment_date,
-        amount: p.amount,
-        createdAt: p.created_at,
-    }))
-
-    const lastPayment = payments.length > 0
-        ? payments.slice().sort((a, b) => b.date.localeCompare(a.date))[0].date
-        : undefined
-
-    const items: AccountDetailsItemResult[] = (details.account_items ?? []).map((i) => ({
-        id: i.id,
-        productId: i.product_id,
-        name: i.product_name,
-        category: i.category,
-        ...(i.category === 'zapatos' ? { color: i.color ?? '', size: i.size ?? '' } : {}),
-        quantity: i.quantity,
-        unitPrice: i.unit_price,
-        originalPrice: i.original_price,
-        discountPercentage: i.discount_pct,
-    }))
-
-    const clientDetails = getClientDetailData(details.clients)
+    const details = data as AccountDetailsRow
+    const totals = calculateAccountTotals(details.initial_balance, details.account_charges ?? [], details.account_payments ?? [])
+    const payments: AccountPaymentResult[] = (details.account_payments ?? []).map((payment) => ({ id: payment.id, date: payment.payment_date, amount: payment.amount, createdAt: payment.created_at }))
+    const charges: AccountChargeResult[] = (details.account_charges ?? [])
+        .map((charge) => ({ id: charge.id, description: charge.description, amount: charge.amount, date: charge.charge_date, createdAt: charge.created_at }))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const lastPaymentDate = payments.reduce<string | undefined>((latest, payment) => !latest || payment.date > latest ? payment.date : latest, undefined)
+    const client = getClientDetailData(details.clients)
 
     return {
-        id: details.id,
-        clientId: details.client_id,
-        clientName: clientDetails.clientName,
-        clientPhone: clientDetails.clientPhone,
-        clientAddress: clientDetails.clientAddress,
-        createdAt: details.created_at,
-        totalAmount: totals.totalAmount,
-        totalPaid: totals.totalPaid,
-        remainingAmount: totals.remainingAmount,
-        totalProducts: totals.totalProducts,
+        id: details.id, clientId: details.client_id, ...client, createdAt: details.created_at, ...totals,
         status: computeStatus(totals.remainingAmount, details.next_payment_date),
-        nextPaymentDate: details.next_payment_date,
-        biweeklyAmount: details.quincenal_amount,
-        detail: details.detail,
-        lastPaymentDate: lastPayment,
-        items,
-        payments,
+        nextPaymentDate: details.next_payment_date, biweeklyAmount: details.quincenal_amount,
+        detail: details.detail, lastPaymentDate, charges, payments,
     }
 }

@@ -1,5 +1,5 @@
 
-import { createClient, getClientByPhone, getClients, updateClientById } from '@/repositories/clientsRepository'
+import { createClient, getClientByFullName, getClientByPhone, getClients, searchClientsByName, updateClientById } from '@/repositories/clientsRepository'
 import { getErrorMessage } from '@/utils/parsers/errors'
 import { normalizePhoneForStorage, validateAddress, validateClient, validateFullName, validatePhone } from '@/utils/clientUtils'
 
@@ -20,9 +20,10 @@ type UpdateClientRequestBody = {
  * GET /api/clients
  * Devuelve el listado completo de clientes.
  */
-export async function GET() {
+export async function GET(request: Request) {
 	try {
-		const clients = await getClients()
+		const name = new URL(request.url).searchParams.get('name')
+		const clients = name === null ? await getClients() : await searchClientsByName(name)
 		return Response.json({ ok: true, count: clients.length, clients })
 	} catch (error: unknown) {
 		return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
@@ -51,6 +52,14 @@ export async function POST(request: Request) {
 					errors: validation.errors 
 				},
 				{ status: 400 },
+			)
+		}
+
+		const existingClientByName = await getClientByFullName(body.fullName)
+		if (existingClientByName) {
+			return Response.json(
+				{ ok: false, error: 'Ya existe un cliente con este nombre', code: 'duplicate_name', clientId: existingClientByName.id },
+				{ status: 409 },
 			)
 		}
 

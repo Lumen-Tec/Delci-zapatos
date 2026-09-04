@@ -1,4 +1,4 @@
-// Servidor para conexión con supabase 
+// Servidor para conexión con supabase
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 

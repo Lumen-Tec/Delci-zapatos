@@ -1,5 +1,5 @@
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
-import { getAccountById } from '@/repositories/accountsRepository'
+import { getAccountById, reconcileAccount } from '@/repositories/accountsRepository'
 import type { DbAccountPaymentInsert } from '@/types/database'
 import type {
     CreatePaymentInput,
@@ -11,6 +11,7 @@ import type {
     PatchPaymentResult,
     PaymentResult,
     PaymentRow,
+    PaginatedPaymentsResult,
 } from '@/types/paymentsRepository'
 
 function mapPaymentRowToResult(row: PaymentRow): PaymentResult {
@@ -21,6 +22,21 @@ function mapPaymentRowToResult(row: PaymentRow): PaymentResult {
         paymentDate: row.payment_date,
         createdAt: row.created_at,
     }
+}
+
+/** Obtiene una página de pagos de una cuenta y su total exacto. */
+export async function getPaymentsPageByAccountId(accountId: string, page: number, pageSize: number): Promise<PaginatedPaymentsResult> {
+    const supabase = await createSupabaseClient()
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+    const { data, error, count } = await supabase
+        .from('account_payments')
+        .select('id, account_id, amount, payment_date, created_at', { count: 'exact' })
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+    if (error) throw error
+    return { payments: ((data ?? []) as PaymentRow[]).map(mapPaymentRowToResult), total: count ?? 0 }
 }
 
 /**
@@ -53,6 +69,7 @@ export async function createPayment(data: CreatePaymentInput): Promise<CreatePay
 
     if (error) throw error
 
+    await reconcileAccount(data.accountId, { advancePaymentSchedule: true })
     return { payment: mapPaymentRowToResult(payment as PaymentRow) }
 }
 
@@ -101,6 +118,7 @@ export async function patchPayment(data: PatchPaymentInput): Promise<PatchPaymen
     if (updateError) throw updateError
     if (!updatedPayment) return { ok: false, reason: 'not_found' }
 
+    await reconcileAccount(existingPayment.account_id)
     return {
         ok: true,
         payment: mapPaymentRowToResult(updatedPayment as PaymentRow),
@@ -152,6 +170,7 @@ export async function deletePayment(data: DeletePaymentInput): Promise<DeletePay
     if (error) throw error
     if (!deletedPayment) return { ok: false, reason: 'not_found' }
 
+    await reconcileAccount(deletedPayment.account_id, { resetNextPaymentToNearest: true })
     return {
         ok: true,
         paymentId: deletedPayment.id,

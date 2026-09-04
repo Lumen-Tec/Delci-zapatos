@@ -1,5 +1,5 @@
-import { createPayment, deletePayment, patchPayment } from '@/repositories/paymentsRepository'
-import { getAccountById, reconcileAccountAfterPayment } from '@/repositories/accountsRepository'
+import { createPayment, deletePayment, getPaymentsPageByAccountId, patchPayment } from '@/repositories/paymentsRepository'
+import { getAccountById } from '@/repositories/accountsRepository'
 import { getErrorMessage } from '@/utils/parsers/errors'
 
 type CreatePaymentRequestBody = {
@@ -26,6 +26,27 @@ function isValidISODate(value: string): boolean {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
     const date = new Date(`${value}T00:00:00`)
     return !Number.isNaN(date.getTime())
+}
+
+/** GET /api/payments?accountId=...&page=1&pageSize=10 */
+export async function GET(request: Request) {
+    try {
+        const searchParams = new URL(request.url).searchParams
+        const accountId = searchParams.get('accountId')?.trim()
+        if (!accountId) return Response.json({ ok: false, error: 'accountId es requerido' }, { status: 400 })
+
+        const page = getPositiveInt(searchParams.get('page'), 1)
+        const pageSize = Math.min(getPositiveInt(searchParams.get('pageSize'), 10), 100)
+        const result = await getPaymentsPageByAccountId(accountId, page, pageSize)
+        return Response.json({ ok: true, payments: result.payments, total: result.total, page, pageSize, totalPages: Math.ceil(result.total / pageSize) })
+    } catch (error: unknown) {
+        return Response.json({ ok: false, error: getErrorMessage(error) }, { status: 500 })
+    }
+}
+
+function getPositiveInt(value: string | null, fallback: number): number {
+    const parsed = Number(value)
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
 /**
@@ -79,7 +100,7 @@ export async function POST(request: Request) {
             )
         }
 
-        const reconciledAccount = await reconcileAccountAfterPayment(body.accountId)
+        const reconciledAccount = await getAccountById(body.accountId)
 
         return Response.json({ ok: true, created, account: reconciledAccount }, { status: 201 })
     } catch (error: unknown) {
@@ -152,7 +173,7 @@ export async function PATCH(request: Request) {
             )
         }
 
-        const reconciledAccount = await reconcileAccountAfterPayment(updated.payment.accountId)
+        const reconciledAccount = await getAccountById(updated.payment.accountId)
 
         return Response.json({ ok: true, updated: updated.payment, account: reconciledAccount })
     } catch (error: unknown) {
@@ -197,9 +218,7 @@ export async function DELETE(request: Request) {
             )
         }
 
-        const reconciledAccount = await reconcileAccountAfterPayment(deleted.accountId, {
-            deletedPaymentDateHint: deleted.paymentDate,
-        })
+        const reconciledAccount = await getAccountById(deleted.accountId)
 
         return Response.json({ ok: true, deleted, account: reconciledAccount })
     } catch (error: unknown) {

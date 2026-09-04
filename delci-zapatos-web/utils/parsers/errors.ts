@@ -1,3 +1,7 @@
 export function getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : 'Error interno del servidor'
+    if (error instanceof Error && error.message) return error.message
+    if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+        return error.message
+    }
+    return 'Ocurrió un error inesperado'
 }

@@ -17,6 +17,7 @@ export type PaymentResult = {
     paymentDate: string
     createdAt: string
 }
+export type PaginatedPaymentsResult = { payments: PaymentResult[]; total: number }
 
 export type CreatePaymentResult = {
     payment: PaymentResult
