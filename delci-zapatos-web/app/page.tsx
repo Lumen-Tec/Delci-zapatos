@@ -1,5 +1,6 @@
-import { AccountsDashboard } from '@/components/dashboard/accounts-dashboard'
+import { Suspense } from 'react'
+import { AccountsDashboard, AccountsDashboardLoading } from '@/components/dashboard/accounts-dashboard'
 
 export default function Home() {
-  return <AccountsDashboard />
+  return <Suspense fallback={<AccountsDashboardLoading />}><AccountsDashboard /></Suspense>
 }

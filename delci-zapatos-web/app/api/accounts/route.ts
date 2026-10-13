@@ -93,11 +93,14 @@ function validateCreateAccountBody(body: CreateAccountRequestBody): string | nul
     if (typeof body.clientId !== 'string' || !body.clientId.trim()) {
         return 'clientId es requerido'
     }
-    if (typeof body.quincenalAmount !== 'number' || body.quincenalAmount <= 0) {
-        return 'quincenalAmount debe ser un numero mayor a 0'
+    if (typeof body.quincenalAmount !== 'number' || !Number.isFinite(body.quincenalAmount) || body.quincenalAmount < 0) {
+        return 'quincenalAmount debe ser un numero mayor o igual a 0'
     }
-    if (body.initialBalance !== undefined && (typeof body.initialBalance !== 'number' || body.initialBalance < 0)) {
+    if (body.initialBalance !== undefined && (typeof body.initialBalance !== 'number' || !Number.isFinite(body.initialBalance) || body.initialBalance < 0)) {
         return 'initialBalance debe ser un numero mayor o igual a 0'
+    }
+    if ((body.initialBalance ?? 0) > 0 && body.quincenalAmount === 0) {
+        return 'quincenalAmount debe ser un numero mayor a 0 cuando initialBalance es mayor a 0'
     }
     if (body.detail !== undefined && typeof body.detail !== 'string') {
         return 'detail debe ser string'
@@ -153,7 +156,7 @@ export async function PATCH(request: Request) {
         }
 
         if (!updated.ok && updated.reason === 'initial_balance_locked_after_payments') {
-            return Response.json({ ok: false, error: 'No se puede modificar el saldo inicial después de registrar pagos. Para reducir el total, elimina o corrige un cargo.' }, { status: 409 })
+            return Response.json({ ok: false, error: 'No se puede modificar el saldo después de registrar pagos. Para reducir el total, elimina o corrige un cargo.' }, { status: 409 })
         }
 
         const account = await getAccountById(body.id)

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown, CircleAlert, Eye, Filter, LoaderCircle, Plus, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -39,15 +39,32 @@ function formatPhone(phone: string): string {
     return digits.length === 8 ? `+506 ${digits.slice(0, 4)}-${digits.slice(4)}` : phone
 }
 
+function updateDashboardParams(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(window.location.search)
+    for (const [key, value] of Object.entries(updates)) {
+        if (value === null) params.delete(key)
+        else params.set(key, value)
+    }
+    const queryString = params.toString()
+    window.history.replaceState(null, '', queryString ? `/?${queryString}` : '/')
+}
+
+export function AccountsDashboardLoading() {
+    return <main className="min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 px-4 py-6 sm:px-6 sm:py-8"><div className="mx-auto max-w-7xl"><div className="h-9 w-48 animate-pulse rounded bg-pink-200" /><div className="mt-6 h-96 animate-pulse rounded-xl bg-card" /></div></main>
+}
+
 export function AccountsDashboard() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [accounts, setAccounts] = useState<DashboardAccount[]>([])
     const [totalAccounts, setTotalAccounts] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
-    const [query, setQuery] = useState('')
-    const [status, setStatus] = useState<StatusFilter>('todos')
-    const [onlyPendingPayments, setOnlyPendingPayments] = useState(false)
-    const [page, setPage] = useState(1)
+    const query = searchParams.get('search') ?? ''
+    const statusParam = searchParams.get('status')
+    const status: StatusFilter = statusParam && ['activa', 'pagada', 'atrasada'].includes(statusParam) ? statusParam as AccountStatus : 'todos'
+    const onlyPendingPayments = searchParams.get('pending') === 'true'
+    const pageParam = Number(searchParams.get('page'))
+    const page = Number.isSafeInteger(pageParam) && pageParam > 0 ? pageParam : 1
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [openingAccountId, setOpeningAccountId] = useState<string | null>(null)
@@ -58,7 +75,8 @@ export function AccountsDashboard() {
             const response = await fetch('/api/accounts/selected', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountId }) })
             const body = await response.json() as { ok: boolean; error?: string }
             if (!response.ok || !body.ok) throw new Error(body.error ?? 'No se pudo abrir la cuenta.')
-            router.push('/cuentas/detalle')
+            const listingParams = searchParams.toString()
+            router.push(listingParams ? `/cuentas/detalle?${listingParams}` : '/cuentas/detalle')
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'No se pudo abrir la cuenta.')
         } finally {
@@ -67,6 +85,8 @@ export function AccountsDashboard() {
     }
 
     useEffect(() => {
+        const controller = new AbortController()
+        let correctingPage = false
         async function loadAccounts() {
             setLoading(true)
             setError(null)
@@ -75,19 +95,27 @@ export function AccountsDashboard() {
                 if (query.trim()) params.set('search', query.trim())
                 if (status !== 'todos') params.set('status', status)
                 if (onlyPendingPayments) params.set('pending', 'true')
-                const response = await fetch(`/api/accounts?${params}`)
+                const response = await fetch(`/api/accounts?${params}`, { signal: controller.signal })
                 const body = await response.json() as AccountsResponse
+                if (controller.signal.aborted) return
                 if (!response.ok || !body.ok) throw new Error(body.error ?? 'No se pudieron cargar las cuentas')
+                const nextTotalPages = Math.max(1, body.totalPages ?? 1)
+                if (page > nextTotalPages) {
+                    updateDashboardParams({ page: nextTotalPages > 1 ? String(nextTotalPages) : null })
+                    correctingPage = true
+                    return
+                }
                 setAccounts(body.accounts ?? [])
                 setTotalAccounts(body.total ?? 0)
-                setTotalPages(Math.max(1, body.totalPages ?? 1))
+                setTotalPages(nextTotalPages)
             } catch (caughtError) {
-                setError(caughtError instanceof Error ? caughtError.message : 'No se pudieron cargar las cuentas')
+                if (!controller.signal.aborted) setError(caughtError instanceof Error ? caughtError.message : 'No se pudieron cargar las cuentas')
             } finally {
-                setLoading(false)
+                if (!controller.signal.aborted && !correctingPage) setLoading(false)
             }
         }
         void loadAccounts()
+        return () => controller.abort()
     }, [onlyPendingPayments, page, query, status])
 
     const currentPage = Math.min(page, totalPages)
@@ -110,13 +138,13 @@ export function AccountsDashboard() {
                     <div className="flex flex-col gap-3 border-b p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="relative w-full lg:max-w-md">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} className="pl-9" placeholder="Cliente o teléfono" aria-label="Buscar cuentas" />
+                            <Input value={query} onChange={(event) => updateDashboardParams({ search: event.target.value || null, page: null })} className="pl-9" placeholder="Cliente o teléfono" aria-label="Buscar cuentas" />
                         </div>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <StatusFilter status={status} onChange={(nextStatus) => { setStatus(nextStatus); setPage(1) }} />
+                            <StatusFilter status={status} onChange={(nextStatus) => updateDashboardParams({ status: nextStatus === 'todos' ? null : nextStatus, page: null })} />
                             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground sm:border-0 sm:px-0 sm:py-0">
                                 Próximos pagos pendientes
-                                <Switch checked={onlyPendingPayments} onCheckedChange={(checked) => { setOnlyPendingPayments(checked); setPage(1) }} />
+                                <Switch checked={onlyPendingPayments} onCheckedChange={(checked) => updateDashboardParams({ pending: checked ? 'true' : null, page: null })} />
                             </label>
                         </div>
                     </div>
@@ -139,7 +167,7 @@ export function AccountsDashboard() {
                         </div>
                         {!loading && <footer className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                             <span className="text-center text-sm text-muted-foreground sm:text-left">{totalAccounts} {totalAccounts === 1 ? 'cuenta encontrada' : 'cuentas encontradas'}</span>
-                            <DashboardPagination currentPage={currentPage} totalPages={totalPages} onChange={setPage} />
+                            <DashboardPagination currentPage={currentPage} totalPages={totalPages} onChange={(nextPage) => updateDashboardParams({ page: nextPage > 1 ? String(nextPage) : null })} />
                         </footer>}
                     </>}
                 </section>

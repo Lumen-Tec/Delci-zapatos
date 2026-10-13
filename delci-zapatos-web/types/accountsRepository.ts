@@ -31,6 +31,6 @@ export type AccountListQuery = {
 }
 export type PaginatedAccountsResult = { accounts: AccountListResult[]; total: number }
 export type AccountDetailsResult = AccountListResult & {
-    clientPhone: string; clientAddress: string; detail: string | null; lastPaymentDate?: string
+    initialBalance: number; clientPhone: string; clientAddress: string; detail: string | null; lastPaymentDate?: string
     charges: AccountChargeResult[]; payments: AccountPaymentResult[]
 }

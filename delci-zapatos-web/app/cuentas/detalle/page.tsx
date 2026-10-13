@@ -1,5 +1,6 @@
-import { AccountDetails } from '@/components/accounts/account-details'
+import { Suspense } from 'react'
+import { AccountDetails, AccountDetailsLoading } from '@/components/accounts/account-details'
 
 export default function AccountDetailsPage() {
-    return <AccountDetails />
+    return <Suspense fallback={<AccountDetailsLoading />}><AccountDetails /></Suspense>
 }

@@ -202,6 +202,11 @@ export async function getAccountsPage(query: AccountListQuery): Promise<Paginate
         .lte('next_payment_date', query.pendingTo)
 
     const { data, error, count } = await request
+    if (error?.code === 'PGRST103') {
+        const { count: total, error: countError } = await request.range(0, 0)
+        if (countError) throw countError
+        return { accounts: [], total: total ?? 0 }
+    }
     if (error) throw error
     return { accounts: ((data ?? []) as AccountsListRow[]).map(mapAccountListRow), total: count ?? 0 }
 }
@@ -222,7 +227,8 @@ export async function getAccountById(id: string): Promise<AccountDetailsResult> 
     if (error) throw error
 
     const details = data as AccountDetailsRow
-    const totals = calculateAccountTotals(details.initial_balance, details.account_charges ?? [], details.account_payments ?? [])
+    const initialBalance = details.initial_balance ?? 0
+    const totals = calculateAccountTotals(initialBalance, details.account_charges ?? [], details.account_payments ?? [])
     const payments: AccountPaymentResult[] = (details.account_payments ?? []).map((payment) => ({ id: payment.id, date: payment.payment_date, amount: payment.amount, createdAt: payment.created_at }))
     const charges: AccountChargeResult[] = (details.account_charges ?? [])
         .map((charge) => ({ id: charge.id, description: charge.description, amount: charge.amount, date: charge.charge_date, createdAt: charge.created_at }))
@@ -231,7 +237,7 @@ export async function getAccountById(id: string): Promise<AccountDetailsResult> 
     const client = getClientDetailData(details.clients)
 
     return {
-        id: details.id, clientId: details.client_id, ...client, createdAt: details.created_at, ...totals,
+        id: details.id, clientId: details.client_id, ...client, createdAt: details.created_at, initialBalance, ...totals,
         status: computeStatus(totals.remainingAmount, details.next_payment_date),
         nextPaymentDate: details.next_payment_date, biweeklyAmount: details.quincenal_amount,
         detail: details.detail, lastPaymentDate, charges, payments,

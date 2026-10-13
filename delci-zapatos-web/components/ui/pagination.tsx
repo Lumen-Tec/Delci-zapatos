@@ -15,16 +15,16 @@ function PaginationItem(props: ComponentProps<'li'>) {
     return <li data-slot="pagination-item" {...props} />
 }
 
-function PaginationButton({ className, isActive, ...props }: ComponentProps<'button'> & { isActive?: boolean }) {
-    return <button className={cn(buttonVariants({ variant: isActive ? 'outline' : 'ghost', size: 'icon-sm' }), isActive && 'bg-muted', className)} {...props} />
+function PaginationButton({ className, isActive, size = 'icon-sm', ...props }: ComponentProps<'button'> & { isActive?: boolean; size?: 'icon-sm' | 'sm' }) {
+    return <button aria-current={isActive ? 'page' : undefined} className={cn(buttonVariants({ variant: isActive ? 'outline' : 'ghost', size }), isActive && 'bg-muted', className)} {...props} />
 }
 
 function PaginationPrevious(props: ComponentProps<'button'>) {
-    return <PaginationButton aria-label="Página anterior" {...props}><ChevronLeft /></PaginationButton>
+    return <PaginationButton size="sm" aria-label="Página anterior" {...props}><ChevronLeft aria-hidden="true" data-icon="inline-start" /><span>Anterior</span></PaginationButton>
 }
 
 function PaginationNext(props: ComponentProps<'button'>) {
-    return <PaginationButton aria-label="Página siguiente" {...props}><ChevronRight /></PaginationButton>
+    return <PaginationButton size="sm" aria-label="Página siguiente" {...props}><span>Siguiente</span><ChevronRight aria-hidden="true" data-icon="inline-end" /></PaginationButton>
 }
 
 function PaginationEllipsis() {
