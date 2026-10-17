@@ -8,8 +8,8 @@ import { AmountInput } from '@/components/ui/amount-input'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
-import { showError, showSuccess } from '@/lib/sweet-alert'
 import type { AccountDetailsResult, PatchAccountInput } from '@/types/accountsRepository'
 
 type Account = Pick<AccountDetailsResult, 'id' | 'clientId' | 'clientName' | 'clientPhone' | 'clientAddress' | 'detail' | 'initialBalance' | 'biweeklyAmount'>
@@ -89,9 +89,9 @@ export function AccountManagement({ account, charges, payments, hasPayments, cha
                     : editor.kind === 'charge'
                         ? editor.item ? 'El cargo fue actualizado.' : 'El cargo fue registrado.'
                         : editor.item ? 'El pago fue actualizado.' : 'El pago fue registrado.'
-            void showSuccess(successMessage)
+            toast.add({ type: 'success', title: successMessage })
             onChanged()
-        } catch (error) { void showError(error instanceof Error ? error.message : 'No se pudo guardar el cambio.') } finally { setBusy(false) }
+        } catch (error) { toast.add({ type: 'error', title: error instanceof Error ? error.message : 'No se pudo guardar el cambio.' }) } finally { setBusy(false) }
     }
 
     async function remove() {
@@ -101,9 +101,9 @@ export function AccountManagement({ account, charges, payments, hasPayments, cha
             const url = deleting.kind === 'charge' ? `/api/charges?chargeId=${deleting.id}` : `/api/payments?paymentId=${deleting.id}`
             await send(url, 'DELETE')
             setDeleting(null)
-            void showSuccess(deleting.kind === 'charge' ? 'El cargo fue eliminado y el saldo fue actualizado.' : 'El pago fue eliminado y el saldo fue actualizado.')
+            toast.add({ type: 'success', title: deleting.kind === 'charge' ? 'El cargo fue eliminado y el saldo fue actualizado.' : 'El pago fue eliminado y el saldo fue actualizado.' })
             onChanged()
-        } catch (error) { void showError(error instanceof Error ? error.message : 'No se pudo eliminar el movimiento.') } finally { setBusy(false) }
+        } catch (error) { toast.add({ type: 'error', title: error instanceof Error ? error.message : 'No se pudo eliminar el movimiento.' }) } finally { setBusy(false) }
     }
 
     async function notifyLatestPayment() {
@@ -113,8 +113,8 @@ export function AccountManagement({ account, charges, payments, hasPayments, cha
             const result = await response.json() as { ok: boolean; error?: string; waUrl?: string }
             if (!response.ok || !result.ok || !result.waUrl) throw new Error(result.error ?? 'No se pudo preparar la notificación.')
             window.open(result.waUrl, '_blank', 'noopener,noreferrer')
-            void showSuccess('La notificación se abrió en WhatsApp.')
-        } catch (error) { void showError(error instanceof Error ? error.message : 'No se pudo enviar la notificación.') } finally { setNotifying(false) }
+            toast.add({ type: 'success', title: 'La notificación se abrió en WhatsApp.' })
+        } catch (error) { toast.add({ type: 'error', title: error instanceof Error ? error.message : 'No se pudo enviar la notificación.' }) } finally { setNotifying(false) }
     }
 
     return <section className="mt-5 space-y-5">

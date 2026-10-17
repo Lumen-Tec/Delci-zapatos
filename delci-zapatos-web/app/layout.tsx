@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import { Suspense } from "react";
 import { AccessibilityControls } from "@/components/accessibility-controls";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -31,9 +32,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${nunito.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <AccessibilityControls />
-        <Suspense fallback={null}><ScrollToTop /></Suspense>
+        <Toaster timeout={3000}>
+          {children}
+          <AccessibilityControls />
+          <Suspense fallback={null}><ScrollToTop /></Suspense>
+        </Toaster>
       </body>
     </html>
   );

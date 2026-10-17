@@ -8,8 +8,8 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { AmountInput } from '@/components/ui/amount-input'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
-import { showError } from '@/lib/sweet-alert'
 
 type FormData = { fullName: string; phone: string; address: string; initialBalance: string; quincenalAmount: string; initialPayment: string; detail: string; chargeDescription: string; chargeAmount: string; chargeDate: string }
 type ApiResponse = { ok: boolean; error?: string; created?: { id: string } }
@@ -65,7 +65,7 @@ export function CreateAccountForm() {
     function review(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
         const validationError = validate()
-        if (validationError) return void showError(validationError)
+        if (validationError) return void toast.add({ type: 'error', title: validationError })
         setConfirmOpen(true)
     }
 
@@ -78,7 +78,7 @@ export function CreateAccountForm() {
 
     async function createAccount() {
         const validationError = validate()
-        if (validationError) return void showError(validationError)
+        if (validationError) return void toast.add({ type: 'error', title: validationError })
         setSubmitting(true)
         try {
             const phoneForStorage = form.phone.replace(/\D/g, '')
@@ -101,7 +101,7 @@ export function CreateAccountForm() {
             setConfirmOpen(false)
             setCreatedAccountId(accountId)
         } catch (error) {
-            void showError(error instanceof Error ? error.message : 'No se pudo crear la cuenta.')
+            toast.add({ type: 'error', title: error instanceof Error ? error.message : 'No se pudo crear la cuenta.' })
         } finally {
             setSubmitting(false)
         }
@@ -115,7 +115,7 @@ export function CreateAccountForm() {
             if (!response.ok || !body.ok) throw new Error(body.error ?? 'No se pudo abrir la cuenta.')
             router.push('/cuentas/detalle')
         } catch (error) {
-            void showError(error instanceof Error ? error.message : 'No se pudo abrir la cuenta.')
+            toast.add({ type: 'error', title: error instanceof Error ? error.message : 'No se pudo abrir la cuenta.' })
         }
     }
 
