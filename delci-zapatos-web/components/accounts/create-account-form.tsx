@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog } from '@base-ui/react/dialog'
-import { CheckCircle2, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, LoaderCircle } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { AmountInput } from '@/components/ui/amount-input'
 import { Input } from '@/components/ui/input'
@@ -121,6 +122,7 @@ export function CreateAccountForm() {
 
     return <main className="relative min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 px-4 py-6 pb-28 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-2xl">
+            <Link href="/" className={cn(buttonVariants({ variant: 'outline' }), 'mb-5 h-9')}><ArrowLeft data-icon="inline-start" /> Volver a cuentas</Link>
             <header className="mb-6"><h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Crear cuenta de crédito</h1><p className="mt-2 text-sm text-muted-foreground">Registra al cliente y configura su cuenta.</p></header>
 
             <form onSubmit={review} className="space-y-5">
