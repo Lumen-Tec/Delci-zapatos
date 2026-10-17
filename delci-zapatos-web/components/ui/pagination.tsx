@@ -8,7 +8,7 @@ function Pagination({ className, ...props }: ComponentProps<'nav'>) {
 }
 
 function PaginationContent({ className, ...props }: ComponentProps<'ul'>) {
-    return <ul data-slot="pagination-content" className={cn('flex items-center gap-1', className)} {...props} />
+    return <ul data-slot="pagination-content" className={cn('flex flex-wrap items-center justify-center gap-1', className)} {...props} />
 }
 
 function PaginationItem(props: ComponentProps<'li'>) {
@@ -20,11 +20,11 @@ function PaginationButton({ className, isActive, size = 'icon-sm', ...props }: C
 }
 
 function PaginationPrevious(props: ComponentProps<'button'>) {
-    return <PaginationButton size="sm" aria-label="Página anterior" {...props}><ChevronLeft aria-hidden="true" data-icon="inline-start" /><span>Anterior</span></PaginationButton>
+    return <PaginationButton size="sm" aria-label="Página anterior" {...props}><ChevronLeft aria-hidden="true" data-icon="inline-start" /><span className="hidden sm:inline">Anterior</span></PaginationButton>
 }
 
 function PaginationNext(props: ComponentProps<'button'>) {
-    return <PaginationButton size="sm" aria-label="Página siguiente" {...props}><span>Siguiente</span><ChevronRight aria-hidden="true" data-icon="inline-end" /></PaginationButton>
+    return <PaginationButton size="sm" aria-label="Página siguiente" {...props}><span className="hidden sm:inline">Siguiente</span><ChevronRight aria-hidden="true" data-icon="inline-end" /></PaginationButton>
 }
 
 function PaginationEllipsis() {

@@ -122,7 +122,7 @@ export function AccountsDashboard() {
     const pageAccounts = accounts
 
     return (
-        <main className="relative min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
+        <main className="relative min-h-screen bg-gradient-to-br from-pink-100 via-pink-50 to-rose-100 px-4 py-6 pb-44 sm:px-6 sm:py-8 sm:pb-8">
             <div className="mx-auto max-w-7xl">
                 <header className="mb-6 flex items-center justify-between sm:mb-8">
                     <div>
@@ -165,7 +165,7 @@ export function AccountsDashboard() {
                                 </tbody>
                             </table>
                         </div>
-                        {!loading && <footer className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                        {!loading && <footer className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5">
                             <span className="text-center text-sm text-muted-foreground sm:text-left">{totalAccounts} {totalAccounts === 1 ? 'cuenta encontrada' : 'cuentas encontradas'}</span>
                             <DashboardPagination currentPage={currentPage} totalPages={totalPages} onChange={(nextPage) => updateDashboardParams({ page: nextPage > 1 ? String(nextPage) : null })} />
                         </footer>}
@@ -182,8 +182,8 @@ function StatusFilter({ status, onChange }: { status: StatusFilter; onChange: (s
     const label = status === 'todos' ? 'Todos los estados' : statusLabel[status]
     const options: StatusFilter[] = ['todos', 'activa', 'pagada', 'atrasada']
     return <div className="relative">
-        <Button variant="outline" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="w-full justify-between sm:w-[12rem]">
-            <span className="flex items-center gap-2"><Filter /> {label}</span><ChevronDown className={cn('shrink-0 transition-transform', open && 'rotate-180')} />
+        <Button variant="outline" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="h-auto min-h-9 w-full justify-between py-2 whitespace-normal sm:w-[12rem]">
+            <span className="flex min-w-0 items-center gap-2 text-left"><Filter /> {label}</span><ChevronDown className={cn('shrink-0 transition-transform', open && 'rotate-180')} />
         </Button>
         {open && <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border bg-popover p-1 shadow-lg">
             {options.map((option) => <button key={option} type="button" onClick={() => { onChange(option); setOpen(false) }} className={cn('flex w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-muted', option === status && 'bg-muted font-medium')}>
@@ -196,13 +196,13 @@ function StatusFilter({ status, onChange }: { status: StatusFilter; onChange: (s
 function AccountCard({ account, opening, onOpen }: { account: DashboardAccount; opening: boolean; onOpen: () => void }) {
     return <article className="border-b p-4 last:border-b-0">
         <div className="flex items-start justify-between gap-3"><div><p className="font-medium text-foreground">{account.clientName}</p><p className="mt-0.5 text-xs text-muted-foreground">{formatPhone(account.clientPhone)}</p></div><Badge variant={statusVariant[account.status]}>{statusLabel[account.status]}</Badge></div>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center"><MoneyMetric label="Pendiente" value={account.remainingAmount} emphasis /><MoneyMetric label="Total" value={account.totalAmount} /><MoneyMetric label="Pagado" value={account.totalPaid} /></div>
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,5.5rem),1fr))] gap-2 text-center"><MoneyMetric label="Pendiente" value={account.remainingAmount} emphasis /><MoneyMetric label="Total" value={account.totalAmount} /><MoneyMetric label="Pagado" value={account.totalPaid} /></div>
         <Button type="button" size="sm" className="mt-4 w-full shadow-sm hover:shadow-md" onClick={onOpen} disabled={opening}>{opening ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Eye data-icon="inline-start" />}{opening ? 'Abriendo...' : 'Ver detalle'}</Button>
     </article>
 }
 
 function MoneyMetric({ label, value, emphasis = false }: { label: string; value: number; emphasis?: boolean }) {
-    return <div><p className="text-[11px] text-muted-foreground">{label}</p><p className={cn('mt-1 text-xs tabular-nums text-muted-foreground', emphasis && 'font-semibold text-foreground')}>{formatCurrency(value)}</p></div>
+    return <div><p className="text-[0.6875rem] text-muted-foreground">{label}</p><p className={cn('mt-1 text-xs tabular-nums text-muted-foreground', emphasis && 'font-semibold text-foreground')}>{formatCurrency(value)}</p></div>
 }
 
 function AccountRow({ account, opening, onOpen }: { account: DashboardAccount; opening: boolean; onOpen: () => void }) {
